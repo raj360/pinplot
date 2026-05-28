@@ -8,8 +8,8 @@
 
 | ID | Task | Status | Notes |
 |----|------|--------|-------|
-| S3-04 | `FOR UPDATE` first-unlock-wins transaction | Pending | Start here — core unlock logic |
-| S3-06 | Reveal exact address + landlord phone after unlock | Pending | Depends on S3-04 |
+| S3-04 | `FOR UPDATE` first-unlock-wins transaction | Done | `POST /units/:id/unlock` |
+| S3-06 | Reveal exact address + landlord phone after unlock | Done | Building detail UnlockPanel |
 | S3-01 | Stripe Checkout for tenant unlock (20k UGX) | Pending | Cards / diaspora |
 | S3-02 | Flutterwave mobile money (UG) | Pending | MTN / Airtel |
 | S3-03 | Landlord pay-before-status-change (30k UGX) | Pending | Required before map listing |

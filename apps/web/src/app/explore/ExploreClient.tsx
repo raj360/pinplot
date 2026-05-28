@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { PlotPinMap } from "@/components/maps/PlotPinMap";
 import { BuildingDetailPanel } from "@/components/buildings/BuildingDetailPanel";
 import { AppHeader } from "@/components/layout/AppHeader";
@@ -28,17 +28,27 @@ async function loadBuildingsForCity(cityFilter: string) {
 
 export function ExploreClient() {
   const [mapVisible, setMapVisible] = useState(true);
-  const [buildings, setBuildings] = useState<BuildingSummary[]>([]);
+  const [allBuildings, setAllBuildings] = useState<BuildingSummary[]>([]);
+  const [mapFilterIds, setMapFilterIds] = useState<string[] | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [hoveredId, setHoveredId] = useState<string | null>(null);
   const [detail, setDetail] = useState<BuildingDetail | null>(null);
   const [detailRequestId, setDetailRequestId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [searching, setSearching] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [cityFilter, setCityFilter] = useState("");
+  const listRef = useRef<HTMLUListElement>(null);
+
+  const displayedBuildings = useMemo(() => {
+    if (!mapFilterIds?.length) return allBuildings;
+    const allowed = new Set(mapFilterIds);
+    return allBuildings.filter((b) => allowed.has(b.id));
+  }, [allBuildings, mapFilterIds]);
 
   const applySearchResults = useCallback((data: BuildingSummary[]) => {
-    setBuildings(data);
+    setAllBuildings(data);
+    setMapFilterIds(null);
     setSelectedId((prev) => {
       if (prev && data.some((b) => b.id === prev)) return prev;
       return data[0]?.id ?? null;
@@ -102,59 +112,75 @@ export function ExploreClient() {
     };
   }, [selectedId]);
 
-  const selectedSummary = buildings.find((b) => b.id === selectedId);
+  useEffect(() => {
+    if (!selectedId || !listRef.current) return;
+    const row = listRef.current.querySelector(`[data-building-id="${selectedId}"]`);
+    row?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  }, [selectedId, mapFilterIds]);
+
+  const handleClusterSelect = useCallback((ids: string[]) => {
+    setMapFilterIds(ids);
+    setSelectedId(ids[0] ?? null);
+  }, []);
+
+  const clearMapFilter = useCallback(() => {
+    setMapFilterIds(null);
+  }, []);
+
+  const selectedSummary = displayedBuildings.find((b) => b.id === selectedId);
   const detailLoading = Boolean(selectedId && detailRequestId !== selectedId);
   const showDetail =
     selectedId && detailRequestId === selectedId ? detail : null;
   const listLoading = loading || searching;
+  const isMapFiltered = Boolean(mapFilterIds?.length);
 
   return (
     <div className="flex min-h-screen flex-col">
       <AppHeader variant="wide" />
 
       <ContentBand width="wide" innerClassName="flex flex-wrap items-end gap-2 py-3">
-          <Input
-            label="Search area"
-            type="text"
-            value={cityFilter}
-            onChange={(e) => setCityFilter(e.target.value)}
-            placeholder="Kampala, Namuwongo..."
-            className="min-w-[160px]"
-          />
-          <Button
-            type="button"
-            onClick={runSearch}
-            loading={searching}
-            loadingLabel="Searching buildings"
-          >
-            Search
-          </Button>
-          <Button
-            type="button"
-            variant="ghost"
-            onClick={async () => {
-              setCityFilter("");
-              setSearching(true);
-              setError(null);
-              try {
-                applySearchResults(await loadBuildingsForCity(""));
-              } catch {
-                setError("Could not load buildings. Is the API running?");
-              } finally {
-                setSearching(false);
-              }
-            }}
-          >
-            Reset
-          </Button>
-          <Button
-            type="button"
-            variant="ghost"
-            className="ml-auto"
-            onClick={() => setMapVisible((v) => !v)}
-          >
-            {mapVisible ? "Hide map" : "Show map"}
-          </Button>
+        <Input
+          label="Search area"
+          type="text"
+          value={cityFilter}
+          onChange={(e) => setCityFilter(e.target.value)}
+          placeholder="Kampala, Namuwongo..."
+          className="min-w-[160px]"
+        />
+        <Button
+          type="button"
+          onClick={runSearch}
+          loading={searching}
+          loadingLabel="Searching buildings"
+        >
+          Search
+        </Button>
+        <Button
+          type="button"
+          variant="ghost"
+          onClick={async () => {
+            setCityFilter("");
+            setSearching(true);
+            setError(null);
+            try {
+              applySearchResults(await loadBuildingsForCity(""));
+            } catch {
+              setError("Could not load buildings. Is the API running?");
+            } finally {
+              setSearching(false);
+            }
+          }}
+        >
+          Reset
+        </Button>
+        <Button
+          type="button"
+          variant="ghost"
+          className="ml-auto"
+          onClick={() => setMapVisible((v) => !v)}
+        >
+          {mapVisible ? "Hide map" : "Show map"}
+        </Button>
       </ContentBand>
 
       {error && (
@@ -171,55 +197,96 @@ export function ExploreClient() {
         )}
       >
         <aside
-          className={`flex flex-col border-r border-border bg-surface ${
-            mapVisible ? "w-full max-w-md" : "w-full max-w-lg"
-          }`}
+          className={cn(
+            "flex min-h-0 flex-col border-r border-border bg-surface",
+            mapVisible ? "w-full max-w-md" : "w-full max-w-lg",
+          )}
         >
-          <div className="flex items-center justify-between border-b border-border px-4 py-3 text-sm">
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border px-4 py-3 text-sm">
             <span className="flex items-center gap-2">
-              <strong>All</strong>
+              <strong>{isMapFiltered ? "Map area" : "All"}</strong>
               {listLoading ? (
                 <Spinner className="size-3" label="Loading results" />
               ) : (
-                `${buildings.length} results`
+                `${displayedBuildings.length} result${displayedBuildings.length === 1 ? "" : "s"}`
               )}
             </span>
+            {isMapFiltered ? (
+              <button
+                type="button"
+                onClick={clearMapFilter}
+                className="text-xs text-primary hover:underline"
+              >
+                Show all {allBuildings.length}
+              </button>
+            ) : null}
           </div>
-          <ul className="flex-1 overflow-y-auto">
-            {buildings.map((building) => (
-              <li key={building.id}>
-                <button
-                  type="button"
-                  onClick={() => setSelectedId(building.id)}
-                  className={`w-full border-b border-border px-4 py-3 text-left hover:bg-background ${
-                    selectedId === building.id ? "bg-background" : ""
-                  }`}
-                >
-                  <p className="font-medium text-primary">{building.name}</p>
-                  <p className="text-sm text-muted">
-                    {[building.district, building.city].filter(Boolean).join(", ")}
-                  </p>
-                  <p className="mt-1 text-xs text-muted">
-                    {building.availableUnitCount} available · from{" "}
-                    {formatRentPerMonth(building.rentFrom)}
-                  </p>
-                </button>
-              </li>
-            ))}
-            {!listLoading && buildings.length === 0 && (
+
+          <ul ref={listRef} className="min-h-0 flex-1 overflow-y-auto">
+            {displayedBuildings.map((building) => {
+              const active = selectedId === building.id;
+              const hovered = hoveredId === building.id;
+
+              return (
+                <li key={building.id}>
+                  <button
+                    type="button"
+                    data-building-id={building.id}
+                    onClick={() => setSelectedId(building.id)}
+                    onMouseEnter={() => setHoveredId(building.id)}
+                    onMouseLeave={() => setHoveredId(null)}
+                    className={cn(
+                      "w-full border-b border-border px-4 py-3 text-left transition-colors",
+                      active && "border-l-2 border-l-primary bg-primary/5",
+                      !active && hovered && "bg-background",
+                      !active && !hovered && "hover:bg-background/60",
+                    )}
+                  >
+                    <p className="font-medium text-primary">{building.name}</p>
+                    <p className="text-sm text-muted">
+                      {[building.district, building.city]
+                        .filter(Boolean)
+                        .join(", ")}
+                    </p>
+                    <p className="mt-1 text-xs text-muted">
+                      {building.availableUnitCount} available · from{" "}
+                      {formatRentPerMonth(building.rentFrom)}
+                    </p>
+                  </button>
+                </li>
+              );
+            })}
+            {!listLoading && displayedBuildings.length === 0 && (
               <li className="px-4 py-8 text-sm text-muted">
-                No available units in this area.
+                {isMapFiltered
+                  ? "No listings at this map pin. Try another cluster or show all results."
+                  : "No available units in this area."}
               </li>
             )}
           </ul>
+
+          {mapVisible && selectedId ? (
+            <div className="max-h-[42%] shrink-0 overflow-y-auto border-t border-border bg-background p-4">
+              {detailLoading ? (
+                <LoadingState label="Loading building" compact />
+              ) : showDetail ? (
+                <BuildingDetailPanel building={showDetail} compact />
+              ) : selectedSummary ? (
+                <p className="text-sm text-muted">Could not load building details.</p>
+              ) : null}
+            </div>
+          ) : null}
         </aside>
 
         {mapVisible ? (
           <section className="relative hidden min-h-[420px] flex-1 md:block">
             <PlotPinMap
-              buildings={buildings}
+              buildings={allBuildings}
               selectedId={selectedId}
+              hoveredId={hoveredId}
               onSelect={setSelectedId}
+              onClusterSelect={handleClusterSelect}
+              onHover={setHoveredId}
             />
           </section>
         ) : (
