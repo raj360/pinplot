@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { LogOut, Settings } from "lucide-react";
+import { KeyRound, LogOut, Settings } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils/cn";
 
@@ -68,6 +68,15 @@ export function UserMenu({ initials, displayName, onSignOut }: UserMenuProps) {
           role="menu"
           className="absolute right-0 top-[calc(100%+0.375rem)] z-50 min-w-[220px] border border-border bg-surface py-1 text-foreground shadow-lg"
         >
+          <Link
+            href="/tenant/unlocks"
+            role="menuitem"
+            className={itemClass}
+            onClick={() => setOpen(false)}
+          >
+            <KeyRound className="size-[18px] shrink-0 text-muted" aria-hidden />
+            My unlocks
+          </Link>
           <Link
             href="/settings"
             role="menuitem"

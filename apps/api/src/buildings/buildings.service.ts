@@ -87,6 +87,16 @@ export class BuildingsService {
       )`;
     }
 
+    if (query.bathrooms != null) {
+      params.push(query.bathrooms);
+      sql += ` AND EXISTS (
+        SELECT 1 FROM units ux
+        WHERE ux.building_id = b.id
+          AND ux.status = 'AVAILABLE'
+          AND ux.bathrooms >= $${params.length}
+      )`;
+    }
+
     sql += ` ORDER BY b.is_featured DESC, b.created_at DESC LIMIT 200`;
 
     const { rows } = await this.db.query<BuildingRow>(sql, params);

@@ -13,52 +13,98 @@ import { LoadingState } from "@/components/ui/loading-state";
 import { Spinner } from "@/components/ui/spinner";
 import {
   fetchBuildingsInBounds,
-  fetchBuilding,
   KAMPALA_BOUNDS,
   type BuildingDetail,
 } from "@/lib/api/buildings";
 import { formatRentPerMonth } from "@/lib/intl/format";
 import type { BuildingSummary } from "@plotpin/shared-types";
+import { useExplorePreview } from "./useExplorePreview";
 
-async function loadBuildingsForCity(cityFilter: string) {
+type SearchFilters = {
+  city: string;
+  bedrooms: string;
+  bathrooms: string;
+};
+
+const EMPTY_FILTERS: SearchFilters = {
+  city: "",
+  bedrooms: "",
+  bathrooms: "",
+};
+
+function parseMinFilter(value: string) {
+  if (!value) return undefined;
+  const n = Number(value);
+  return Number.isFinite(n) && n > 0 ? n : undefined;
+}
+
+async function loadBuildings(filters: SearchFilters) {
   return fetchBuildingsInBounds(KAMPALA_BOUNDS, {
-    city: cityFilter || undefined,
+    city: filters.city || undefined,
+    bedrooms: parseMinFilter(filters.bedrooms),
+    bathrooms: parseMinFilter(filters.bathrooms),
   });
+}
+
+function FilterSelect({
+  label,
+  value,
+  onChange,
+  options,
+  className,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  options: { value: string; label: string }[];
+  className?: string;
+}) {
+  const id = label.toLowerCase().replace(/\s+/g, "-");
+  return (
+    <label htmlFor={id} className={cn("block text-sm", className)}>
+      <span className="text-foreground">{label}</span>
+      <select
+        id={id}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="mt-1 w-full border border-border bg-surface px-3 py-2 text-sm text-foreground"
+      >
+        {options.map((opt) => (
+          <option key={opt.value || "any"} value={opt.value}>
+            {opt.label}
+          </option>
+        ))}
+      </select>
+    </label>
+  );
 }
 
 export function ExploreClient() {
   const [mapVisible, setMapVisible] = useState(true);
   const [allBuildings, setAllBuildings] = useState<BuildingSummary[]>([]);
-  const [mapFilterIds, setMapFilterIds] = useState<string[] | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [hoveredId, setHoveredId] = useState<string | null>(null);
-  const [detail, setDetail] = useState<BuildingDetail | null>(null);
-  const [detailRequestId, setDetailRequestId] = useState<string | null>(null);
+  const [selectedDetail, setSelectedDetail] = useState<BuildingDetail | null>(null);
+  const [selectedLoading, setSelectedLoading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [searching, setSearching] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [cityFilter, setCityFilter] = useState("");
+  const [filters, setFilters] = useState<SearchFilters>(EMPTY_FILTERS);
+  const [appliedFilters, setAppliedFilters] = useState<SearchFilters>(EMPTY_FILTERS);
   const listRef = useRef<HTMLUListElement>(null);
-
-  const displayedBuildings = useMemo(() => {
-    if (!mapFilterIds?.length) return allBuildings;
-    const allowed = new Set(mapFilterIds);
-    return allBuildings.filter((b) => allowed.has(b.id));
-  }, [allBuildings, mapFilterIds]);
+  const { hoveredId, preview, setHover, loadSelectedDetail } = useExplorePreview();
 
   const applySearchResults = useCallback((data: BuildingSummary[]) => {
     setAllBuildings(data);
-    setMapFilterIds(null);
-    setSelectedId((prev) => {
-      if (prev && data.some((b) => b.id === prev)) return prev;
-      return data[0]?.id ?? null;
-    });
-  }, []);
+    setSelectedId(null);
+    setSelectedDetail(null);
+    setSelectedLoading(false);
+    setHover(null);
+  }, [setHover]);
 
   useEffect(() => {
     let cancelled = false;
 
-    loadBuildingsForCity("")
+    loadBuildings(EMPTY_FILTERS)
       .then((data) => {
         if (!cancelled) applySearchResults(data);
       })
@@ -80,59 +126,93 @@ export function ExploreClient() {
     setSearching(true);
     setError(null);
     try {
-      applySearchResults(await loadBuildingsForCity(cityFilter));
+      const next = { ...filters };
+      applySearchResults(await loadBuildings(next));
+      setAppliedFilters(next);
     } catch {
       setError("Could not load buildings. Is the API running?");
     } finally {
       setSearching(false);
     }
-  }, [applySearchResults, cityFilter]);
+  }, [applySearchResults, filters]);
+
+  const handleSelect = useCallback(
+    async (id: string) => {
+      setSelectedId(id);
+      setHover(id);
+
+      if (preview.id === id && preview.detail) {
+        setSelectedDetail(preview.detail);
+        setSelectedLoading(false);
+        return;
+      }
+
+      setSelectedLoading(true);
+      const detail = await loadSelectedDetail(id);
+      setSelectedDetail(detail);
+      setSelectedLoading(false);
+    },
+    [loadSelectedDetail, preview.detail, preview.id, setHover],
+  );
 
   useEffect(() => {
-    if (!selectedId) return;
-
-    let cancelled = false;
-
-    fetchBuilding(selectedId)
-      .then((data) => {
-        if (!cancelled) {
-          setDetail(data);
-          setDetailRequestId(selectedId);
-        }
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setDetail(null);
-          setDetailRequestId(selectedId);
-        }
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [selectedId]);
-
-  useEffect(() => {
-    if (!selectedId || !listRef.current) return;
-    const row = listRef.current.querySelector(`[data-building-id="${selectedId}"]`);
+    if (!hoveredId || !listRef.current) return;
+    const row = listRef.current.querySelector(`[data-building-id="${hoveredId}"]`);
     row?.scrollIntoView({ block: "nearest", behavior: "smooth" });
-  }, [selectedId, mapFilterIds]);
+  }, [hoveredId]);
 
-  const handleClusterSelect = useCallback((ids: string[]) => {
-    setMapFilterIds(ids);
-    setSelectedId(ids[0] ?? null);
-  }, []);
+  const activePanelId = selectedId ?? preview.id;
+  const panelDetail =
+    selectedId && selectedDetail
+      ? selectedDetail
+      : preview.id && preview.detail
+        ? preview.detail
+        : null;
+  const panelLoading = selectedId
+    ? selectedLoading
+    : Boolean(preview.id && preview.loading);
 
-  const clearMapFilter = useCallback(() => {
-    setMapFilterIds(null);
-  }, []);
+  const hoverPreview = useMemo(() => {
+    if (!hoveredId) return null;
+    const building = allBuildings.find((b) => b.id === hoveredId);
+    if (!building) return null;
+    return {
+      id: hoveredId,
+      name: building.name,
+      loading: preview.id === hoveredId && preview.loading,
+    };
+  }, [allBuildings, hoveredId, preview.id, preview.loading]);
 
-  const selectedSummary = displayedBuildings.find((b) => b.id === selectedId);
-  const detailLoading = Boolean(selectedId && detailRequestId !== selectedId);
-  const showDetail =
-    selectedId && detailRequestId === selectedId ? detail : null;
   const listLoading = loading || searching;
-  const isMapFiltered = Boolean(mapFilterIds?.length);
+
+  const bedroomOptions = useMemo(
+    () => [
+      { value: "", label: "Any bedrooms" },
+      { value: "1", label: "1+ bed" },
+      { value: "2", label: "2+ beds" },
+      { value: "3", label: "3+ beds" },
+      { value: "4", label: "4+ beds" },
+    ],
+    [],
+  );
+
+  const bathroomOptions = useMemo(
+    () => [
+      { value: "", label: "Any bathrooms" },
+      { value: "1", label: "1+ bath" },
+      { value: "2", label: "2+ baths" },
+      { value: "3", label: "3+ baths" },
+    ],
+    [],
+  );
+
+  const activeFilterHint = useMemo(() => {
+    const parts: string[] = [];
+    if (appliedFilters.city) parts.push(appliedFilters.city);
+    if (appliedFilters.bedrooms) parts.push(`${appliedFilters.bedrooms}+ bed`);
+    if (appliedFilters.bathrooms) parts.push(`${appliedFilters.bathrooms}+ bath`);
+    return parts.length ? parts.join(" · ") : null;
+  }, [appliedFilters]);
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -142,10 +222,24 @@ export function ExploreClient() {
         <Input
           label="Search area"
           type="text"
-          value={cityFilter}
-          onChange={(e) => setCityFilter(e.target.value)}
+          value={filters.city}
+          onChange={(e) => setFilters((f) => ({ ...f, city: e.target.value }))}
           placeholder="Kampala, Namuwongo..."
-          className="min-w-[160px]"
+          className="min-w-[140px] flex-1 sm:flex-none sm:min-w-[160px]"
+        />
+        <FilterSelect
+          label="Bedrooms"
+          value={filters.bedrooms}
+          onChange={(bedrooms) => setFilters((f) => ({ ...f, bedrooms }))}
+          options={bedroomOptions}
+          className="min-w-[120px]"
+        />
+        <FilterSelect
+          label="Bathrooms"
+          value={filters.bathrooms}
+          onChange={(bathrooms) => setFilters((f) => ({ ...f, bathrooms }))}
+          options={bathroomOptions}
+          className="min-w-[120px]"
         />
         <Button
           type="button"
@@ -159,11 +253,12 @@ export function ExploreClient() {
           type="button"
           variant="ghost"
           onClick={async () => {
-            setCityFilter("");
+            setFilters(EMPTY_FILTERS);
             setSearching(true);
             setError(null);
             try {
-              applySearchResults(await loadBuildingsForCity(""));
+              applySearchResults(await loadBuildings(EMPTY_FILTERS));
+              setAppliedFilters(EMPTY_FILTERS);
             } catch {
               setError("Could not load buildings. Is the API running?");
             } finally {
@@ -204,45 +299,45 @@ export function ExploreClient() {
         >
           <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border px-4 py-3 text-sm">
             <span className="flex items-center gap-2">
-              <strong>{isMapFiltered ? "Map area" : "All"}</strong>
+              <strong>All</strong>
               {listLoading ? (
                 <Spinner className="size-3" label="Loading results" />
               ) : (
-                `${displayedBuildings.length} result${displayedBuildings.length === 1 ? "" : "s"}`
+                `${allBuildings.length} result${allBuildings.length === 1 ? "" : "s"}`
               )}
             </span>
-            {isMapFiltered ? (
-              <button
-                type="button"
-                onClick={clearMapFilter}
-                className="text-xs text-primary hover:underline"
-              >
-                Show all {allBuildings.length}
-              </button>
+            {activeFilterHint ? (
+              <span className="text-xs text-muted">{activeFilterHint}</span>
             ) : null}
           </div>
 
           <ul ref={listRef} className="min-h-0 flex-1 overflow-y-auto">
-            {displayedBuildings.map((building) => {
+            {allBuildings.map((building) => {
               const active = selectedId === building.id;
               const hovered = hoveredId === building.id;
+              const rowLoading = preview.id === building.id && preview.loading;
 
               return (
                 <li key={building.id}>
                   <button
                     type="button"
                     data-building-id={building.id}
-                    onClick={() => setSelectedId(building.id)}
-                    onMouseEnter={() => setHoveredId(building.id)}
-                    onMouseLeave={() => setHoveredId(null)}
+                    onClick={() => handleSelect(building.id)}
+                    onMouseEnter={() => setHover(building.id)}
+                    onMouseLeave={() => setHover(null)}
                     className={cn(
                       "w-full border-b border-border px-4 py-3 text-left transition-colors",
                       active && "border-l-2 border-l-primary bg-primary/5",
-                      !active && hovered && "bg-background",
+                      !active && hovered && "border-l-2 border-l-primary/40 bg-primary/5",
                       !active && !hovered && "hover:bg-background/60",
                     )}
                   >
-                    <p className="font-medium text-primary">{building.name}</p>
+                    <div className="flex items-start justify-between gap-2">
+                      <p className="font-medium text-primary">{building.name}</p>
+                      {rowLoading ? (
+                        <Spinner className="mt-0.5 size-3 shrink-0" label="Loading preview" />
+                      ) : null}
+                    </div>
                     <p className="text-sm text-muted">
                       {[building.district, building.city]
                         .filter(Boolean)
@@ -256,24 +351,23 @@ export function ExploreClient() {
                 </li>
               );
             })}
-            {!listLoading && displayedBuildings.length === 0 && (
+            {!listLoading && allBuildings.length === 0 && (
               <li className="px-4 py-8 text-sm text-muted">
-                {isMapFiltered
-                  ? "No listings at this map pin. Try another cluster or show all results."
-                  : "No available units in this area."}
+                No available units match your search. Try fewer filters or another
+                area.
               </li>
             )}
           </ul>
 
-          {mapVisible && selectedId ? (
+          {mapVisible && activePanelId ? (
             <div className="max-h-[42%] shrink-0 overflow-y-auto border-t border-border bg-background p-4">
-              {detailLoading ? (
+              {panelLoading ? (
                 <LoadingState label="Loading building" compact />
-              ) : showDetail ? (
-                <BuildingDetailPanel building={showDetail} compact />
-              ) : selectedSummary ? (
+              ) : panelDetail ? (
+                <BuildingDetailPanel building={panelDetail} compact />
+              ) : (
                 <p className="text-sm text-muted">Could not load building details.</p>
-              ) : null}
+              )}
             </div>
           ) : null}
         </aside>
@@ -284,34 +378,36 @@ export function ExploreClient() {
               buildings={allBuildings}
               selectedId={selectedId}
               hoveredId={hoveredId}
-              onSelect={setSelectedId}
-              onClusterSelect={handleClusterSelect}
-              onHover={setHoveredId}
+              hoverPreview={hoverPreview}
+              onSelect={handleSelect}
+              onHover={setHover}
             />
           </section>
         ) : (
           <section className="hidden flex-1 overflow-y-auto bg-background p-6 md:block">
-            {!selectedId ? (
-              <p className="text-muted">Select a building from the list.</p>
-            ) : detailLoading ? (
+            {!activePanelId ? (
+              <p className="text-muted">
+                Hover or select a building from the list.
+              </p>
+            ) : panelLoading ? (
               <LoadingState label="Loading building" />
-            ) : showDetail ? (
-              <BuildingDetailPanel building={showDetail} />
-            ) : selectedSummary ? (
+            ) : panelDetail ? (
+              <BuildingDetailPanel building={panelDetail} />
+            ) : (
               <p className="text-muted">Could not load building details.</p>
-            ) : null}
+            )}
           </section>
         )}
       </div>
 
-      {mapVisible && selectedId && detailLoading && (
+      {mapVisible && activePanelId && panelLoading && (
         <div className="border-t border-border bg-surface p-4 md:hidden">
           <LoadingState label="Loading building" compact />
         </div>
       )}
-      {mapVisible && showDetail && !detailLoading && (
+      {mapVisible && panelDetail && !panelLoading && (
         <div className="border-t border-border bg-surface p-4 md:hidden">
-          <BuildingDetailPanel building={showDetail} compact />
+          <BuildingDetailPanel building={panelDetail} compact />
         </div>
       )}
     </div>

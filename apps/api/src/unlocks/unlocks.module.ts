@@ -1,9 +1,9 @@
 import { Module } from "@nestjs/common";
-import { UnlocksController } from "./unlocks.controller";
+import { UnlocksController, UnlocksListController } from "./unlocks.controller";
 import { UnlocksService } from "./unlocks.service";
 
 @Module({
-  controllers: [UnlocksController],
+  controllers: [UnlocksController, UnlocksListController],
   providers: [UnlocksService],
   exports: [UnlocksService],
 })

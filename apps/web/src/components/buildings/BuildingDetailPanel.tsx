@@ -6,9 +6,12 @@ import { formatCurrency, formatRentPerMonth } from "@/lib/intl/format";
 export function BuildingDetailPanel({
   building,
   compact = false,
+  showUnlockLink = true,
 }: {
   building: BuildingDetail;
   compact?: boolean;
+  /** Hide on the building detail page where UnlockPanel is shown below. */
+  showUnlockLink?: boolean;
 }) {
   return (
     <article className={compact ? "space-y-3" : "max-w-xl space-y-4"}>
@@ -50,12 +53,14 @@ export function BuildingDetailPanel({
         {formatCurrency(PRICING.tenantUnlockFeeUgx)}).
       </p>
 
-      <Link
-        href={`/buildings/${building.id}`}
-        className="inline-block w-full bg-primary py-2.5 text-center text-sm font-medium text-primary-foreground sm:w-auto sm:px-6"
-      >
-        View details — unlock contact
-      </Link>
+      {showUnlockLink ? (
+        <Link
+          href={`/buildings/${building.id}`}
+          className="inline-block w-full bg-primary py-2.5 text-center text-sm font-medium text-primary-foreground sm:w-auto sm:px-6"
+        >
+          View details — unlock contact
+        </Link>
+      ) : null}
     </article>
   );
 }

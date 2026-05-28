@@ -22,7 +22,7 @@ export default async function BuildingPage({ params }: Props) {
       <AppHeader backHref="/explore" backLabel="← Back to map" />
 
       <PageMain>
-        <BuildingDetailPanel building={building} />
+        <BuildingDetailPanel building={building} showUnlockLink={false} />
         <UnlockPanel buildingId={building.id} units={building.units} />
       </PageMain>
     </div>

@@ -34,7 +34,13 @@ export const KAMPALA_BOUNDS: Bounds = {
 
 export async function fetchBuildingsInBounds(
   bounds: Bounds = KAMPALA_BOUNDS,
-  filters?: { city?: string; minRent?: number; maxRent?: number; bedrooms?: number },
+  filters?: {
+    city?: string;
+    minRent?: number;
+    maxRent?: number;
+    bedrooms?: number;
+    bathrooms?: number;
+  },
 ): Promise<BuildingSummary[]> {
   const params = new URLSearchParams({
     north: String(bounds.north),
@@ -46,6 +52,7 @@ export async function fetchBuildingsInBounds(
   if (filters?.minRent != null) params.set("minRent", String(filters.minRent));
   if (filters?.maxRent != null) params.set("maxRent", String(filters.maxRent));
   if (filters?.bedrooms != null) params.set("bedrooms", String(filters.bedrooms));
+  if (filters?.bathrooms != null) params.set("bathrooms", String(filters.bathrooms));
 
   const res = await fetch(`${API_URL}/api/v1/buildings?${params}`, {
     next: { revalidate: 30 },

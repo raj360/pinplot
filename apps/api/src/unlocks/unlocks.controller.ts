@@ -24,3 +24,22 @@ export class UnlocksController {
     return this.unlocks.unlockUnit(user.id, unitId, dto.paymentId);
   }
 }
+
+@Controller("unlocks")
+@UseGuards(SupabaseAuthGuard)
+export class UnlocksListController {
+  constructor(private readonly unlocks: UnlocksService) {}
+
+  @Get("mine")
+  listMine(@CurrentUser() user: AuthUser) {
+    return this.unlocks.listMine(user.id);
+  }
+
+  @Get("building/:buildingId")
+  listForBuilding(
+    @Param("buildingId") buildingId: string,
+    @CurrentUser() user: AuthUser,
+  ) {
+    return this.unlocks.listForBuilding(buildingId, user.id);
+  }
+}
