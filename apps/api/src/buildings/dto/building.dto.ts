@@ -1,10 +1,13 @@
 import {
+  IsArray,
+  IsBoolean,
   IsInt,
   IsNumber,
   IsOptional,
   IsString,
   Max,
   Min,
+  ValidateNested,
 } from "class-validator";
 import { Type } from "class-transformer";
 
@@ -89,6 +92,12 @@ export class CreateBuildingDto {
   @IsInt()
   @Min(1)
   totalUnits!: number;
+
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => CreateUnitDto)
+  units?: CreateUnitDto[];
 }
 
 export class CreateUnitDto {
@@ -109,4 +118,23 @@ export class CreateUnitDto {
   @IsInt()
   @Min(0)
   rentAmount!: number;
+}
+
+export class VerifyBuildingDto {
+  @IsBoolean()
+  verified!: boolean;
+}
+
+export class RegisterImageDto {
+  @IsString()
+  storagePath!: string;
+
+  @IsOptional()
+  @IsBoolean()
+  isPrimary?: boolean;
+}
+
+export class UpdateProfileRoleDto {
+  @IsString()
+  role!: "LANDLORD" | "TENANT";
 }

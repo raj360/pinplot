@@ -1,27 +1,11 @@
 import Link from "next/link";
 import { APP_NAME, DEFAULT_COUNTRY, PRICING } from "@plotpin/shared-types";
+import { AppHeader } from "@/components/layout/AppHeader";
 
 export default function HomePage() {
   return (
     <div className="flex min-h-screen flex-col bg-background">
-      <header className="border-b border-border bg-primary text-primary-foreground">
-        <div className="mx-auto flex h-14 max-w-7xl items-center justify-between px-4">
-          <Link href="/" className="text-lg font-semibold tracking-tight">
-            {APP_NAME}
-          </Link>
-          <nav className="flex items-center gap-4 text-sm">
-            <Link href="/explore" className="hover:underline">
-              Explore
-            </Link>
-            <Link
-              href="/auth/login"
-              className="border border-primary-foreground/30 bg-primary-foreground/10 px-3 py-1.5"
-            >
-              Sign in
-            </Link>
-          </nav>
-        </div>
-      </header>
+      <AppHeader />
 
       <main className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-8 px-4 py-10">
         <section className="max-w-2xl">
