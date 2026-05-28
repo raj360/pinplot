@@ -24,7 +24,21 @@ plotpin/
 
 ---
 
-## Quick start
+## Database strategy
+
+| Environment | Database | Notes |
+|-------------|----------|-------|
+| **Dev (default)** | Supabase Postgres | Same as production — no drift |
+| **Production** | Supabase Postgres | `DATABASE_URL` from Supabase dashboard |
+| **Offline optional** | Local PostGIS (`docker compose`) | Set `DATABASE_URL_LOCAL` only when needed |
+
+Run migrations against Supabase:
+
+```bash
+yarn db:migrate
+```
+
+Apply SQL files in `supabase/migrations/` in order. Never commit `.env`.
 
 ```bash
 # 1. Install dependencies

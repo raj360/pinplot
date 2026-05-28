@@ -15,9 +15,12 @@
     "build:api": "yarn workspace @plotpin/api build",
     "lint": "turbo run lint",
     "db:start": "docker compose up -d postgres",
-    "db:stop": "docker compose down"
+    "db:stop": "docker compose down",
+    "db:migrate": "node scripts/migrate.mjs",
+    "db:seed": "node scripts/seed.mjs"
   },
   "devDependencies": {
+    "pg": "^8.16.0",
     "turbo": "^2.5.4",
     "typescript": "^5.8.3"
   },

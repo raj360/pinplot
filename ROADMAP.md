@@ -26,39 +26,27 @@ Tenants browse buildings on a map for free. They pay a small fee to unlock exact
 
 ---
 
-## Phase 1 — Foundation (Weeks 1–2) ✅ In progress
+## Phase 1 — Foundation (Weeks 1–2) ✅ Complete
 
-**Goal:** Runnable monorepo, design system, schema, health checks.
+- [x] Monorepo scaffold
+- [x] Supabase project + migrations applied (`001`, `002`, `003`)
+- [x] `.env` with Supabase `DATABASE_URL`
+- [x] Git pushed
 
-- [x] Monorepo scaffold (`apps/web`, `apps/api`, `packages/shared-types`)
-- [x] ROADMAP + SPRINT_TASK tracking docs
-- [x] Shared types (roles, permissions, pricing constants)
-- [x] Supabase SQL migration skeleton (`001_initial_schema.sql`)
-- [x] Landing page + explore shell (mock map/list split)
-- [x] NestJS health endpoint
-- [ ] Supabase project created + migration applied
-- [ ] `.env` wired locally
-- [ ] Git init + first commit
+## Phase 2 — Core Product (Weeks 3–5) 🔄 In progress
 
----
-
-## Phase 2 — Core Product (Weeks 3–5)
-
-**Goal:** Real buildings, units, map, and admin-on-behalf flows.
-
-- [ ] Supabase Auth integration (tenant + landlord signup)
-- [ ] Profiles table sync on signup (role selection)
-- [ ] Buildings CRUD (landlord + admin-on-behalf)
-- [ ] Units CRUD with status grid (12-unit buildings)
-- [ ] HD image upload (Supabase Storage, min 1200px)
-- [ ] Google Maps: bounds API + MarkerClusterer + cluster popup
-- [ ] List/map split + Hide Map toggle (SchoolSpring pattern)
-- [ ] Approximate pin vs exact address gating
-- [ ] REST endpoints:
-  - `GET /buildings?bounds=&filters=`
-  - `GET /buildings/:id`
-  - `POST /buildings` (landlord/admin)
-  - `PATCH /units/:id/status` (pre-payment validation only)
+- [x] Supabase Auth (email signup/login)
+- [x] Profile sync API + auth trigger
+- [x] Buildings REST API with bounds query
+- [x] Kampala seed data (3 buildings, 20 units)
+- [x] Explore page wired to API + map component
+- [x] Building detail page with unit grid
+- [x] Landlord dashboard shell
+- [x] Admin layout shell
+- [ ] Landlord create-building form
+- [ ] Admin verify-building workflow
+- [ ] HD image upload (Supabase Storage)
+- [ ] Google Maps API key in production env
 
 ---
 
