@@ -9,8 +9,11 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@googlemaps/markerclusterer": "^2.5.3",
     "@plotpin/shared-types": "0.1.0",
+    "@supabase/ssr": "^0.6.1",
     "@supabase/supabase-js": "^2.49.8",
+    "@vis.gl/react-google-maps": "^1.5.3",
     "next": "16.0.11",
     "react": "19.2.1",
     "react-dom": "19.2.1"
