@@ -1,13 +1,15 @@
 import Link from "next/link";
-import { APP_NAME, DEFAULT_COUNTRY, PRICING } from "@plotpin/shared-types";
+import { DEFAULT_COUNTRY, PRICING } from "@plotpin/shared-types";
 import { AppHeader } from "@/components/layout/AppHeader";
+import { PageMain } from "@/components/layout/PageShell";
+import { contentBandInnerClass } from "@/lib/layout/shell";
 
 export default function HomePage() {
   return (
     <div className="flex min-h-screen flex-col bg-background">
       <AppHeader />
 
-      <main className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-8 px-4 py-10">
+      <PageMain className="flex flex-1 flex-col gap-8">
         <section className="max-w-2xl">
           <p className="mb-2 text-sm font-medium uppercase tracking-wide text-muted">
             {DEFAULT_COUNTRY.name} · Launch preview
@@ -62,10 +64,12 @@ export default function HomePage() {
             </article>
           ))}
         </section>
-      </main>
+      </PageMain>
 
-      <footer className="border-t border-border py-6 text-center text-xs text-muted">
-        PlotPin monorepo · Sprint 1 · Next.js 16 + NestJS REST + Supabase
+      <footer className="border-t border-border">
+        <div className={`${contentBandInnerClass()} py-6 text-center text-xs text-muted`}>
+          PlotPin monorepo · Sprint 1 · Next.js 16 + NestJS REST + Supabase
+        </div>
       </footer>
     </div>
   );

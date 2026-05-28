@@ -4,6 +4,7 @@ import { AppHeader } from "@/components/layout/AppHeader";
 import { useAuth } from "@/lib/auth/use-auth";
 import { getUserDisplayLabel } from "@/lib/auth/display-name";
 import { LoadingState } from "@/components/ui/loading-state";
+import { PageMain } from "@/components/layout/PageShell";
 
 export default function SettingsPage() {
   const { user, profile, loading, isAuthenticated } = useAuth();
@@ -21,7 +22,7 @@ export default function SettingsPage() {
     return (
       <div className="min-h-screen bg-background">
         <AppHeader />
-        <main className="mx-auto max-w-xl px-4 py-10">
+        <PageMain>
           <p className="text-sm text-muted">
             Please{" "}
             <a href="/auth/login?next=/settings" className="text-primary">
@@ -29,7 +30,7 @@ export default function SettingsPage() {
             </a>{" "}
             to manage your account settings.
           </p>
-        </main>
+        </PageMain>
       </div>
     );
   }
@@ -39,7 +40,7 @@ export default function SettingsPage() {
   return (
     <div className="min-h-screen bg-background">
       <AppHeader />
-      <main className="mx-auto max-w-xl px-4 py-10">
+      <PageMain>
         <h1 className="text-2xl font-bold">Settings</h1>
         <p className="mt-2 text-sm text-muted">
           Account preferences for {displayName}.
@@ -59,7 +60,7 @@ export default function SettingsPage() {
             sprint.
           </p>
         </section>
-      </main>
+      </PageMain>
     </div>
   );
 }

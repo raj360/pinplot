@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { BuildingDetailPanel } from "@/components/buildings/BuildingDetailPanel";
+import { AppHeader } from "@/components/layout/AppHeader";
+import { PageMain } from "@/components/layout/PageShell";
 import { fetchBuilding } from "@/lib/api/buildings";
 import { PRICING } from "@plotpin/shared-types";
 
@@ -18,16 +20,12 @@ export default async function BuildingPage({ params }: Props) {
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="border-b border-border bg-primary text-primary-foreground">
-        <div className="mx-auto flex h-14 max-w-3xl items-center justify-between px-4">
-          <Link href="/explore" className="text-sm hover:underline">
-            ← Back to map
-          </Link>
-          <span className="font-semibold">PlotPin</span>
-        </div>
-      </header>
+      <AppHeader
+        backHref="/explore"
+        backLabel="← Back to map"
+      />
 
-      <main className="mx-auto max-w-3xl px-4 py-8">
+      <PageMain>
         <BuildingDetailPanel building={building} />
         <section className="mt-8 border border-border bg-surface p-4">
           <h2 className="font-semibold">Unlock contact</h2>
@@ -43,7 +41,7 @@ export default async function BuildingPage({ params }: Props) {
             Sign in to unlock
           </Link>
         </section>
-      </main>
+      </PageMain>
     </div>
   );
 }

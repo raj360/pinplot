@@ -88,18 +88,9 @@ export default function NewBuildingPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <header className="border-b border-border bg-primary text-primary-foreground">
-        <div className="mx-auto flex h-14 max-w-3xl items-center justify-between px-4">
-          <Link href="/landlord/dashboard" className="text-sm hover:underline">
-            ← Dashboard
-          </Link>
-          <span className="font-semibold">Add building</span>
-        </div>
-      </header>
-
-      <main className="mx-auto max-w-3xl px-4 py-8">
-        <p className="text-sm text-muted">
+    <>
+      <h1 className="text-2xl font-bold tracking-tight">Add building</h1>
+        <p className="mt-2 text-sm text-muted">
           Listings are reviewed by admin before appearing on the map. Unit status
           changes cost {PRICING.landlordListingFeeUgx.toLocaleString()} UGX
           (Sprint 3 payments).
@@ -199,8 +190,7 @@ export default function NewBuildingPage() {
             Submit for verification
           </Button>
         </form>
-      </main>
-    </div>
+    </>
   );
 }
 

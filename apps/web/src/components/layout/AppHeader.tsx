@@ -8,19 +8,25 @@ import {
   getUserDisplayLabel,
   getUserInitials,
 } from "@/lib/auth/display-name";
+import {
+  headerInnerClass,
+  headerSidebarNavClass,
+  headerSidebarShellClass,
+  sidebarColumnClass,
+  type HeaderVariant,
+} from "@/lib/layout/shell";
 import { UserMenu } from "@/components/layout/UserMenu";
 
 type AppHeaderProps = {
-  /** Match explore layout width (1600px) vs default marketing width. */
-  wide?: boolean;
-  /** Optional center label (e.g. building detail back nav). */
+  /** standard = max-w-5xl, wide = explore map, sidebar = admin grid */
+  variant?: HeaderVariant;
   centerLabel?: string;
   backHref?: string;
   backLabel?: string;
 };
 
 export function AppHeader({
-  wide = false,
+  variant = "standard",
   centerLabel,
   backHref,
   backLabel,
@@ -41,57 +47,67 @@ export function AppHeader({
     router.refresh();
   }
 
-  const widthClass = wide ? "max-w-[1600px]" : "max-w-7xl";
+  const brand = (
+    <div className="flex min-w-0 items-center gap-3">
+      {backHref ? (
+        <Link href={backHref} className="shrink-0 text-sm hover:underline">
+          {backLabel ?? "← Back"}
+        </Link>
+      ) : null}
+      <Link href="/" className="shrink-0 text-base font-semibold tracking-tight">
+        {centerLabel ?? APP_NAME}
+      </Link>
+    </div>
+  );
+
+  const nav = (
+    <nav className="flex shrink-0 items-center gap-3 text-sm">
+      <Link href="/explore" className="hover:underline">
+        Explore
+      </Link>
+
+      {loading ? null : isAuthenticated ? (
+        <>
+          {variant !== "sidebar" && showLandlord ? (
+            <Link href="/landlord/dashboard" className="hidden hover:underline sm:inline">
+              My buildings
+            </Link>
+          ) : null}
+          {variant !== "sidebar" && isAdmin ? (
+            <Link href="/admin" className="hidden hover:underline sm:inline">
+              Admin
+            </Link>
+          ) : null}
+          <UserMenu
+            initials={initials}
+            displayName={displayName}
+            onSignOut={handleSignOut}
+          />
+        </>
+      ) : !loading ? (
+        <Link
+          href="/auth/login"
+          className="border border-primary-foreground/30 bg-primary-foreground/10 px-2.5 py-1 text-sm"
+        >
+          Sign in
+        </Link>
+      ) : null}
+    </nav>
+  );
 
   return (
     <header className="border-b border-border bg-primary text-primary-foreground">
-      <div
-        className={`mx-auto flex h-12 ${widthClass} items-center justify-between gap-4 px-4`}
-      >
-        <div className="flex min-w-0 items-center gap-4">
-          {backHref ? (
-            <Link href={backHref} className="shrink-0 text-sm hover:underline">
-              {backLabel ?? "← Back"}
-            </Link>
-          ) : null}
-          <Link href="/" className="shrink-0 text-base font-semibold tracking-tight">
-            {centerLabel ?? APP_NAME}
-          </Link>
+      {variant === "sidebar" ? (
+        <div className={headerSidebarShellClass()}>
+          <div className={sidebarColumnClass("flex items-center")}>{brand}</div>
+          <div className={headerSidebarNavClass()}>{nav}</div>
         </div>
-
-        <nav className="flex shrink-0 items-center gap-3 text-sm">
-          <Link href="/explore" className="hover:underline">
-            Explore
-          </Link>
-
-          {loading ? null : isAuthenticated ? (
-            <>
-              {showLandlord ? (
-                <Link href="/landlord/dashboard" className="hidden hover:underline sm:inline">
-                  My buildings
-                </Link>
-              ) : null}
-              {isAdmin ? (
-                <Link href="/admin" className="hidden hover:underline sm:inline">
-                  Admin
-                </Link>
-              ) : null}
-              <UserMenu
-                initials={initials}
-                displayName={displayName}
-                onSignOut={handleSignOut}
-              />
-            </>
-          ) : !loading ? (
-            <Link
-              href="/auth/login"
-              className="border border-primary-foreground/30 bg-primary-foreground/10 px-2.5 py-1 text-sm"
-            >
-              Sign in
-            </Link>
-          ) : null}
-        </nav>
-      </div>
+      ) : (
+        <div className={headerInnerClass(variant)}>
+          {brand}
+          {nav}
+        </div>
+      )}
     </header>
   );
 }

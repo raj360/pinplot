@@ -4,6 +4,9 @@ import { useCallback, useEffect, useState } from "react";
 import { PlotPinMap } from "@/components/maps/PlotPinMap";
 import { BuildingDetailPanel } from "@/components/buildings/BuildingDetailPanel";
 import { AppHeader } from "@/components/layout/AppHeader";
+import { ContentBand } from "@/components/layout/PageShell";
+import { layoutMaxClass, LAYOUT, contentBandInnerClass } from "@/lib/layout/shell";
+import { cn } from "@/lib/utils/cn";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { LoadingState } from "@/components/ui/loading-state";
@@ -107,10 +110,9 @@ export function ExploreClient() {
 
   return (
     <div className="flex min-h-screen flex-col">
-      <AppHeader wide />
+      <AppHeader variant="wide" />
 
-      <div className="border-b border-border bg-surface px-4 py-3">
-        <div className="mx-auto flex max-w-[1600px] flex-wrap items-end gap-2">
+      <ContentBand width="wide" innerClassName="flex flex-wrap items-end gap-2 py-3">
           <Input
             label="Search area"
             type="text"
@@ -153,14 +155,21 @@ export function ExploreClient() {
           >
             {mapVisible ? "Hide map" : "Show map"}
           </Button>
-        </div>
-      </div>
+      </ContentBand>
 
       {error && (
-        <p className="bg-red-50 px-4 py-2 text-sm text-red-700">{error}</p>
+        <div className={contentBandInnerClass("wide")}>
+          <p className="bg-red-50 py-2 text-sm text-red-700">{error}</p>
+        </div>
       )}
 
-      <div className="mx-auto flex w-full max-w-[1600px] flex-1 overflow-hidden">
+      <div
+        className={cn(
+          "mx-auto flex w-full flex-1 overflow-hidden",
+          LAYOUT.padX,
+          layoutMaxClass("wide"),
+        )}
+      >
         <aside
           className={`flex flex-col border-r border-border bg-surface ${
             mapVisible ? "w-full max-w-md" : "w-full max-w-lg"
