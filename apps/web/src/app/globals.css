@@ -40,3 +40,18 @@ body {
 * {
   border-radius: 2px;
 }
+
+/* Site chrome keeps square edges; spinners stay circular */
+header,
+header *,
+nav,
+nav *,
+footer,
+footer * {
+  border-radius: 0;
+}
+
+.spinner-ring,
+.user-avatar {
+  border-radius: 9999px !important;
+}

@@ -1,10 +1,14 @@
 import {
+  IsArray,
+  IsBoolean,
   IsInt,
   IsNumber,
   IsOptional,
   IsString,
+  Matches,
   Max,
   Min,
+  ValidateNested,
 } from "class-validator";
 import { Type } from "class-transformer";
 
@@ -76,6 +80,13 @@ export class CreateBuildingDto {
   exactAddress?: string;
 
   @IsOptional()
+  @IsString()
+  @Matches(/^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.be)\//i, {
+    message: "videoUrl must be a YouTube link",
+  })
+  videoUrl?: string;
+
+  @IsOptional()
   @Type(() => Number)
   @IsNumber()
   exactLat?: number;
@@ -89,6 +100,12 @@ export class CreateBuildingDto {
   @IsInt()
   @Min(1)
   totalUnits!: number;
+
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => CreateUnitDto)
+  units?: CreateUnitDto[];
 }
 
 export class CreateUnitDto {
@@ -109,4 +126,23 @@ export class CreateUnitDto {
   @IsInt()
   @Min(0)
   rentAmount!: number;
+}
+
+export class VerifyBuildingDto {
+  @IsBoolean()
+  verified!: boolean;
+}
+
+export class RegisterImageDto {
+  @IsString()
+  storagePath!: string;
+
+  @IsOptional()
+  @IsBoolean()
+  isPrimary?: boolean;
+}
+
+export class UpdateProfileRoleDto {
+  @IsString()
+  role!: "LANDLORD" | "TENANT";
 }

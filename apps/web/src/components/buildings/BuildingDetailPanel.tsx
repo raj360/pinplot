@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { PRICING, UnitStatus } from "@plotpin/shared-types";
 import type { BuildingDetail } from "@/lib/api/buildings";
+import { formatCurrency, formatRentPerMonth } from "@/lib/intl/format";
 
 export function BuildingDetailPanel({
   building,
@@ -40,13 +41,13 @@ export function BuildingDetailPanel({
       </div>
 
       <p className="text-sm text-muted">
-        {building.availableUnitCount} available · from UGX{" "}
-        {building.rentFrom?.toLocaleString() ?? "—"}/mo
+        {building.availableUnitCount} available · from{" "}
+        {formatRentPerMonth(building.rentFrom)}
       </p>
 
       <p className="text-sm text-muted">
         Exact address and landlord contact hidden until unlock (
-        {PRICING.tenantUnlockFeeUgx.toLocaleString()} UGX).
+        {formatCurrency(PRICING.tenantUnlockFeeUgx)}).
       </p>
 
       <Link
