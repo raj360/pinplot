@@ -89,6 +89,7 @@ export type CreateBuildingPayload = {
   approximateLat: number;
   approximateLng: number;
   exactAddress?: string;
+  videoUrl?: string;
   totalUnits: number;
   units: Array<{
     unitNumber: string;
@@ -122,10 +123,26 @@ export type PendingBuilding = {
   city: string;
   district: string | null;
   created_at: string;
+  approximate_lat: number;
+  approximate_lng: number;
+  cover_image_path: string | null;
+  video_url: string | null;
+  landlord_id: string | null;
   first_name: string | null;
   last_name: string | null;
   phone: string | null;
+  email: string | null;
 };
+
+export function getLandlordDisplayName(building: PendingBuilding): string {
+  const name = [building.first_name, building.last_name]
+    .filter(Boolean)
+    .join(" ")
+    .trim();
+  if (name) return name;
+  if (building.email) return building.email;
+  return "—";
+}
 
 export async function fetchPendingBuildings() {
   return apiFetch<PendingBuilding[]>("/admin/buildings/pending");

@@ -5,6 +5,7 @@ import {
   IsNumber,
   IsOptional,
   IsString,
+  Matches,
   Max,
   Min,
   ValidateNested,
@@ -77,6 +78,13 @@ export class CreateBuildingDto {
   @IsOptional()
   @IsString()
   exactAddress?: string;
+
+  @IsOptional()
+  @IsString()
+  @Matches(/^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.be)\//i, {
+    message: "videoUrl must be a YouTube link",
+  })
+  videoUrl?: string;
 
   @IsOptional()
   @Type(() => Number)

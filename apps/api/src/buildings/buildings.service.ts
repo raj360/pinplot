@@ -119,13 +119,31 @@ export class BuildingsService {
   async findPendingVerification() {
     const { rows } = await this.db.query(
       `SELECT b.id, b.name, b.city, b.district, b.created_at, b.landlord_id,
-              p.first_name, p.last_name, p.phone
+              b.approximate_lat, b.approximate_lng, b.cover_image_path, b.video_url,
+              p.first_name, p.last_name, p.phone,
+              u.email AS landlord_email
        FROM buildings b
        LEFT JOIN profiles p ON p.id = b.landlord_id
+       LEFT JOIN auth.users u ON u.id = b.landlord_id
        WHERE b.is_verified = FALSE
        ORDER BY b.created_at ASC`,
     );
-    return rows;
+    return rows.map((row: Record<string, unknown>) => ({
+      id: row.id,
+      name: row.name,
+      city: row.city,
+      district: row.district,
+      created_at: row.created_at,
+      approximate_lat: row.approximate_lat,
+      approximate_lng: row.approximate_lng,
+      cover_image_path: row.cover_image_path,
+      video_url: row.video_url,
+      landlord_id: row.landlord_id,
+      first_name: row.first_name,
+      last_name: row.last_name,
+      phone: row.phone,
+      email: row.landlord_email,
+    }));
   }
 
   async findById(id: string, includeExact = false) {
@@ -162,6 +180,7 @@ export class BuildingsService {
       isVerified: building.is_verified,
       isFeatured: building.is_featured,
       coverImageUrl: building.cover_image_path,
+      videoUrl: building.video_url ?? undefined,
       availableUnitCount: Number(building.available_unit_count),
       rentFrom: building.rent_from ? Number(building.rent_from) : null,
       units,
@@ -174,8 +193,9 @@ export class BuildingsService {
       const { rows } = await this.db.query(
         `INSERT INTO buildings (
           landlord_id, name, description, city, district, country_code,
-          approximate_lat, approximate_lng, exact_address, exact_lat, exact_lng, total_units, is_verified
-        ) VALUES ($1,$2,$3,$4,$5,'UG',$6,$7,$8,$9,$10,$11,FALSE)
+          approximate_lat, approximate_lng, exact_address, exact_lat, exact_lng,
+          total_units, video_url, is_verified
+        ) VALUES ($1,$2,$3,$4,$5,'UG',$6,$7,$8,$9,$10,$11,$12,FALSE)
         RETURNING *`,
         [
           landlordId,
@@ -189,6 +209,7 @@ export class BuildingsService {
           dto.exactLat ?? dto.approximateLat,
           dto.exactLng ?? dto.approximateLng,
           dto.totalUnits,
+          dto.videoUrl ?? null,
         ],
       );
       const building = rows[0] as { id: string };
