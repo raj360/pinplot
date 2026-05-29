@@ -181,6 +181,19 @@ export class BuildingsService {
 
     const building = rows[0] as Record<string, unknown>;
     const units = await this.fetchUnits(id);
+    const buildingId = building.id as string;
+    const coords = includeExact
+      ? {
+          lat: building.approximate_lat as number,
+          lng: building.approximate_lng as number,
+        }
+      : publicMapCoords(
+          buildingId,
+          building.approximate_lat as number,
+          building.approximate_lng as number,
+          building.exact_lat as number | null,
+          building.exact_lng as number | null,
+        );
 
     return {
       id: building.id,
@@ -189,8 +202,8 @@ export class BuildingsService {
       city: building.city,
       district: building.district,
       countryCode: building.country_code,
-      approximateLat: building.approximate_lat,
-      approximateLng: building.approximate_lng,
+      approximateLat: coords.lat,
+      approximateLng: coords.lng,
       exactAddress: includeExact ? building.exact_address : undefined,
       exactLat: includeExact ? building.exact_lat : undefined,
       exactLng: includeExact ? building.exact_lng : undefined,
