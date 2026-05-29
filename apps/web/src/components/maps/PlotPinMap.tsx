@@ -29,6 +29,16 @@ type AdvancedMarkerWithMeta = google.maps.marker.AdvancedMarkerElement & {
   plotpinUnlocked?: boolean;
 };
 
+type MarkerUiEntry = {
+  id: string;
+  el: HTMLDivElement;
+  tooltip: HTMLDivElement;
+  label: HTMLSpanElement;
+  spinner: HTMLSpanElement;
+  unlocked: boolean;
+  marker: AdvancedMarkerWithMeta;
+};
+
 type HoverPreview = {
   id: string;
   name: string;
@@ -219,6 +229,7 @@ function ClusteredMarkers({
   const unlockedIdsRef = useRef(unlockedBuildingIds);
   const unlockedLocationsRef = useRef(unlockedLocations);
   const markersRef = useRef<AdvancedMarkerWithMeta[]>([]);
+  const markerUiRef = useRef<MarkerUiEntry[]>([]);
   const markerIdsRef = useRef(
     new globalThis.Map<google.maps.marker.AdvancedMarkerElement, string>(),
   );
@@ -254,6 +265,7 @@ function ClusteredMarkers({
 
     markersRef.current.forEach((m) => (m.map = null));
     markersRef.current = [];
+    markerUiRef.current = [];
     markerIdsRef.current.clear();
 
     clustererRef.current?.clearMarkers();
@@ -298,6 +310,8 @@ function ClusteredMarkers({
       },
     });
 
+    const nextMarkerUi: MarkerUiEntry[] = [];
+
     for (const pos of positions) {
       const wrap = document.createElement("div");
       wrap.className =
@@ -336,8 +350,19 @@ function ClusteredMarkers({
       marker.plotpinUnlocked = pos.unlocked;
       markerIdsRef.current.set(marker, pos.id);
       markersRef.current.push(marker);
+      nextMarkerUi.push({
+        id: pos.id,
+        el,
+        tooltip,
+        label,
+        spinner,
+        unlocked: pos.unlocked,
+        marker,
+      });
       clustererRef.current.addMarker(marker);
     }
+
+    markerUiRef.current = nextMarkerUi;
 
     function showColocatedList(
       cluster: Parameters<
@@ -409,39 +434,34 @@ function ClusteredMarkers({
   }, [map, positions]);
 
   useEffect(() => {
-    for (const marker of markersRef.current) {
-      const id = markerIdsRef.current.get(marker);
-      const el = marker.plotpinEl;
-      const tooltip = marker.plotpinTooltip;
-      const label = marker.plotpinLabel;
-      const spinner = marker.plotpinSpinner;
-      if (!el || !id) continue;
+    const frame = window.requestAnimationFrame(() => {
+      for (const entry of markerUiRef.current) {
+        const { id, el, tooltip, label, spinner, unlocked, marker } = entry;
 
-      const active = selectedId === id;
-      const hovered = hoveredId === id;
-      const unlocked =
-        marker.plotpinUnlocked ?? unlockedIdsRef.current?.has(id) ?? false;
-      el.className = markerClasses(active, hovered, unlocked);
-      marker.zIndex = active || hovered ? 2 : 1;
+        const active = selectedId === id;
+        const hovered = hoveredId === id;
+        el.className = markerClasses(active, hovered, unlocked);
+        marker.zIndex = active || hovered ? 2 : 1;
 
-      if (!tooltip || !label || !spinner) continue;
+        if (hovered) {
+          const name =
+            hoverPreview?.id === id
+              ? hoverPreview.name
+              : (buildingsRef.current.find((b) => b.id === id)?.name ??
+                "Listing");
+          const loading = hoverPreview?.id === id ? hoverPreview.loading : false;
 
-      if (hovered) {
-        const name =
-          hoverPreview?.id === id
-            ? hoverPreview.name
-            : (buildingsRef.current.find((b) => b.id === id)?.name ??
-              "Listing");
-        const loading = hoverPreview?.id === id ? hoverPreview.loading : false;
-
-        if (label.textContent !== name) label.textContent = name;
-        spinner.classList.toggle("is-visible", loading);
-        tooltip.classList.add("is-visible");
-      } else {
-        spinner.classList.remove("is-visible");
-        tooltip.classList.remove("is-visible");
+          if (label.textContent !== name) label.textContent = name;
+          spinner.classList.toggle("is-visible", loading);
+          tooltip.classList.add("is-visible");
+        } else {
+          spinner.classList.remove("is-visible");
+          tooltip.classList.remove("is-visible");
+        }
       }
-    }
+    });
+
+    return () => window.cancelAnimationFrame(frame);
   }, [selectedId, hoveredId, hoverPreview]);
 
   return null;

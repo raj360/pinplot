@@ -29,34 +29,50 @@ export function UnlockPanel({
 }) {
   const { isAuthenticated, loading: authLoading } = useAuth();
   const [myUnlocks, setMyUnlocks] = useState<TenantUnlock[]>([]);
-  const [loadingUnlocks, setLoadingUnlocks] = useState(false);
+  const [loadedBuildingId, setLoadedBuildingId] = useState<string | null>(null);
   const [unlockingId, setUnlockingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const unlockedUnitIds = new Set(myUnlocks.map((u) => u.unitId));
+  const activeUnlocks = isAuthenticated ? myUnlocks : [];
+  const loadingUnlocks =
+    isAuthenticated && !authLoading && loadedBuildingId !== buildingId;
+  const unlockedUnitIds = new Set(activeUnlocks.map((u) => u.unitId));
   const availableUnits = units.filter(
     (u) =>
       u.status === UnitStatus.AVAILABLE && !unlockedUnitIds.has(u.id),
   );
 
   const loadUnlocks = useCallback(async () => {
-    setLoadingUnlocks(true);
     try {
       setMyUnlocks(await fetchBuildingUnlocks(buildingId));
     } catch {
       setMyUnlocks([]);
     } finally {
-      setLoadingUnlocks(false);
+      setLoadedBuildingId(buildingId);
     }
   }, [buildingId]);
 
   useEffect(() => {
-    if (!isAuthenticated) {
-      setMyUnlocks([]);
-      return;
-    }
-    loadUnlocks();
-  }, [isAuthenticated, loadUnlocks]);
+    if (!isAuthenticated) return;
+
+    let cancelled = false;
+
+    fetchBuildingUnlocks(buildingId)
+      .then((data) => {
+        if (cancelled) return;
+        setMyUnlocks(data);
+        setLoadedBuildingId(buildingId);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setMyUnlocks([]);
+        setLoadedBuildingId(buildingId);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isAuthenticated, buildingId]);
 
   async function handleUnlock(unitId: string) {
     setError(null);
@@ -86,7 +102,7 @@ export function UnlockPanel({
 
   return (
     <section className="mt-8 space-y-6">
-      {myUnlocks.length > 0 ? (
+      {activeUnlocks.length > 0 ? (
         <div className="space-y-4">
           <div>
             <h2 className="text-lg font-bold">Your exclusive access</h2>
@@ -94,7 +110,7 @@ export function UnlockPanel({
               Contact, map, and directions for units you unlocked.
             </p>
           </div>
-          {myUnlocks.map((unlock) => (
+          {activeUnlocks.map((unlock) => (
             <UnlockedAccessCard
               key={unlock.unlockId}
               unlock={unlock}
