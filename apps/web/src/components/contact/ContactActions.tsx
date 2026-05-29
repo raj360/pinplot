@@ -20,12 +20,18 @@ export function ContactActions({
 }) {
   if (isEmailContact(contact)) {
     return (
-      <a
-        href={`mailto:${contact}`}
-        className="font-medium text-primary hover:underline"
-      >
-        {contact}
-      </a>
+      <div className="space-y-1.5">
+        <a
+          href={`mailto:${contact}`}
+          className="font-medium text-primary hover:underline"
+        >
+          {contact}
+        </a>
+        <p className="text-xs text-muted">
+          Email only — the landlord has not added a phone number to their
+          profile yet. Phone verification is not required for contact to appear.
+        </p>
+      </div>
     );
   }
 

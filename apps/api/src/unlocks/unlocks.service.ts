@@ -52,11 +52,14 @@ export class UnlocksService {
       `SELECT uu.*, u.unit_number, u.building_id, b.name AS building_name,
               b.cover_image_path, b.video_url,
               b.exact_lat, b.exact_lng, b.approximate_lat, b.approximate_lng,
-              p.phone_secondary AS landlord_phone_secondary
+              p.phone AS landlord_phone,
+              p.phone_secondary AS landlord_phone_secondary,
+              au.email AS landlord_email
        FROM unit_unlocks uu
        JOIN units u ON u.id = uu.unit_id
        JOIN buildings b ON b.id = u.building_id
        LEFT JOIN profiles p ON p.id = b.landlord_id
+       LEFT JOIN auth.users au ON au.id = b.landlord_id
        WHERE uu.tenant_id = $1
          AND uu.is_winner = TRUE
          AND (uu.expires_at IS NULL OR uu.expires_at > NOW())
@@ -71,11 +74,14 @@ export class UnlocksService {
       `SELECT uu.*, u.unit_number, u.building_id, b.name AS building_name,
               b.cover_image_path, b.video_url,
               b.exact_lat, b.exact_lng, b.approximate_lat, b.approximate_lng,
-              p.phone_secondary AS landlord_phone_secondary
+              p.phone AS landlord_phone,
+              p.phone_secondary AS landlord_phone_secondary,
+              au.email AS landlord_email
        FROM unit_unlocks uu
        JOIN units u ON u.id = uu.unit_id
        JOIN buildings b ON b.id = u.building_id
        LEFT JOIN profiles p ON p.id = b.landlord_id
+       LEFT JOIN auth.users au ON au.id = b.landlord_id
        WHERE b.id = $1
          AND uu.tenant_id = $2
          AND uu.is_winner = TRUE
@@ -328,12 +334,40 @@ export class UnlocksService {
     return { ...response, imageUrls };
   }
 
+  private resolveContact(
+    unlock: UnlockRow,
+    unit: UnitRow,
+  ) {
+    const snapshot = unlock.revealed_contact_phone?.trim() || null;
+    const livePhone = unit.landlord_phone?.trim() || null;
+    const liveSecondary = unit.landlord_phone_secondary?.trim() || null;
+    const email = unit.landlord_email?.trim() || null;
+
+    // Snapshot at unlock time; prefer live profile phone when landlord adds one later.
+    let primary = snapshot;
+    if (livePhone) {
+      if (!snapshot || snapshot.includes("@")) {
+        primary = livePhone;
+      }
+    } else if (!primary && email) {
+      primary = email;
+    }
+
+    return {
+      phone: primary,
+      phoneSecondary: liveSecondary || null,
+      exactAddress: unlock.revealed_exact_address,
+      contactIsEmailFallback: Boolean(primary?.includes("@") && !livePhone),
+    };
+  }
+
   private toResponse(
     unit: UnitRow,
     unlock: UnlockRow,
     unlockState: "winner",
   ) {
     const { lat, lng } = this.resolveCoords(unit);
+    const contact = this.resolveContact(unlock, unit);
     return {
       unlockId: unlock.id,
       unitId: unit.id,
@@ -346,11 +380,7 @@ export class UnlocksService {
       exclusiveHours: PRICING.unlockExclusiveHours,
       unlockedAt: unlock.created_at,
       expiresAt: unlock.expires_at,
-      contact: {
-        phone: unlock.revealed_contact_phone,
-        phoneSecondary: unit.landlord_phone_secondary ?? null,
-        exactAddress: unlock.revealed_exact_address,
-      },
+      contact,
       location: { lat, lng },
       coverImageUrl: unit.cover_image_path ?? undefined,
       videoUrl: unit.video_url ?? undefined,
@@ -360,6 +390,7 @@ export class UnlocksService {
   private toUnlockRecord(row: UnlockRow & UnitRow) {
     const unit: UnitRow = row;
     const { lat, lng } = this.resolveCoords(unit);
+    const contact = this.resolveContact(row, unit);
     return {
       unlockId: row.id,
       unitId: row.unit_id,
@@ -370,11 +401,7 @@ export class UnlocksService {
       unlockedAt: row.created_at,
       expiresAt: row.expires_at,
       exclusiveHours: PRICING.unlockExclusiveHours,
-      contact: {
-        phone: row.revealed_contact_phone,
-        phoneSecondary: row.landlord_phone_secondary ?? null,
-        exactAddress: row.revealed_exact_address,
-      },
+      contact,
       location: { lat, lng },
       coverImageUrl: unit.cover_image_path ?? undefined,
       videoUrl: unit.video_url ?? undefined,

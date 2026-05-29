@@ -79,7 +79,9 @@ export function UnlockedAccessCard({
           {contact ? (
             <div className="sm:col-span-2">
               <dt className="text-xs font-medium uppercase tracking-wide text-muted">
-                Landlord contact
+                {unlock.contact.contactIsEmailFallback
+                  ? "Landlord email"
+                  : "Landlord contact"}
               </dt>
               <dd className="mt-2">
                 <ContactActions

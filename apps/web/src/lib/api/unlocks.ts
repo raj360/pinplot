@@ -14,6 +14,8 @@ export type TenantUnlock = {
     phone: string | null;
     phoneSecondary?: string | null;
     exactAddress: string | null;
+    /** True when only sign-in email is available — landlord has no phone on profile. */
+    contactIsEmailFallback?: boolean;
   };
   location: {
     lat: number;
