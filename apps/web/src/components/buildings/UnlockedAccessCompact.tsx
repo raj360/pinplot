@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { exploreBuildingUrl } from "@/lib/explore/urls";
 import { UnlockCountdown } from "@/components/unlocks/UnlockCountdown";
 import {
   googleMapsDirectionsUrl,
@@ -12,9 +13,13 @@ import type { TenantUnlock } from "@/lib/api/unlocks";
 export function UnlockedAccessCompact({
   unlock,
   showFullLink = true,
+  showBuildingName = false,
+  onViewFullDetails,
 }: {
   unlock: TenantUnlock;
   showFullLink?: boolean;
+  showBuildingName?: boolean;
+  onViewFullDetails?: () => void;
 }) {
   const { lat, lng } = unlock.location;
   const contact = unlock.contact.phone;
@@ -28,7 +33,7 @@ export function UnlockedAccessCompact({
         </p>
         <p className="mt-0.5 text-base font-bold">
           Unit {unlock.unitNumber}
-          {unlock.buildingName ? ` · ${unlock.buildingName}` : ""}
+          {showBuildingName && unlock.buildingName ? ` · ${unlock.buildingName}` : ""}
         </p>
         <p className="mt-0.5 text-xs opacity-90">
           <UnlockCountdown expiresAt={unlock.expiresAt} />
@@ -80,12 +85,20 @@ export function UnlockedAccessCompact({
           </a>
         </div>
 
-        {showFullLink && unlock.buildingId ? (
-          <Link
-            href={`/buildings/${unlock.buildingId}`}
+        {showFullLink && onViewFullDetails ? (
+          <button
+            type="button"
+            onClick={onViewFullDetails}
             className="inline-block text-sm font-medium text-primary hover:underline"
           >
-            View full building page
+            View full details
+          </button>
+        ) : showFullLink && unlock.buildingId ? (
+          <Link
+            href={exploreBuildingUrl(unlock.buildingId, { hideMap: true })}
+            className="inline-block text-sm font-medium text-primary hover:underline"
+          >
+            View full details
           </Link>
         ) : null}
       </div>

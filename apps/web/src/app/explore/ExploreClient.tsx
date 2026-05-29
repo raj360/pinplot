@@ -1,8 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { PlotPinMap } from "@/components/maps/PlotPinMap";
-import { BuildingDetailPanel } from "@/components/buildings/BuildingDetailPanel";
+import { BuildingDetailExperience } from "@/components/buildings/BuildingDetailExperience";
 import { BuildingPreviewModal } from "@/components/explore/BuildingPreviewModal";
 import { UnlockedAccessModal } from "@/components/buildings/UnlockedAccessModal";
 import {
@@ -16,6 +17,7 @@ import { layoutMaxClass, LAYOUT, contentBandInnerClass } from "@/lib/layout/shel
 import { cn } from "@/lib/utils/cn";
 import { AppLoadingOverlay } from "@/components/ui/app-loading-overlay";
 import { LoadingState } from "@/components/ui/loading-state";
+import { BuildingPreviewSkeleton } from "@/components/explore/BuildingPreviewSkeleton";
 import { Spinner } from "@/components/ui/spinner";
 import {
   fetchBuildingsInBounds,
@@ -24,6 +26,7 @@ import {
 } from "@/lib/api/buildings";
 import { parseRentRange, rentRangeLabel } from "@/lib/filters/rent-ranges";
 import { formatRentPerMonth } from "@/lib/intl/format";
+import { clearBuildingCache } from "@/lib/api/building-cache";
 import { fetchMyUnlocks, type TenantUnlock } from "@/lib/api/unlocks";
 import { hasAccessOnly } from "@/lib/unlocks/display";
 import { useAuth } from "@/lib/auth/use-auth";
@@ -50,22 +53,35 @@ async function loadBuildings(filters: ExploreSearchFilters) {
   });
 }
 
-function BuildingDetailSection({
+function ExploreDetailPane({
   loading,
   detail,
-  compact = false,
+  variant,
+  onUnlockSuccess,
+  onExpandToFull,
 }: {
   loading: boolean;
   detail: BuildingDetail | null;
-  compact?: boolean;
+  variant: "compact" | "full";
+  onUnlockSuccess?: () => void;
+  onExpandToFull?: () => void;
 }) {
-  if (loading) {
-    return <LoadingState label="Loading building" compact={compact} />;
+  if (loading || !detail) {
+    return (
+      <BuildingPreviewSkeleton mode={variant === "compact" ? "summary" : "full"} />
+    );
   }
-  if (detail) {
-    return <BuildingDetailPanel building={detail} compact={compact} />;
-  }
-  return <p className="text-sm text-muted">Could not load building details.</p>;
+
+  return (
+    <BuildingDetailExperience
+      building={detail}
+      variant={variant}
+      layout="stack"
+      hideHeader
+      onUnlockSuccess={onUnlockSuccess}
+      onExpandToFull={onExpandToFull}
+    />
+  );
 }
 
 export function ExploreClient() {
@@ -93,6 +109,8 @@ export function ExploreClient() {
   const [myUnlocks, setMyUnlocks] = useState<TenantUnlock[]>([]);
   const { hoveredId, setHover, loadSelectedDetail } = useExplorePreview();
   const isMobile = useIsMobile();
+  const searchParams = useSearchParams();
+  const deepLinkHandled = useRef(false);
 
   const unlocksByBuilding = useMemo(() => {
     const map = new Map<string, TenantUnlock[]>();
@@ -141,6 +159,23 @@ export function ExploreClient() {
     [loadDetail, setHover],
   );
 
+  const refreshUnlockState = useCallback(async () => {
+    if (!isAuthenticated) return;
+
+    try {
+      const unlocks = await fetchMyUnlocks();
+      setMyUnlocks(unlocks);
+      const next = new Map<string, { lat: number; lng: number }>();
+      for (const unlock of unlocks) {
+        next.set(unlock.buildingId, unlock.location);
+      }
+      setUnlockedLocations(next);
+    } catch {
+      setUnlockedLocations(new Map());
+      setMyUnlocks([]);
+    }
+  }, [isAuthenticated]);
+
   const refreshBuildings = useCallback(async (searchFilters: ExploreSearchFilters) => {
     const data = await loadBuildings(searchFilters);
     setAllBuildings(data);
@@ -149,6 +184,24 @@ export function ExploreClient() {
       return data[0]?.id ?? null;
     });
   }, []);
+
+  const handleUnlockSuccess = useCallback(async () => {
+    await refreshUnlockState();
+    await refreshBuildings(appliedFilters);
+    if (selectedId) {
+      clearBuildingCache(selectedId);
+      setSelectedLoading(true);
+      const detail = await loadSelectedDetail(selectedId);
+      setSelectedDetail(detail);
+      setSelectedLoading(false);
+    }
+  }, [
+    appliedFilters,
+    loadSelectedDetail,
+    refreshBuildings,
+    refreshUnlockState,
+    selectedId,
+  ]);
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -212,6 +265,22 @@ export function ExploreClient() {
     };
   }, [applySearchResults]);
 
+  useEffect(() => {
+    if (loading || deepLinkHandled.current) return;
+
+    const buildingId = searchParams.get("building");
+    if (!buildingId) return;
+
+    const hideMap = searchParams.get("map") === "0";
+    const exists = allBuildings.some((building) => building.id === buildingId);
+    if (!exists) return;
+
+    deepLinkHandled.current = true;
+    setDetailMode("full");
+    if (hideMap && !isMobile) setMapVisible(false);
+    void loadDetail(buildingId);
+  }, [allBuildings, isMobile, loadDetail, loading, searchParams]);
+
   const runSearch = useCallback(async () => {
     setSearching(true);
     setError(null);
@@ -252,12 +321,6 @@ export function ExploreClient() {
 
   const handleListSelect = useCallback(
     (id: string) => {
-      const summary = allBuildings.find((building) => building.id === id);
-      if (summary && hasAccessOnly(summary)) {
-        openAccessModal(id);
-        return;
-      }
-
       if (isMobile) {
         setDetailMode("full");
         void loadDetail(id);
@@ -268,38 +331,38 @@ export function ExploreClient() {
       setMapVisible(false);
       void loadDetail(id);
     },
-    [allBuildings, isMobile, loadDetail, openAccessModal],
+    [isMobile, loadDetail],
   );
 
   const handleMapSelect = useCallback(
     (id: string) => {
-      const summary = allBuildings.find((building) => building.id === id);
-      if (summary && hasAccessOnly(summary)) {
-        openAccessModal(id);
-        return;
-      }
-
       if (isMobile) {
-        setDetailMode("full");
+        setDetailMode("summary");
         void loadDetail(id);
         return;
       }
 
       setDetailMode("summary");
       setMapVisible(true);
+      closeAccessModal();
       void loadDetail(id);
     },
-    [allBuildings, isMobile, loadDetail, openAccessModal],
+    [closeAccessModal, isMobile, loadDetail],
   );
 
-  const handleMapAccessOpen = useCallback(
-    (id: string) => {
-      if ((unlocksByBuilding.get(id)?.length ?? 0) > 0) {
-        openAccessModal(id);
-      }
-    },
-    [openAccessModal, unlocksByBuilding],
-  );
+  const handleExpandToFullDetails = useCallback(() => {
+    closeAccessModal();
+
+    if (isMobile) {
+      setDetailMode("full");
+      if (selectedId) void loadDetail(selectedId);
+      return;
+    }
+
+    setDetailMode("full");
+    setMapVisible(false);
+    if (selectedId) void loadDetail(selectedId);
+  }, [closeAccessModal, isMobile, loadDetail, selectedId]);
 
   const handleToggleMap = useCallback(() => {
     setMapVisible((visible) => {
@@ -364,7 +427,6 @@ export function ExploreClient() {
     unlockedBuildingIds,
     unlockedLocations,
     onSelect: handleMapSelect,
-    onAccessOpen: handleMapAccessOpen,
     onHover: setHover,
     gestureHandling: isMobile ? ("none" as const) : ("greedy" as const),
     fitBoundsToken: mapFitToken,
@@ -545,24 +607,28 @@ export function ExploreClient() {
             </ul>
 
             {showMapSummary ? (
-              <div className="explore-desktop-summary relative z-10 hidden max-h-[min(42vh,360px)] shrink-0 overflow-y-auto border-t-2 border-border bg-surface p-4 shadow-[0_-14px_36px_-14px_rgba(15,23,42,0.22)] ring-1 ring-black/5 md:block">
-                <div className="mb-2 flex items-center justify-between gap-2">
-                  <p className="text-sm font-semibold text-primary">
+              <div className="explore-desktop-summary relative z-10 hidden h-[min(58vh,30rem)] shrink-0 flex-col overflow-hidden border-t-2 border-border bg-surface shadow-[0_-14px_36px_-14px_rgba(15,23,42,0.22)] ring-1 ring-black/5 md:flex">
+                <div className="flex shrink-0 items-center justify-between gap-2 border-b border-border px-4 py-2.5">
+                  <p className="truncate text-sm font-semibold text-primary">
                     {selectedBuilding?.name ?? "Building"}
                   </p>
                   <button
                     type="button"
                     onClick={() => setDetailMode(null)}
-                    className="text-xs text-muted hover:text-foreground"
+                    className="shrink-0 text-xs text-muted hover:text-foreground"
                   >
                     Close
                   </button>
                 </div>
-                <BuildingDetailSection
-                  loading={selectedLoading}
-                  detail={selectedDetail}
-                  compact
-                />
+                <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-4">
+                  <ExploreDetailPane
+                    loading={selectedLoading}
+                    detail={selectedDetail}
+                    variant="compact"
+                    onUnlockSuccess={() => void handleUnlockSuccess()}
+                    onExpandToFull={handleExpandToFullDetails}
+                  />
+                </div>
               </div>
             ) : null}
           </aside>
@@ -574,9 +640,11 @@ export function ExploreClient() {
           ) : (
             <section className="hidden min-h-0 flex-1 overflow-y-auto bg-background p-6 md:block">
               {showFullDetailPane ? (
-                <BuildingDetailSection
+                <ExploreDetailPane
                   loading={selectedLoading}
                   detail={selectedDetail}
+                  variant="full"
+                  onUnlockSuccess={() => void handleUnlockSuccess()}
                 />
               ) : (
                 <p className="text-muted">Select a building from the list.</p>
@@ -593,7 +661,9 @@ export function ExploreClient() {
           loading={selectedLoading}
           detail={selectedDetail}
           onClose={closeMobileSheet}
-          variant="mobile"
+          mode={detailMode === "summary" ? "summary" : "full"}
+          onUnlockSuccess={() => void handleUnlockSuccess()}
+          onExpandToFull={handleExpandToFullDetails}
         />
       ) : null}
 
@@ -602,6 +672,7 @@ export function ExploreClient() {
         unlocks={accessModalUnlocks}
         buildingName={accessModalBuilding?.name}
         onClose={closeAccessModal}
+        onViewFullDetails={handleExpandToFullDetails}
       />
     </div>
   );

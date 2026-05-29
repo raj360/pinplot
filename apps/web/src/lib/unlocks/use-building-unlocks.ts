@@ -62,20 +62,22 @@ export function useBuildingUnlocks(buildingId: string, units: UnitLike[]) {
   }, [isAuthenticated, buildingId]);
 
   const handleUnlock = useCallback(
-    async (unitId: string) => {
+    async (unitId: string): Promise<boolean> => {
       setError(null);
       setUnlockingId(unitId);
       try {
         await unlockUnit(unitId);
         clearBuildingCache(buildingId);
         await reloadUnlocks();
+        return true;
       } catch (err) {
         setError(err instanceof Error ? err.message : "Unlock failed");
+        return false;
       } finally {
         setUnlockingId(null);
       }
     },
-    [reloadUnlocks],
+    [buildingId, reloadUnlocks],
   );
 
   const showUnlockSection =

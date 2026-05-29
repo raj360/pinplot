@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { exploreBuildingUrl } from "@/lib/explore/urls";
 import { PRICING } from "@plotpin/shared-types";
 import { formatUnitDetail, type UnitLike } from "@/lib/buildings/unit-summary";
 import { formatCurrency } from "@/lib/intl/format";
@@ -52,7 +53,7 @@ export function UnlockPurchasePanel({
 
       {!isAuthenticated ? (
         <Link
-          href={`/auth/login?next=/buildings/${buildingId}`}
+          href={`/auth/login?next=${encodeURIComponent(exploreBuildingUrl(buildingId, { hideMap: true }))}`}
           className="mt-4 inline-block w-full bg-primary px-4 py-2.5 text-center text-sm font-medium text-primary-foreground"
         >
           Sign in to unlock

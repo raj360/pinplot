@@ -1,28 +1,10 @@
-import { notFound } from "next/navigation";
-import { BuildingPageClient } from "@/components/buildings/BuildingPageClient";
-import { AppHeader } from "@/components/layout/AppHeader";
-import { PageMain } from "@/components/layout/PageShell";
-import { fetchBuilding } from "@/lib/api/buildings";
+import { redirect } from "next/navigation";
+import { exploreBuildingUrl } from "@/lib/explore/urls";
 
 type Props = { params: Promise<{ id: string }> };
 
+/** Deep links open Explore with the building selected and map hidden. */
 export default async function BuildingPage({ params }: Props) {
   const { id } = await params;
-
-  let building;
-  try {
-    building = await fetchBuilding(id);
-  } catch {
-    notFound();
-  }
-
-  return (
-    <div className="min-h-screen bg-background">
-      <AppHeader backHref="/explore" backLabel="← Back to map" />
-
-      <PageMain>
-        <BuildingPageClient building={building} />
-      </PageMain>
-    </div>
-  );
+  redirect(exploreBuildingUrl(id, { hideMap: true }));
 }

@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect } from "react";
-import { BuildingDetailPanel } from "@/components/buildings/BuildingDetailPanel";
-import { LoadingState } from "@/components/ui/loading-state";
+import { BuildingDetailExperience } from "@/components/buildings/BuildingDetailExperience";
+import { BuildingPreviewSkeleton } from "@/components/explore/BuildingPreviewSkeleton";
 import type { BuildingDetail } from "@/lib/api/buildings";
 import { cn } from "@/lib/utils/cn";
 
@@ -12,17 +12,21 @@ type BuildingPreviewModalProps = {
   loading: boolean;
   detail: BuildingDetail | null;
   onClose: () => void;
-  variant: "mobile";
+  mode: "full" | "summary";
+  onUnlockSuccess?: () => void;
+  onExpandToFull?: () => void;
 };
 
-/** Mobile-only bottom sheet for building detail after list/map click. */
+/** Mobile bottom sheet — full detail after list tap, compact summary after map pin. */
 export function BuildingPreviewModal({
   open,
   buildingName,
   loading,
   detail,
   onClose,
-  variant: _variant,
+  mode,
+  onUnlockSuccess,
+  onExpandToFull,
 }: BuildingPreviewModalProps) {
   useEffect(() => {
     if (!open) return;
@@ -44,13 +48,18 @@ export function BuildingPreviewModal({
   if (!open) return null;
 
   const title = detail?.name ?? buildingName ?? "Building";
+  const isSummary = mode === "summary";
+  const sheetHeight = isSummary
+    ? "h-[min(58vh,30rem)]"
+    : "h-[min(92vh,100dvh)]";
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-4"
+      className="fixed inset-0 z-50 flex items-end justify-center"
       role="dialog"
       aria-modal="true"
       aria-labelledby="building-preview-title"
+      aria-busy={loading}
     >
       <button
         type="button"
@@ -59,14 +68,24 @@ export function BuildingPreviewModal({
         aria-label="Close building preview"
       />
 
-      <div className="relative z-10 flex max-h-[92vh] w-full max-w-lg flex-col overflow-hidden bg-surface shadow-2xl sm:max-h-[85vh] sm:rounded-lg">
+      <div
+        className={cn(
+          "relative z-10 flex w-full flex-col overflow-hidden bg-surface shadow-2xl",
+          sheetHeight,
+        )}
+      >
         <div className="flex shrink-0 items-start justify-between gap-3 border-b border-border bg-background px-4 py-3">
-          <h2
-            id="building-preview-title"
-            className="text-base font-bold leading-tight text-primary sm:text-lg"
-          >
-            {title}
-          </h2>
+          <div className="min-w-0">
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-muted">
+              {isSummary ? "Quick preview" : "Building details"}
+            </p>
+            <h2
+              id="building-preview-title"
+              className="truncate text-base font-bold leading-tight text-primary sm:text-lg"
+            >
+              {loading && !detail ? "Loading…" : title}
+            </h2>
+          </div>
           <button
             type="button"
             onClick={onClose}
@@ -76,13 +95,18 @@ export function BuildingPreviewModal({
           </button>
         </div>
 
-        <div className={cn("min-h-0 flex-1 overflow-y-auto overscroll-contain p-4")}>
-          {loading ? (
-            <LoadingState label="Loading building" compact />
-          ) : detail ? (
-            <BuildingDetailPanel building={detail} compact />
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-4">
+          {loading || !detail ? (
+            <BuildingPreviewSkeleton mode={mode} />
           ) : (
-            <p className="text-sm text-muted">Could not load building details.</p>
+            <BuildingDetailExperience
+              building={detail}
+              variant={isSummary ? "compact" : "full"}
+              layout="stack"
+              hideHeader
+              onUnlockSuccess={onUnlockSuccess}
+              onExpandToFull={isSummary ? onExpandToFull : undefined}
+            />
           )}
         </div>
       </div>

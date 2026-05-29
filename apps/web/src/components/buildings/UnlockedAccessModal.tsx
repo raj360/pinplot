@@ -11,11 +11,13 @@ export function UnlockedAccessModal({
   buildingName,
   open,
   onClose,
+  onViewFullDetails,
 }: {
   unlocks: TenantUnlock[];
   buildingName?: string;
   open: boolean;
   onClose: () => void;
+  onViewFullDetails?: () => void;
 }) {
   useEffect(() => {
     if (!open) return;
@@ -89,7 +91,13 @@ export function UnlockedAccessModal({
             />
           ) : null}
           {unlocks.map((unlock) => (
-            <UnlockedAccessCompact key={unlock.unlockId} unlock={unlock} />
+            <UnlockedAccessCompact
+              key={unlock.unlockId}
+              unlock={unlock}
+              showBuildingName={false}
+              showFullLink={Boolean(onViewFullDetails)}
+              onViewFullDetails={onViewFullDetails}
+            />
           ))}
         </div>
       </div>

@@ -387,9 +387,6 @@ function ClusteredMarkers({
       wrap.onclick = (e) => {
         e.stopPropagation();
         colocatedWindowRef.current?.close();
-        if (pos.unlocked) {
-          onAccessOpenRef.current?.(pos.id);
-        }
         onSelectRef.current?.(pos.id);
       };
 
@@ -549,7 +546,6 @@ function MapFallback({
               onMouseEnter={() => onHover?.(b.id)}
               onMouseLeave={() => onHover?.(null)}
               onClick={() => {
-                if (unlocked) onAccessOpen?.(b.id);
                 onSelect?.(b.id);
               }}
               className={cn(

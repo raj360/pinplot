@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { exploreBuildingUrl } from "@/lib/explore/urls";
 import { UnlockCountdown } from "@/components/unlocks/UnlockCountdown";
 import { LocationMiniMap } from "@/components/maps/LocationMiniMap";
 import {
@@ -108,10 +109,10 @@ export function UnlockedAccessCard({
 
         {showBuildingLink && unlock.buildingId ? (
           <Link
-            href={`/buildings/${unlock.buildingId}`}
+            href={exploreBuildingUrl(unlock.buildingId, { hideMap: true })}
             className="inline-block text-sm text-primary hover:underline"
           >
-            View building page
+            View on map
           </Link>
         ) : null}
       </div>

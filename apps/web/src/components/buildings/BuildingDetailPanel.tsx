@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { exploreBuildingUrl } from "@/lib/explore/urls";
 import { PRICING, UnitStatus } from "@plotpin/shared-types";
 import type { BuildingDetail } from "@/lib/api/buildings";
 import {
@@ -68,11 +69,14 @@ export function BuildingDetailPanel({
   building,
   compact = false,
   showUnlockLink = true,
+  hideHeader = false,
 }: {
   building: BuildingDetail;
   compact?: boolean;
   /** Hide on the building detail page where UnlockPanel is shown below. */
   showUnlockLink?: boolean;
+  /** Suppress title block when a parent already shows the building name. */
+  hideHeader?: boolean;
 }) {
   const unitGroups = groupAvailableUnits(building.units);
   const unitSummary = summarizeAvailableUnits(building.units);
@@ -86,7 +90,7 @@ export function BuildingDetailPanel({
 
   const unlockCta = showUnlockLink ? (
     <Link
-      href={`/buildings/${building.id}`}
+      href={exploreBuildingUrl(building.id, { hideMap: true })}
       className="inline-block w-full bg-primary py-2.5 text-center text-sm font-medium text-primary-foreground"
     >
       View details — unlock contact
@@ -116,12 +120,14 @@ export function BuildingDetailPanel({
   if (compact) {
     return (
       <article className="space-y-3">
-        <header>
-          <h2 className="text-lg font-bold">{building.name}</h2>
-          <p className="text-sm text-muted">
-            {[building.district, building.city].filter(Boolean).join(", ")}
-          </p>
-        </header>
+        {!hideHeader ? (
+          <header>
+            <h2 className="text-lg font-bold">{building.name}</h2>
+            <p className="text-sm text-muted">
+              {[building.district, building.city].filter(Boolean).join(", ")}
+            </p>
+          </header>
+        ) : null}
 
         {summaryBox}
 

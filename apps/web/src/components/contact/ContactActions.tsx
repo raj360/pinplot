@@ -1,3 +1,6 @@
+"use client";
+
+import { useState } from "react";
 import {
   formatPhoneDisplay,
   isEmailContact,
@@ -12,11 +15,14 @@ export function ContactActions({
   secondaryContact,
   whatsAppMessage,
   compact = false,
+  revealOnClick = true,
 }: {
   contact: string;
   secondaryContact?: string | null;
   whatsAppMessage?: string;
   compact?: boolean;
+  /** Hide phone numbers until the user taps Show contact (Jiji-style). */
+  revealOnClick?: boolean;
 }) {
   if (isEmailContact(contact)) {
     return (
@@ -53,6 +59,7 @@ export function ContactActions({
           label={index === 0 ? "Primary" : "Secondary"}
           whatsAppMessage={whatsAppMessage}
           compact={compact}
+          revealOnClick={revealOnClick}
         />
       ))}
     </div>
@@ -64,14 +71,33 @@ function PhoneContactRow({
   label,
   whatsAppMessage,
   compact,
+  revealOnClick,
 }: {
   phone: string;
   label: string;
   whatsAppMessage?: string;
   compact?: boolean;
+  revealOnClick: boolean;
 }) {
+  const [revealed, setRevealed] = useState(!revealOnClick);
   const display = formatPhoneDisplay(phone);
   const wa = supportsWhatsApp(phone) ? whatsAppHref(phone, whatsAppMessage) : null;
+
+  if (!revealed) {
+    return (
+      <button
+        type="button"
+        onClick={() => setRevealed(true)}
+        className={
+          compact
+            ? "w-full bg-[#25D366] px-3 py-2.5 text-center text-sm font-semibold text-white"
+            : "w-full bg-[#25D366] px-4 py-3 text-center text-sm font-semibold text-white"
+        }
+      >
+        Show contact
+      </button>
+    );
+  }
 
   if (compact) {
     return (
