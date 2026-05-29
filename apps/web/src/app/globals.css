@@ -131,3 +131,24 @@ footer * {
     transform: rotate(360deg);
   }
 }
+
+/* Explore mobile — map is a fixed band; list scrolls with the page (no nested trap). */
+.explore-mobile-map {
+  isolation: isolate;
+  touch-action: none;
+}
+
+.explore-mobile-map > div,
+.explore-mobile-map iframe {
+  touch-action: none;
+}
+
+.explore-results-list {
+  -webkit-overflow-scrolling: touch;
+}
+
+@media (max-width: 767px) {
+  .explore-results-list {
+    overflow: visible;
+  }
+}

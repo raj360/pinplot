@@ -55,6 +55,10 @@ type Props = {
   onSelect?: (id: string) => void;
   onAccessOpen?: (id: string) => void;
   onHover?: (id: string | null) => void;
+  /** cooperative = page scroll passes through on mobile; greedy = map captures all gestures */
+  gestureHandling?: "greedy" | "cooperative" | "none" | "auto";
+  /** Increment after search to fit map to result markers. */
+  fitBoundsToken?: number;
 };
 
 export function PlotPinMap({
@@ -67,6 +71,8 @@ export function PlotPinMap({
   onSelect,
   onAccessOpen,
   onHover,
+  gestureHandling = "greedy",
+  fitBoundsToken = 0,
 }: Props) {
   if (!MAPS_KEY || MAPS_KEY.startsWith("your-")) {
     return (
@@ -91,10 +97,15 @@ export function PlotPinMap({
         mapTypeId="roadmap"
         mapTypeControl={false}
         streetViewControl={false}
-        gestureHandling="greedy"
+        gestureHandling={gestureHandling}
         className="h-full w-full"
       >
         <ExploreMapConstraints />
+        <MapFitBounds
+          buildings={buildings}
+          unlockedLocations={unlockedLocations}
+          fitToken={fitBoundsToken}
+        />
         <ClusteredMarkers
           buildings={buildings}
           selectedId={selectedId}
@@ -134,6 +145,51 @@ function ExploreMapConstraints() {
 
     return () => listener.remove();
   }, [map]);
+
+  return null;
+}
+
+function MapFitBounds({
+  buildings,
+  unlockedLocations,
+  fitToken,
+}: {
+  buildings: BuildingSummary[];
+  unlockedLocations?: ReadonlyMap<string, { lat: number; lng: number }>;
+  fitToken: number;
+}) {
+  const map = useMap();
+
+  useEffect(() => {
+    if (!map || fitToken === 0) return;
+
+    if (buildings.length === 0) {
+      map.setCenter(KAMPALA_CENTER);
+      map.setZoom(EXPLORE_MAP_DEFAULT_ZOOM);
+      return;
+    }
+
+    const bounds = new google.maps.LatLngBounds();
+    for (const building of buildings) {
+      const exact = unlockedLocations?.get(building.id);
+      bounds.extend({
+        lat: exact?.lat ?? building.approximateLat,
+        lng: exact?.lng ?? building.approximateLng,
+      });
+    }
+
+    map.fitBounds(bounds, 56);
+
+    google.maps.event.addListenerOnce(map, "idle", () => {
+      const zoom = map.getZoom();
+      if (zoom != null && zoom > EXPLORE_MAP_MAX_ZOOM) {
+        map.setZoom(EXPLORE_MAP_MAX_ZOOM);
+      }
+      if (zoom != null && zoom < EXPLORE_MAP_MIN_ZOOM) {
+        map.setZoom(EXPLORE_MAP_MIN_ZOOM);
+      }
+    });
+  }, [map, buildings, unlockedLocations, fitToken]);
 
   return null;
 }

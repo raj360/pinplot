@@ -1,3 +1,5 @@
+"use client";
+
 import type { ReactNode } from "react";
 import { AppHeader } from "@/components/layout/AppHeader";
 import {
@@ -8,6 +10,7 @@ import {
   pageMainBesideSidebarClass,
   sidebarColumnClass,
 } from "@/lib/layout/shell";
+import { cn } from "@/lib/utils/cn";
 
 type SidebarAppShellProps = {
   sectionLabel: string;
@@ -26,10 +29,16 @@ export function SidebarAppShell({
     <div className="flex min-h-screen flex-col bg-background">
       <AppHeader variant="sidebar" />
 
-      <div className="flex flex-1">
+      <div className="border-b border-border bg-surface px-4 md:hidden">
+        <SidebarNav items={navItems} variant="tabs" />
+      </div>
+
+      <div className="flex flex-1 flex-col md:flex-row">
         <aside
-          className={sidebarColumnClass(
-            "flex flex-col border-r border-border bg-surface py-6",
+          className={cn(
+            sidebarColumnClass(
+              "hidden flex-col border-r border-border bg-surface py-6 md:flex",
+            ),
           )}
         >
           <p className="text-xs font-semibold uppercase tracking-wide text-muted">
@@ -41,7 +50,9 @@ export function SidebarAppShell({
           ) : null}
         </aside>
 
-        <div className={pageMainBesideSidebarClass()}>{children}</div>
+        <div className={pageMainBesideSidebarClass("py-5 md:py-8")}>
+          {children}
+        </div>
       </div>
     </div>
   );

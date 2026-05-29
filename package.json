@@ -17,7 +17,7 @@
     "db:start": "docker compose up -d postgres",
     "db:stop": "docker compose down",
     "db:migrate": "node scripts/migrate.mjs",
-    "db:seed": "node scripts/seed.mjs"
+    "db:seed:dev:clean": "node scripts/seed-dev-clean.mjs"
   },
   "devDependencies": {
     "pg": "^8.16.0",

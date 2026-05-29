@@ -9,6 +9,7 @@ import {
 } from "@/lib/api/buildings";
 import { getAccessToken } from "@/lib/api/client";
 import { useRouter } from "next/navigation";
+import { DashboardSection } from "@/components/layout/DashboardSection";
 import { Button } from "@/components/ui/button";
 import { LocationPinPicker } from "@/components/maps/LocationPinPicker";
 
@@ -55,20 +56,17 @@ export default function AdminBuildingsPage() {
   }
 
   return (
-    <div>
-      <h1 className="text-2xl font-bold tracking-tight">Pending buildings</h1>
-      <p className="mt-2 max-w-2xl text-sm text-muted">
-        Quick check: pin is in the right area, cover photo looks real, optional
-        video link works. One tap to approve.
-      </p>
+    <DashboardSection
+      title="Pending buildings"
+      description="Quick check: pin is in the right area, cover photo looks real, optional video link works. One tap to approve."
+    >
+      {error && <p className="text-sm text-red-600">{error}</p>}
 
-      {error && <p className="mt-4 text-sm text-red-600">{error}</p>}
-
-      <ul className="mt-6 space-y-4">
+      <ul className="space-y-4">
         {pending.map((b) => (
           <li
             key={b.id}
-            className="border border-border bg-surface p-4"
+            className="border border-border bg-background p-4"
           >
             <div className="flex flex-wrap items-start justify-between gap-4">
               <div>
@@ -155,6 +153,6 @@ export default function AdminBuildingsPage() {
           <li className="text-sm text-muted">No pending buildings.</li>
         )}
       </ul>
-    </div>
+    </DashboardSection>
   );
 }

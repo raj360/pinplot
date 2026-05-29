@@ -1,22 +1,21 @@
 import { PERMISSIONS } from "@plotpin/shared-types";
+import { DashboardSection } from "@/components/layout/DashboardSection";
 
 export default function AdminPage() {
   return (
-    <div>
-      <h1 className="text-2xl font-bold">Admin overview</h1>
-      <p className="mt-2 text-sm text-muted">
-        Manage buildings on behalf of landlords and verify listings. RBAC guard
-        wiring — Sprint 2 continuation.
-      </p>
-      <ul className="mt-6 space-y-2 text-sm">
-        <li>
+    <DashboardSection
+      title="Admin overview"
+      description="Manage buildings on behalf of landlords and verify listings."
+    >
+      <ul className="space-y-2 text-sm">
+        <li className="border border-border bg-background px-4 py-3">
           <code>{PERMISSIONS.BUILDINGS_MANAGE_ON_BEHALF}</code> — create/edit
           any building
         </li>
-        <li>
+        <li className="border border-border bg-background px-4 py-3">
           <code>{PERMISSIONS.ADMIN_MODERATE}</code> — verify before public map
         </li>
       </ul>
-    </div>
+    </DashboardSection>
   );
 }
