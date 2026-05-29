@@ -18,6 +18,10 @@ export type TenantUnlock = {
     lat: number;
     lng: number;
   };
+  /** Included on unlock responses — gated on public building endpoints. */
+  coverImageUrl?: string;
+  imageUrls?: string[];
+  videoUrl?: string;
 };
 
 export type UnlockStatus =

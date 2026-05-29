@@ -269,7 +269,7 @@ export class BuildingsService {
     }));
   }
 
-  async findById(id: string, includeExact = false) {
+  async findById(id: string, includeExact = false, tenantId?: string) {
     const { rows } = await this.db.query(
       `SELECT
         b.*,
@@ -300,6 +300,19 @@ export class BuildingsService {
           building.exact_lng as number | null,
         );
 
+    const hasPremiumMedia = Boolean(
+      building.cover_image_path || building.video_url,
+    );
+    const mediaAccess = tenantId
+      ? await this.tenantCanViewPremiumMedia(buildingId, tenantId)
+      : false;
+    const imageUrls = mediaAccess
+      ? await this.fetchBuildingImageUrls(
+          buildingId,
+          building.cover_image_path as string | null,
+        )
+      : undefined;
+
     return {
       id: building.id,
       name: building.name,
@@ -315,12 +328,60 @@ export class BuildingsService {
       totalUnits: building.total_units,
       isVerified: building.is_verified,
       isFeatured: building.is_featured,
-      coverImageUrl: building.cover_image_path,
-      videoUrl: building.video_url ?? undefined,
+      hasPremiumMedia,
+      coverImageUrl: mediaAccess
+        ? (building.cover_image_path as string | null) ?? undefined
+        : undefined,
+      imageUrls,
+      videoUrl:
+        mediaAccess && building.video_url
+          ? (building.video_url as string)
+          : undefined,
       availableUnitCount: Number(building.available_unit_count),
       rentFrom: building.rent_from ? Number(building.rent_from) : null,
       units,
     };
+  }
+
+  private async tenantCanViewPremiumMedia(buildingId: string, tenantId: string) {
+    const { rows: unlockRows } = await this.db.query(
+      `SELECT 1
+       FROM unit_unlocks uu
+       JOIN units u ON u.id = uu.unit_id
+       WHERE u.building_id = $1
+         AND uu.tenant_id = $2
+         AND uu.is_winner = TRUE
+         AND (uu.expires_at IS NULL OR uu.expires_at > NOW())
+       LIMIT 1`,
+      [buildingId, tenantId],
+    );
+    if (unlockRows[0]) return true;
+
+    const { rows: landlordRows } = await this.db.query(
+      "SELECT 1 FROM buildings WHERE id = $1 AND landlord_id = $2 LIMIT 1",
+      [buildingId, tenantId],
+    );
+    return Boolean(landlordRows[0]);
+  }
+
+  async fetchBuildingImageUrls(
+    buildingId: string,
+    coverPath?: string | null,
+  ): Promise<string[]> {
+    const { rows } = await this.db.query<{ storage_path: string }>(
+      `SELECT storage_path
+       FROM unit_images
+       WHERE building_id = $1
+       ORDER BY is_primary DESC, sort_order ASC, created_at ASC`,
+      [buildingId],
+    );
+    const fromTable = rows.map((row) => row.storage_path).filter(Boolean);
+    const merged = [...fromTable];
+    if (coverPath && !merged.includes(coverPath)) {
+      merged.unshift(coverPath);
+    }
+    if (merged.length > 0) return merged;
+    return coverPath ? [coverPath] : [];
   }
 
   async create(landlordId: string, dto: CreateBuildingDto) {
@@ -376,7 +437,7 @@ export class BuildingsService {
           dto.exactLng ?? dto.approximateLng,
         ],
       );
-      return this.findById(building.id, true);
+      return this.findById(building.id, true, landlordId);
     } catch (err) {
       await this.db.query("ROLLBACK");
       throw err;

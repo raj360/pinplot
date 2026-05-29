@@ -42,7 +42,8 @@
 | ID | Task | Status | Notes |
 |----|------|--------|-------|
 | S3-18 | Auth guard DB resilience | Pending | Catch transient pg errors in optional/required guards |
-| S3-19 | Postgres pool hardening | Pending | Pooler URL, keep-alive, single retry on `EHOSTUNREACH` |
+| S3-19 | Postgres pool hardening | Done | Pooler URL, keep-alive, SSL for pooler host |
+| S3-20 | Gate cover/video until unlock | Done | API strips URLs; unlock responses include media |
 
 **Recommended next slice:** S3-07 → S3-03 → S3-01 → S3-05
 

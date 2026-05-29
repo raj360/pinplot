@@ -6,6 +6,11 @@ const API_URL =
 
 export type BuildingDetail = BuildingSummary & {
   description?: string;
+  videoUrl?: string;
+  /** All building photos when the viewer has unlock access. */
+  imageUrls?: string[];
+  /** True when cover/video exist but URLs are withheld until unlock. */
+  hasPremiumMedia?: boolean;
   units: Array<{
     id: string;
     unitNumber: string;
@@ -67,8 +72,13 @@ export async function fetchBuildingsInBounds(
 }
 
 export async function fetchBuilding(id: string): Promise<BuildingDetail> {
+  const token = await getAccessToken();
+  const headers = new Headers();
+  if (token) headers.set("Authorization", `Bearer ${token}`);
+
   const res = await fetch(`${API_URL}/api/v1/buildings/${id}`, {
-    next: { revalidate: 30 },
+    headers,
+    ...(token ? { cache: "no-store" as const } : { next: { revalidate: 30 } }),
   });
   if (!res.ok) throw new Error("Building not found");
   return res.json();

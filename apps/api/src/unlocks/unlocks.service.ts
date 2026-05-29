@@ -13,6 +13,8 @@ type UnitRow = {
   unit_number: string;
   status: string;
   building_name: string;
+  cover_image_path?: string | null;
+  video_url?: string | null;
   exact_address: string | null;
   exact_lat: number | null;
   exact_lng: number | null;
@@ -47,6 +49,7 @@ export class UnlocksService {
   async listMine(tenantId: string) {
     const { rows } = await this.db.query(
       `SELECT uu.*, u.unit_number, u.building_id, b.name AS building_name,
+              b.cover_image_path, b.video_url,
               b.exact_lat, b.exact_lng, b.approximate_lat, b.approximate_lng
        FROM unit_unlocks uu
        JOIN units u ON u.id = uu.unit_id
@@ -57,14 +60,13 @@ export class UnlocksService {
        ORDER BY uu.created_at DESC`,
       [tenantId],
     );
-    return rows.map((row: Record<string, unknown>) =>
-      this.toUnlockRecord(row as UnlockRow & UnitRow),
-    );
+    return this.mapUnlockRows(rows as Array<UnlockRow & UnitRow>);
   }
 
   async listForBuilding(buildingId: string, tenantId: string) {
     const { rows } = await this.db.query(
       `SELECT uu.*, u.unit_number, u.building_id, b.name AS building_name,
+              b.cover_image_path, b.video_url,
               b.exact_lat, b.exact_lng, b.approximate_lat, b.approximate_lng
        FROM unit_unlocks uu
        JOIN units u ON u.id = uu.unit_id
@@ -76,9 +78,46 @@ export class UnlocksService {
        ORDER BY uu.created_at DESC`,
       [buildingId, tenantId],
     );
-    return rows.map((row: Record<string, unknown>) =>
-      this.toUnlockRecord(row as UnlockRow & UnitRow),
+    return this.mapUnlockRows(rows as Array<UnlockRow & UnitRow>);
+  }
+
+  private async mapUnlockRows(rows: Array<UnlockRow & UnitRow>) {
+    const imageCache = new Map<string, string[]>();
+    const mapped = [];
+    for (const row of rows) {
+      const buildingId = row.building_id;
+      if (!imageCache.has(buildingId)) {
+        imageCache.set(
+          buildingId,
+          await this.fetchBuildingImageUrls(buildingId, row.cover_image_path),
+        );
+      }
+      mapped.push({
+        ...this.toUnlockRecord(row),
+        imageUrls: imageCache.get(buildingId),
+      });
+    }
+    return mapped;
+  }
+
+  private async fetchBuildingImageUrls(
+    buildingId: string,
+    coverPath?: string | null,
+  ) {
+    const { rows } = await this.db.query<{ storage_path: string }>(
+      `SELECT storage_path
+       FROM unit_images
+       WHERE building_id = $1
+       ORDER BY is_primary DESC, sort_order ASC, created_at ASC`,
+      [buildingId],
     );
+    const fromTable = rows.map((row) => row.storage_path).filter(Boolean);
+    const merged = [...fromTable];
+    if (coverPath && !merged.includes(coverPath)) {
+      merged.unshift(coverPath);
+    }
+    if (merged.length > 0) return merged;
+    return coverPath ? [coverPath] : [];
   }
 
   async getStatus(unitId: string, tenantId: string) {
@@ -87,7 +126,7 @@ export class UnlocksService {
     const mine = await this.findTenantUnlock(unitId, tenantId);
 
     if (mine?.is_winner && this.isActive(mine)) {
-      return this.toResponse(unit, mine, "winner");
+      return this.enrichWithMedia(this.toResponse(unit, mine, "winner"));
     }
 
     if (winner && winner.tenant_id !== tenantId) {
@@ -125,7 +164,9 @@ export class UnlocksService {
       if (winner) {
         if (winner.tenant_id === tenantId) {
           await this.db.query("COMMIT");
-          return this.toResponse(unit, winner, "winner");
+          return this.enrichWithMedia(
+            this.toResponse(unit, winner, "winner"),
+          );
         }
         await this.db.query("ROLLBACK");
         throw new ConflictException(
@@ -178,7 +219,7 @@ export class UnlocksService {
       );
 
       await this.db.query("COMMIT");
-      return this.toResponse(unit, rows[0], "winner");
+      return this.enrichWithMedia(this.toResponse(unit, rows[0], "winner"));
     } catch (err) {
       await this.db.query("ROLLBACK");
       throw err;
@@ -188,7 +229,8 @@ export class UnlocksService {
   private async lockUnit(unitId: string): Promise<UnitRow> {
     const { rows } = await this.db.query<UnitRow>(
       `SELECT u.id, u.building_id, u.unit_number, u.status,
-              b.name AS building_name, b.exact_address,
+              b.name AS building_name, b.cover_image_path, b.video_url,
+              b.exact_address,
               b.exact_lat, b.exact_lng, b.approximate_lat, b.approximate_lng,
               p.phone AS landlord_phone, au.email AS landlord_email
        ${UNIT_JOIN}
@@ -203,7 +245,8 @@ export class UnlocksService {
   private async loadUnit(unitId: string): Promise<UnitRow> {
     const { rows } = await this.db.query<UnitRow>(
       `SELECT u.id, u.building_id, u.unit_number, u.status,
-              b.name AS building_name, b.exact_address,
+              b.name AS building_name, b.cover_image_path, b.video_url,
+              b.exact_address,
               b.exact_lat, b.exact_lng, b.approximate_lat, b.approximate_lng,
               p.phone AS landlord_phone, au.email AS landlord_email
        ${UNIT_JOIN}
@@ -266,6 +309,16 @@ export class UnlocksService {
     return rows[0].id;
   }
 
+  private async enrichWithMedia(
+    response: ReturnType<UnlocksService["toResponse"]>,
+  ) {
+    const imageUrls = await this.fetchBuildingImageUrls(
+      response.buildingId,
+      response.coverImageUrl,
+    );
+    return { ...response, imageUrls };
+  }
+
   private toResponse(
     unit: UnitRow,
     unlock: UnlockRow,
@@ -289,6 +342,8 @@ export class UnlocksService {
         exactAddress: unlock.revealed_exact_address,
       },
       location: { lat, lng },
+      coverImageUrl: unit.cover_image_path ?? undefined,
+      videoUrl: unit.video_url ?? undefined,
     };
   }
 
@@ -310,6 +365,8 @@ export class UnlocksService {
         exactAddress: row.revealed_exact_address,
       },
       location: { lat, lng },
+      coverImageUrl: unit.cover_image_path ?? undefined,
+      videoUrl: unit.video_url ?? undefined,
     };
   }
 }

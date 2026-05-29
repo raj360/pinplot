@@ -1,6 +1,5 @@
 import { notFound } from "next/navigation";
-import { BuildingDetailPanel } from "@/components/buildings/BuildingDetailPanel";
-import { UnlockPanel } from "@/components/buildings/UnlockPanel";
+import { BuildingPageClient } from "@/components/buildings/BuildingPageClient";
 import { AppHeader } from "@/components/layout/AppHeader";
 import { PageMain } from "@/components/layout/PageShell";
 import { fetchBuilding } from "@/lib/api/buildings";
@@ -22,8 +21,7 @@ export default async function BuildingPage({ params }: Props) {
       <AppHeader backHref="/explore" backLabel="← Back to map" />
 
       <PageMain>
-        <BuildingDetailPanel building={building} showUnlockLink={false} />
-        <UnlockPanel buildingId={building.id} units={building.units} />
+        <BuildingPageClient building={building} />
       </PageMain>
     </div>
   );

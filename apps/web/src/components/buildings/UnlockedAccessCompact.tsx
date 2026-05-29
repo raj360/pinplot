@@ -1,14 +1,12 @@
 "use client";
 
 import Link from "next/link";
+import { UnlockCountdown } from "@/components/unlocks/UnlockCountdown";
 import {
   googleMapsDirectionsUrl,
   googleMapsPlaceUrl,
 } from "@/lib/maps/directions";
-import {
-  contactHref,
-  formatUnlockExpiry,
-} from "@/lib/unlocks/display";
+import { contactHref } from "@/lib/unlocks/display";
 import type { TenantUnlock } from "@/lib/api/unlocks";
 
 export function UnlockedAccessCompact({
@@ -33,7 +31,7 @@ export function UnlockedAccessCompact({
           {unlock.buildingName ? ` · ${unlock.buildingName}` : ""}
         </p>
         <p className="mt-0.5 text-xs opacity-90">
-          {formatUnlockExpiry(unlock.expiresAt)}
+          <UnlockCountdown expiresAt={unlock.expiresAt} />
         </p>
       </div>
 

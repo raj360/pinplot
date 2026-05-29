@@ -43,8 +43,9 @@ export class BuildingsController {
   }
 
   @Get(":id")
-  findOne(@Param("id") id: string) {
-    return this.buildings.findById(id, false);
+  @UseGuards(OptionalSupabaseAuthGuard)
+  findOne(@Param("id") id: string, @CurrentUser() user?: AuthUser) {
+    return this.buildings.findById(id, false, user?.id);
   }
 
   @Post()
