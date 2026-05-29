@@ -46,6 +46,8 @@ export function BuildingDetailExperience({
     return <BuildingDetailSkeleton variant={variant} />;
   }
 
+  const unlockPanelLayout = layout === "sidebar" ? "sidebar" : "grid";
+
   if (variant === "compact") {
     if (hasAccess && building.availableUnitCount === 0) {
       return (
@@ -84,7 +86,7 @@ export function BuildingDetailExperience({
               isAuthenticated={unlocks.isAuthenticated}
               onUnlock={handleUnlock}
               unlockingId={unlocks.unlockingId}
-              layout="sidebar"
+              layout={unlockPanelLayout}
               title="Unlock another unit"
               description={`Pay ${formatCurrency(PRICING.tenantUnlockFeeUgx)} to unlock additional units at this building.`}
             />
@@ -110,7 +112,7 @@ export function BuildingDetailExperience({
             isAuthenticated={unlocks.isAuthenticated}
             onUnlock={handleUnlock}
             unlockingId={unlocks.unlockingId}
-            layout="sidebar"
+            layout={unlockPanelLayout}
             title="Unlock contact"
             description={`Pay ${formatCurrency(PRICING.tenantUnlockFeeUgx)} to reveal exact address, landlord contact, and directions.`}
           />
@@ -172,7 +174,7 @@ export function BuildingDetailExperience({
               onUnlock={handleUnlock}
               unlockingId={unlocks.unlockingId}
               showHeading={false}
-              layout="sidebar"
+              layout={unlockPanelLayout}
               description="Each unit unlock includes its own contact window and directions."
             />
           </section>
@@ -224,7 +226,7 @@ export function BuildingDetailExperience({
         onUnlock={handleUnlock}
         unlockingId={unlocks.unlockingId}
         showHeading={false}
-        layout="sidebar"
+        layout={unlockPanelLayout}
       />
     </section>
   ) : null;

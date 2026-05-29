@@ -6,6 +6,7 @@ import { PRICING } from "@plotpin/shared-types";
 import { formatUnitDetail, type UnitLike } from "@/lib/buildings/unit-summary";
 import { formatCurrency } from "@/lib/intl/format";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils/cn";
 
 export function UnlockPurchasePanel({
   buildingId,
@@ -17,7 +18,7 @@ export function UnlockPurchasePanel({
   title = "Unlock contact",
   description,
   showHeading = true,
-  layout = "list",
+  layout = "grid",
 }: {
   buildingId: string;
   availableUnits: UnitLike[];
@@ -28,15 +29,17 @@ export function UnlockPurchasePanel({
   title?: string;
   description?: string;
   showHeading?: boolean;
-  /** sidebar = single column for building page aside; list = responsive grid */
-  layout?: "list" | "sidebar";
+  /** sidebar = single column in narrow aside; grid = responsive columns when space allows */
+  layout?: "grid" | "sidebar";
 }) {
   const defaultDescription = `Pay ${formatCurrency(PRICING.tenantUnlockFeeUgx)} to reveal exact address, landlord contact, building tour, and directions. First payment wins exclusive access for ${PRICING.unlockExclusiveHours} hours.`;
 
-  const listClass =
+  const listClass = cn(
+    "mt-4 grid gap-3",
     layout === "sidebar"
-      ? "mt-4 grid gap-2"
-      : "mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-3";
+      ? "grid-cols-1"
+      : "grid-cols-1 sm:grid-cols-[repeat(auto-fill,minmax(15rem,1fr))]",
+  );
 
   return (
     <div className="border border-border bg-surface p-4">
@@ -67,7 +70,7 @@ export function UnlockPurchasePanel({
           {availableUnits.map((unit) => (
             <li
               key={unit.id}
-              className="flex flex-col gap-3 border border-border bg-background p-3"
+              className="flex min-w-0 flex-col gap-3 border border-border bg-background p-3"
             >
               <div>
                 <p className="font-medium">Unit {unit.unitNumber}</p>
