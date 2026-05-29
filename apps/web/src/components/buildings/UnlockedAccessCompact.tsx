@@ -6,7 +6,7 @@ import {
   googleMapsDirectionsUrl,
   googleMapsPlaceUrl,
 } from "@/lib/maps/directions";
-import { contactHref } from "@/lib/unlocks/display";
+import { ContactActions } from "@/components/contact/ContactActions";
 import type { TenantUnlock } from "@/lib/api/unlocks";
 
 export function UnlockedAccessCompact({
@@ -50,12 +50,14 @@ export function UnlockedAccessCompact({
             <p className="text-[11px] font-medium uppercase tracking-wide text-muted">
               Landlord contact
             </p>
-            <a
-              href={contactHref(contact)}
-              className="mt-1 inline-block font-medium text-primary hover:underline"
-            >
-              {contact}
-            </a>
+            <div className="mt-2">
+              <ContactActions
+                compact
+                contact={contact}
+                secondaryContact={unlock.contact.phoneSecondary}
+                whatsAppMessage={`Hi, I unlocked Unit ${unlock.unitNumber} on PlotPin and would like to arrange a viewing.`}
+              />
+            </div>
           </div>
         ) : null}
 

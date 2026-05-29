@@ -12,6 +12,7 @@ export type TenantUnlock = {
   exclusiveHours: number;
   contact: {
     phone: string | null;
+    phoneSecondary?: string | null;
     exactAddress: string | null;
   };
   location: {

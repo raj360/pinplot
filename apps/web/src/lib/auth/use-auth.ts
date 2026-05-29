@@ -10,12 +10,17 @@ export function useAuth() {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   /** Session bootstrap only — never blocked on profile/API fetch. */
   const [loading, setLoading] = useState(true);
+  /** True while /profiles/me is in flight for the signed-in user. */
+  const [profileLoading, setProfileLoading] = useState(false);
 
   const loadProfile = useCallback(async () => {
+    setProfileLoading(true);
     try {
       setProfile(await fetchMyProfile());
     } catch {
       setProfile(null);
+    } finally {
+      setProfileLoading(false);
     }
   }, []);
 
@@ -34,6 +39,7 @@ export function useAuth() {
         }, 0);
       } else {
         setProfile(null);
+        setProfileLoading(false);
       }
     }
 
@@ -48,9 +54,15 @@ export function useAuth() {
       applySession(session?.user ?? null);
     });
 
+    const onProfileUpdated = () => {
+      if (!cancelled) void loadProfile();
+    };
+    window.addEventListener("plotpin:profile-updated", onProfileUpdated);
+
     return () => {
       cancelled = true;
       subscription.unsubscribe();
+      window.removeEventListener("plotpin:profile-updated", onProfileUpdated);
     };
   }, [loadProfile]);
 
@@ -59,6 +71,7 @@ export function useAuth() {
     await supabase.auth.signOut();
     setUser(null);
     setProfile(null);
+    setProfileLoading(false);
     setLoading(false);
   }, []);
 
@@ -66,7 +79,9 @@ export function useAuth() {
     user,
     profile,
     loading,
+    profileLoading,
     signOut,
+    refreshProfile: loadProfile,
     isAuthenticated: Boolean(user),
   };
 }

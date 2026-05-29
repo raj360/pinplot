@@ -84,6 +84,8 @@ export const PERMISSIONS = {
 
 export type Permission = (typeof PERMISSIONS)[keyof typeof PERMISSIONS];
 
+export * from "./phone";
+
 export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
   [UserRole.SUPERADMIN]: Object.values(PERMISSIONS),
   [UserRole.ADMIN]: [

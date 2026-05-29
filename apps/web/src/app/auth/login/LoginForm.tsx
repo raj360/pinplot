@@ -8,6 +8,8 @@ import { useForm, type Resolver } from "react-hook-form";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/client";
 import { sendLoginCode, verifyLoginCode } from "@/lib/api/auth";
+import { fetchMyProfile } from "@/lib/api/profiles";
+import { isProfileIncomplete } from "@/lib/auth/profile-complete";
 import { syncProfileAfterAuth } from "@/lib/auth/sync-profile";
 import { Button } from "@/components/ui/button";
 import { FormField } from "@/components/ui/form-field";
@@ -94,7 +96,18 @@ export function LoginForm() {
       if (sessionError) throw sessionError;
 
       await syncProfileAfterAuth(session.access_token);
-      router.push(next);
+
+      let destination = next;
+      try {
+        const profile = await fetchMyProfile();
+        if (isProfileIncomplete(profile)) {
+          destination = `/auth/complete-profile?next=${encodeURIComponent(next)}`;
+        }
+      } catch {
+        /* proceed to original destination; modal will prompt later */
+      }
+
+      router.push(destination);
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Invalid or expired code");

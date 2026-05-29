@@ -8,9 +8,9 @@ import {
   googleMapsPlaceUrl,
 } from "@/lib/maps/directions";
 import { formatCurrency } from "@/lib/intl/format";
-import { contactHref } from "@/lib/unlocks/display";
 import { PRICING } from "@plotpin/shared-types";
 import type { TenantUnlock } from "@/lib/api/unlocks";
+import { ContactActions } from "@/components/contact/ContactActions";
 
 export function UnlockedAccessCard({
   unlock,
@@ -77,17 +77,16 @@ export function UnlockedAccessCard({
             </div>
           ) : null}
           {contact ? (
-            <div>
+            <div className="sm:col-span-2">
               <dt className="text-xs font-medium uppercase tracking-wide text-muted">
                 Landlord contact
               </dt>
-              <dd className="mt-1">
-                <a
-                  href={contactHref(contact)}
-                  className="font-medium text-primary hover:underline"
-                >
-                  {contact}
-                </a>
+              <dd className="mt-2">
+                <ContactActions
+                  contact={contact}
+                  secondaryContact={unlock.contact.phoneSecondary}
+                  whatsAppMessage={`Hi, I unlocked Unit ${unlock.unitNumber} on PlotPin and would like to arrange a viewing.`}
+                />
               </dd>
             </div>
           ) : null}

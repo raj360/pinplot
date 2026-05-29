@@ -21,6 +21,7 @@ type UnitRow = {
   approximate_lat: number;
   approximate_lng: number;
   landlord_phone: string | null;
+  landlord_phone_secondary?: string | null;
   landlord_email: string | null;
 };
 
@@ -50,10 +51,12 @@ export class UnlocksService {
     const { rows } = await this.db.query(
       `SELECT uu.*, u.unit_number, u.building_id, b.name AS building_name,
               b.cover_image_path, b.video_url,
-              b.exact_lat, b.exact_lng, b.approximate_lat, b.approximate_lng
+              b.exact_lat, b.exact_lng, b.approximate_lat, b.approximate_lng,
+              p.phone_secondary AS landlord_phone_secondary
        FROM unit_unlocks uu
        JOIN units u ON u.id = uu.unit_id
        JOIN buildings b ON b.id = u.building_id
+       LEFT JOIN profiles p ON p.id = b.landlord_id
        WHERE uu.tenant_id = $1
          AND uu.is_winner = TRUE
          AND (uu.expires_at IS NULL OR uu.expires_at > NOW())
@@ -67,10 +70,12 @@ export class UnlocksService {
     const { rows } = await this.db.query(
       `SELECT uu.*, u.unit_number, u.building_id, b.name AS building_name,
               b.cover_image_path, b.video_url,
-              b.exact_lat, b.exact_lng, b.approximate_lat, b.approximate_lng
+              b.exact_lat, b.exact_lng, b.approximate_lat, b.approximate_lng,
+              p.phone_secondary AS landlord_phone_secondary
        FROM unit_unlocks uu
        JOIN units u ON u.id = uu.unit_id
        JOIN buildings b ON b.id = u.building_id
+       LEFT JOIN profiles p ON p.id = b.landlord_id
        WHERE b.id = $1
          AND uu.tenant_id = $2
          AND uu.is_winner = TRUE
@@ -232,7 +237,9 @@ export class UnlocksService {
               b.name AS building_name, b.cover_image_path, b.video_url,
               b.exact_address,
               b.exact_lat, b.exact_lng, b.approximate_lat, b.approximate_lng,
-              p.phone AS landlord_phone, au.email AS landlord_email
+              p.phone AS landlord_phone,
+              p.phone_secondary AS landlord_phone_secondary,
+              au.email AS landlord_email
        ${UNIT_JOIN}
        WHERE u.id = $1 AND b.is_verified = TRUE
        FOR UPDATE OF u`,
@@ -248,7 +255,9 @@ export class UnlocksService {
               b.name AS building_name, b.cover_image_path, b.video_url,
               b.exact_address,
               b.exact_lat, b.exact_lng, b.approximate_lat, b.approximate_lng,
-              p.phone AS landlord_phone, au.email AS landlord_email
+              p.phone AS landlord_phone,
+              p.phone_secondary AS landlord_phone_secondary,
+              au.email AS landlord_email
        ${UNIT_JOIN}
        WHERE u.id = $1 AND b.is_verified = TRUE`,
       [unitId],
@@ -339,6 +348,7 @@ export class UnlocksService {
       expiresAt: unlock.expires_at,
       contact: {
         phone: unlock.revealed_contact_phone,
+        phoneSecondary: unit.landlord_phone_secondary ?? null,
         exactAddress: unlock.revealed_exact_address,
       },
       location: { lat, lng },
@@ -362,6 +372,7 @@ export class UnlocksService {
       exclusiveHours: PRICING.unlockExclusiveHours,
       contact: {
         phone: row.revealed_contact_phone,
+        phoneSecondary: row.landlord_phone_secondary ?? null,
         exactAddress: row.revealed_exact_address,
       },
       location: { lat, lng },
