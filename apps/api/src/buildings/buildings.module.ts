@@ -1,4 +1,5 @@
 import { Module } from "@nestjs/common";
+import { AuthModule } from "../auth/auth.module";
 import {
   AdminBuildingsController,
   BuildingsController,
@@ -6,6 +7,7 @@ import {
 import { BuildingsService } from "./buildings.service";
 
 @Module({
+  imports: [AuthModule],
   controllers: [BuildingsController, AdminBuildingsController],
   providers: [BuildingsService],
 })

@@ -26,18 +26,43 @@
 
 **Recommended build order:**
 
-1. Unlock transaction + contact reveal (S3-04, S3-06)
-2. Payment providers (S3-01 Stripe, S3-02 Flutterwave)
-3. Landlord listing fee + unit toggle (S3-03, S3-07)
-4. Webhooks + idempotency (S3-05)
+1. ~~Unlock transaction + contact reveal (S3-04, S3-06)~~ ✅
+2. ~~Unlock UX polish (S3-08–S3-17)~~ ✅
+3. Payment providers (S3-01 Stripe, S3-02 Flutterwave)
+4. Landlord listing fee + unit toggle (S3-03, S3-07)
+5. Webhooks + idempotency (S3-05)
 
-- [ ] `FOR UPDATE` first-unlock-wins transaction
-- [ ] Reveal exact address + landlord contact after unlock
+### Unlock core ✅
+
+- [x] `FOR UPDATE` first-unlock-wins transaction (`POST /units/:id/unlock`)
+- [x] Reveal exact address + landlord contact after unlock
+- [x] Dev unlock simulation (`ALLOW_DEV_UNLOCK` in non-production)
+- [x] My unlocks page (`/tenant/unlocks`) + directions + satellite mini map
+- [x] `GET /unlocks/mine` and `GET /unlocks/building/:id`
+
+### Explore + privacy UX ✅
+
+- [x] Unlocked buildings stay on explore map when tenant has active access (0 public units)
+- [x] Optional auth on `GET /buildings` → `myUnlockCount` on summaries
+- [x] Location jitter for public pins (~150–280 m); exact coords only after unlock
+- [x] Explore map: roadmap only, max zoom 14, stepped cluster drill-down
+- [x] Lime pins + access modal (directions, contact, link to building page)
+- [x] Sidebar stays discovery-only; access details in modal (no hover flicker)
+- [x] Unit availability summary on building detail / explore panel
+- [x] SchoolSpring-style map tooltips + list/map hover sync (debounced cache)
+
+### Payments (remaining)
+
 - [ ] Stripe Checkout (cards / diaspora)
 - [ ] Flutterwave mobile money (MTN/Airtel UG)
 - [ ] Landlord: pay before unit status change
 - [ ] Landlord unit status toggle UI
 - [ ] Payment webhooks + idempotency
+
+### Stability (recommended before launch)
+
+- [ ] Auth guard DB resilience (graceful fallback on transient `EHOSTUNREACH`)
+- [ ] Postgres pool tuning (Supabase pooler `:6543`, keep-alive, retries)
 
 ---
 
@@ -45,7 +70,7 @@
 
 - [ ] Superadmin pricing config
 - [ ] Full RBAC guards on all admin routes
-- [ ] PWA manifest
+- [ ] PWA manifest (also resolves `/sw.js` 404 in dev)
 - [ ] 20–30 verified Kampala buildings
 - [ ] Soft launch (WhatsApp, social)
 
@@ -61,4 +86,4 @@
 
 ---
 
-*Last updated: 2026-05-28 — Sprint 2 merged; Sprint 3 next*
+*Last updated: 2026-05-29 — Sprint 3 unlock core + explore UX complete; payments next*

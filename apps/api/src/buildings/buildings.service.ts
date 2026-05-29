@@ -4,6 +4,10 @@ import {
 } from "@nestjs/common";
 import { DatabaseService } from "../database/database.service";
 import {
+  jitterPublicMapCoords,
+  publicMapCoords,
+} from "../common/location-jitter";
+import {
   BuildingBoundsQueryDto,
   CreateBuildingDto,
   CreateUnitDto,
@@ -18,18 +22,41 @@ type BuildingRow = {
   country_code: string;
   approximate_lat: number;
   approximate_lng: number;
+  exact_lat: number | null;
+  exact_lng: number | null;
   total_units: number;
   is_verified: boolean;
   is_featured: boolean;
   available_unit_count: string;
   rent_from: string | null;
+  my_unlock_count?: string;
 };
 
 @Injectable()
 export class BuildingsService {
   constructor(private readonly db: DatabaseService) {}
 
-  async findInBounds(query: BuildingBoundsQueryDto) {
+  async findInBounds(query: BuildingBoundsQueryDto, tenantId?: string) {
+    const available = await this.queryAvailableInBounds(query);
+    const withUnlocks = tenantId
+      ? await this.attachMyUnlockCounts(available, tenantId)
+      : available;
+
+    if (!tenantId) {
+      return withUnlocks.map((row) => this.toSummary(row));
+    }
+
+    const unlockedOnly = await this.queryUnlockedOnlyInBounds(query, tenantId);
+    const seen = new Set(withUnlocks.map((row) => row.id));
+    const merged = [
+      ...withUnlocks,
+      ...unlockedOnly.filter((row) => !seen.has(row.id)),
+    ];
+
+    return merged.map((row) => this.toSummary(row));
+  }
+
+  private async queryAvailableInBounds(query: BuildingBoundsQueryDto) {
     const params: unknown[] = [
       query.south,
       query.west,
@@ -45,6 +72,8 @@ export class BuildingsService {
         b.country_code,
         b.approximate_lat,
         b.approximate_lng,
+        b.exact_lat,
+        b.exact_lng,
         b.total_units,
         b.is_verified,
         b.is_featured,
@@ -87,10 +116,104 @@ export class BuildingsService {
       )`;
     }
 
+    if (query.bathrooms != null) {
+      params.push(query.bathrooms);
+      sql += ` AND EXISTS (
+        SELECT 1 FROM units ux
+        WHERE ux.building_id = b.id
+          AND ux.status = 'AVAILABLE'
+          AND ux.bathrooms >= $${params.length}
+      )`;
+    }
+
     sql += ` ORDER BY b.is_featured DESC, b.created_at DESC LIMIT 200`;
 
     const { rows } = await this.db.query<BuildingRow>(sql, params);
-    return rows.map((row) => this.toSummary(row));
+    return rows;
+  }
+
+  private async queryUnlockedOnlyInBounds(
+    query: BuildingBoundsQueryDto,
+    tenantId: string,
+  ) {
+    const params: unknown[] = [
+      query.south,
+      query.west,
+      query.north,
+      query.east,
+      tenantId,
+    ];
+    let sql = `
+      SELECT
+        b.id,
+        b.name,
+        b.city,
+        b.district,
+        b.country_code,
+        b.approximate_lat,
+        b.approximate_lng,
+        b.exact_lat,
+        b.exact_lng,
+        b.total_units,
+        b.is_verified,
+        b.is_featured,
+        0 AS available_unit_count,
+        NULL AS rent_from,
+        COUNT(DISTINCT uu.id) AS my_unlock_count
+      FROM buildings b
+      JOIN units u ON u.building_id = b.id
+      JOIN unit_unlocks uu ON uu.unit_id = u.id
+      WHERE b.is_verified = TRUE
+        AND b.approximate_lat BETWEEN $1 AND $3
+        AND b.approximate_lng BETWEEN $2 AND $4
+        AND uu.tenant_id = $5
+        AND uu.is_winner = TRUE
+        AND (uu.expires_at IS NULL OR uu.expires_at > NOW())
+    `;
+
+    if (query.city) {
+      params.push(`%${query.city}%`);
+      sql += ` AND (b.city ILIKE $${params.length} OR b.district ILIKE $${params.length})`;
+    }
+
+    sql += `
+      GROUP BY b.id
+      HAVING COUNT(u.id) FILTER (WHERE u.status = 'AVAILABLE') = 0
+      ORDER BY b.is_featured DESC, b.created_at DESC
+      LIMIT 200
+    `;
+
+    const { rows } = await this.db.query<BuildingRow>(sql, params);
+    return rows;
+  }
+
+  private async attachMyUnlockCounts(rows: BuildingRow[], tenantId: string) {
+    if (rows.length === 0) return rows;
+
+    const ids = rows.map((row) => row.id);
+    const { rows: unlockRows } = await this.db.query<{
+      building_id: string;
+      count: string;
+    }>(
+      `SELECT u.building_id, COUNT(DISTINCT uu.id) AS count
+       FROM unit_unlocks uu
+       JOIN units u ON u.id = uu.unit_id
+       WHERE u.building_id = ANY($1)
+         AND uu.tenant_id = $2
+         AND uu.is_winner = TRUE
+         AND (uu.expires_at IS NULL OR uu.expires_at > NOW())
+       GROUP BY u.building_id`,
+      [ids, tenantId],
+    );
+
+    const counts = new Map(
+      unlockRows.map((row) => [row.building_id, row.count]),
+    );
+
+    return rows.map((row) => ({
+      ...row,
+      my_unlock_count: counts.get(row.id) ?? row.my_unlock_count,
+    }));
   }
 
   async findByLandlord(landlordId: string) {
@@ -163,6 +286,19 @@ export class BuildingsService {
 
     const building = rows[0] as Record<string, unknown>;
     const units = await this.fetchUnits(id);
+    const buildingId = building.id as string;
+    const coords = includeExact
+      ? {
+          lat: building.approximate_lat as number,
+          lng: building.approximate_lng as number,
+        }
+      : publicMapCoords(
+          buildingId,
+          building.approximate_lat as number,
+          building.approximate_lng as number,
+          building.exact_lat as number | null,
+          building.exact_lng as number | null,
+        );
 
     return {
       id: building.id,
@@ -171,8 +307,8 @@ export class BuildingsService {
       city: building.city,
       district: building.district,
       countryCode: building.country_code,
-      approximateLat: building.approximate_lat,
-      approximateLng: building.approximate_lng,
+      approximateLat: coords.lat,
+      approximateLng: coords.lng,
       exactAddress: includeExact ? building.exact_address : undefined,
       exactLat: includeExact ? building.exact_lat : undefined,
       exactLng: includeExact ? building.exact_lng : undefined,
@@ -221,6 +357,25 @@ export class BuildingsService {
       }
 
       await this.db.query("COMMIT");
+      const jittered = jitterPublicMapCoords(
+        building.id,
+        dto.approximateLat,
+        dto.approximateLng,
+      );
+      await this.db.query(
+        `UPDATE buildings
+         SET approximate_lat = $2, approximate_lng = $3,
+             exact_lat = COALESCE(exact_lat, $4),
+             exact_lng = COALESCE(exact_lng, $5)
+         WHERE id = $1`,
+        [
+          building.id,
+          jittered.lat,
+          jittered.lng,
+          dto.exactLat ?? dto.approximateLat,
+          dto.exactLng ?? dto.approximateLng,
+        ],
+      );
       return this.findById(building.id, true);
     } catch (err) {
       await this.db.query("ROLLBACK");
@@ -298,19 +453,29 @@ export class BuildingsService {
   }
 
   private toSummary(row: BuildingRow) {
+    const coords = publicMapCoords(
+      row.id,
+      row.approximate_lat,
+      row.approximate_lng,
+      row.exact_lat,
+      row.exact_lng,
+    );
     return {
       id: row.id,
       name: row.name,
       city: row.city,
       district: row.district,
       countryCode: row.country_code,
-      approximateLat: row.approximate_lat,
-      approximateLng: row.approximate_lng,
+      approximateLat: coords.lat,
+      approximateLng: coords.lng,
       totalUnits: row.total_units,
       isVerified: row.is_verified,
       isFeatured: row.is_featured,
       availableUnitCount: Number(row.available_unit_count),
       rentFrom: row.rent_from ? Number(row.rent_from) : null,
+      myUnlockCount: row.my_unlock_count
+        ? Number(row.my_unlock_count)
+        : undefined,
     };
   }
 

@@ -53,9 +53,11 @@ export type BuildingSummary = {
   approximateLat: number;
   approximateLng: number;
   availableUnitCount: number;
-  rentFrom: number;
+  rentFrom: number | null;
   currency: string;
   coverImageUrl?: string;
+  /** Active unlocks held by the signed-in tenant on this building. */
+  myUnlockCount?: number;
 };
 
 export type UnitSummary = {

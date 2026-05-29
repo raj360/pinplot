@@ -50,6 +50,13 @@ export class BuildingBoundsQueryDto {
   @Min(0)
   @Max(10)
   bedrooms?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  @Max(10)
+  bathrooms?: number;
 }
 
 export class CreateBuildingDto {

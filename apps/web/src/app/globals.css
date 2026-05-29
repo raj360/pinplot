@@ -55,3 +55,79 @@ footer * {
 .user-avatar {
   border-radius: 9999px !important;
 }
+
+.plotpin-map-tooltip {
+  pointer-events: none;
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  z-index: 20;
+  display: none;
+  max-width: 220px;
+  transform: translateX(-50%);
+  overflow: visible;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  padding: 4px 8px;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.25;
+  color: var(--foreground);
+  box-shadow: 0 1px 3px rgb(15 23 42 / 12%);
+}
+
+.plotpin-map-tooltip::before,
+.plotpin-map-tooltip::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  width: 0;
+  height: 0;
+  transform: translateX(-50%);
+  border-style: solid;
+  border-color: transparent;
+}
+
+.plotpin-map-tooltip::before {
+  top: 100%;
+  border-width: 7px 7px 0;
+  border-top-color: var(--border);
+}
+
+.plotpin-map-tooltip::after {
+  top: calc(100% - 1px);
+  border-width: 6px 6px 0;
+  border-top-color: var(--surface);
+}
+
+.plotpin-map-tooltip.is-visible {
+  display: block;
+}
+
+.plotpin-map-tooltip__row {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.plotpin-map-tooltip__spinner {
+  display: none;
+  width: 12px;
+  height: 12px;
+  flex-shrink: 0;
+  border: 2px solid var(--primary);
+  border-top-color: transparent;
+  border-radius: 9999px !important;
+  animation: plotpin-map-spin 0.7s linear infinite;
+}
+
+.plotpin-map-tooltip__spinner.is-visible {
+  display: inline-block;
+}
+
+@keyframes plotpin-map-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
