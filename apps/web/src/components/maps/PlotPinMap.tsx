@@ -14,6 +14,7 @@ import {
   EXPLORE_MAP_MAX_ZOOM,
   EXPLORE_MAP_MIN_ZOOM,
 } from "@/lib/maps/config";
+import { cn } from "@/lib/utils/cn";
 
 const MAPS_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? "";
 const MAP_ID = process.env.NEXT_PUBLIC_GOOGLE_MAP_ID ?? "";
@@ -42,6 +43,7 @@ type Props = {
   unlockedBuildingIds?: ReadonlySet<string>;
   unlockedLocations?: ReadonlyMap<string, { lat: number; lng: number }>;
   onSelect?: (id: string) => void;
+  onAccessOpen?: (id: string) => void;
   onHover?: (id: string | null) => void;
 };
 
@@ -53,11 +55,18 @@ export function PlotPinMap({
   unlockedBuildingIds,
   unlockedLocations,
   onSelect,
+  onAccessOpen,
   onHover,
 }: Props) {
   if (!MAPS_KEY || MAPS_KEY.startsWith("your-")) {
     return (
-      <MapFallback buildings={buildings} onSelect={onSelect} onHover={onHover} />
+      <MapFallback
+        buildings={buildings}
+        unlockedBuildingIds={unlockedBuildingIds}
+        onSelect={onSelect}
+        onAccessOpen={onAccessOpen}
+        onHover={onHover}
+      />
     );
   }
 
@@ -84,6 +93,7 @@ export function PlotPinMap({
           unlockedBuildingIds={unlockedBuildingIds}
           unlockedLocations={unlockedLocations}
           onSelect={onSelect}
+          onAccessOpen={onAccessOpen}
           onHover={onHover}
         />
       </GoogleMap>
@@ -118,6 +128,25 @@ function ExploreMapConstraints() {
   return null;
 }
 
+function mapMarkerLabel(building: BuildingSummary) {
+  if (building.availableUnitCount > 0) {
+    return String(building.availableUnitCount);
+  }
+  if (building.myUnlockCount && building.myUnlockCount > 0) {
+    return String(building.myUnlockCount);
+  }
+  return "1";
+}
+
+function isUnlockedBuilding(
+  building: BuildingSummary,
+  unlockedBuildingIds?: ReadonlySet<string>,
+) {
+  return (
+    unlockedBuildingIds?.has(building.id) === true ||
+    (building.myUnlockCount ?? 0) > 0
+  );
+}
 function markerClasses(active: boolean, hovered: boolean, unlocked: boolean) {
   if (unlocked) {
     return [
@@ -167,6 +196,7 @@ function ClusteredMarkers({
   unlockedBuildingIds,
   unlockedLocations,
   onSelect,
+  onAccessOpen,
   onHover,
 }: {
   buildings: BuildingSummary[];
@@ -176,6 +206,7 @@ function ClusteredMarkers({
   unlockedBuildingIds?: ReadonlySet<string>;
   unlockedLocations?: ReadonlyMap<string, { lat: number; lng: number }>;
   onSelect?: (id: string) => void;
+  onAccessOpen?: (id: string) => void;
   onHover?: (id: string | null) => void;
 }) {
   const map = useMap();
@@ -184,6 +215,7 @@ function ClusteredMarkers({
   const buildingsRef = useRef(buildings);
   const onHoverRef = useRef(onHover);
   const onSelectRef = useRef(onSelect);
+  const onAccessOpenRef = useRef(onAccessOpen);
   const unlockedIdsRef = useRef(unlockedBuildingIds);
   const unlockedLocationsRef = useRef(unlockedLocations);
   const markersRef = useRef<AdvancedMarkerWithMeta[]>([]);
@@ -195,21 +227,22 @@ function ClusteredMarkers({
     buildingsRef.current = buildings;
     onHoverRef.current = onHover;
     onSelectRef.current = onSelect;
+    onAccessOpenRef.current = onAccessOpen;
     unlockedIdsRef.current = unlockedBuildingIds;
     unlockedLocationsRef.current = unlockedLocations;
-  }, [buildings, onHover, onSelect, unlockedBuildingIds, unlockedLocations]);
+  }, [buildings, onHover, onSelect, onAccessOpen, unlockedBuildingIds, unlockedLocations]);
 
   const positions = useMemo(
     () =>
       buildings.map((b) => {
         const exact = unlockedLocations?.get(b.id);
-        const unlocked = unlockedBuildingIds?.has(b.id) ?? false;
+        const unlocked = isUnlockedBuilding(b, unlockedBuildingIds);
         return {
           id: b.id,
           name: b.name,
           lat: exact?.lat ?? b.approximateLat,
           lng: exact?.lng ?? b.approximateLng,
-          label: String(b.availableUnitCount),
+          label: mapMarkerLabel(b),
           unlocked,
         };
       }),
@@ -284,6 +317,9 @@ function ClusteredMarkers({
       wrap.onclick = (e) => {
         e.stopPropagation();
         colocatedWindowRef.current?.close();
+        if (pos.unlocked) {
+          onAccessOpenRef.current?.(pos.id);
+        }
         onSelectRef.current?.(pos.id);
       };
 
@@ -413,29 +449,42 @@ function ClusteredMarkers({
 
 function MapFallback({
   buildings,
+  unlockedBuildingIds,
   onSelect,
+  onAccessOpen,
   onHover,
 }: {
   buildings: BuildingSummary[];
+  unlockedBuildingIds?: ReadonlySet<string>;
   onSelect?: (id: string) => void;
+  onAccessOpen?: (id: string) => void;
   onHover?: (id: string | null) => void;
 }) {
   return (
     <div className="flex h-full min-h-[420px] flex-col items-center justify-center gap-4 bg-slate-200 p-8 text-center">
       <div className="flex flex-wrap justify-center gap-3">
-        {buildings.map((b) => (
-          <button
-            key={b.id}
-            type="button"
-            title={b.name}
-            onMouseEnter={() => onHover?.(b.id)}
-            onMouseLeave={() => onHover?.(null)}
-            onClick={() => onSelect?.(b.id)}
-            className="flex h-10 w-10 items-center justify-center bg-accent-orange text-sm font-semibold text-white shadow"
-          >
-            {b.availableUnitCount}
-          </button>
-        ))}
+        {buildings.map((b) => {
+          const unlocked = isUnlockedBuilding(b, unlockedBuildingIds);
+          return (
+            <button
+              key={b.id}
+              type="button"
+              title={b.name}
+              onMouseEnter={() => onHover?.(b.id)}
+              onMouseLeave={() => onHover?.(null)}
+              onClick={() => {
+                if (unlocked) onAccessOpen?.(b.id);
+                onSelect?.(b.id);
+              }}
+              className={cn(
+                "flex h-10 w-10 items-center justify-center text-sm font-semibold text-white shadow",
+                unlocked ? "bg-lime-500" : "bg-accent-orange",
+              )}
+            >
+              {mapMarkerLabel(b)}
+            </button>
+          );
+        })}
       </div>
       <p className="text-sm text-muted">
         Add <code className="text-xs">NEXT_PUBLIC_GOOGLE_MAPS_API_KEY</code> for

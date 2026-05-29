@@ -71,6 +71,19 @@ export function UnlockPanel({
     }
   }
 
+  const showUnlockSection =
+    !authLoading &&
+    !loadingUnlocks &&
+    (availableUnits.length > 0 || myUnlocks.length === 0);
+
+  if (authLoading || loadingUnlocks) {
+    return (
+      <section className="mt-8">
+        <LoadingState label="Loading unlock status" compact />
+      </section>
+    );
+  }
+
   return (
     <section className="mt-8 space-y-6">
       {myUnlocks.length > 0 ? (
@@ -91,59 +104,59 @@ export function UnlockPanel({
         </div>
       ) : null}
 
-      <div className="border border-border bg-surface p-4">
-        <h2 className="font-semibold">Unlock contact</h2>
-        <p className="mt-2 text-sm text-muted">
-          Pay {formatCurrency(PRICING.tenantUnlockFeeUgx)} to reveal exact address,
-          landlord contact, and directions. First payment wins exclusive access
-          for {PRICING.unlockExclusiveHours} hours.
-        </p>
-
-        {authLoading || loadingUnlocks ? (
-          <LoadingState label="Loading unlock status" compact className="mt-4" />
-        ) : !isAuthenticated ? (
-          <Link
-            href={`/auth/login?next=/buildings/${buildingId}`}
-            className="mt-4 inline-block bg-primary px-4 py-2 text-sm font-medium text-primary-foreground"
-          >
-            Sign in to unlock
-          </Link>
-        ) : availableUnits.length === 0 && myUnlocks.length === 0 ? (
-          <p className="mt-4 text-sm text-muted">
-            No units are available to unlock right now.
+      {showUnlockSection ? (
+        <div className="border border-border bg-surface p-4">
+          <h2 className="font-semibold">Unlock contact</h2>
+          <p className="mt-2 text-sm text-muted">
+            Pay {formatCurrency(PRICING.tenantUnlockFeeUgx)} to reveal exact address,
+            landlord contact, and directions. First payment wins exclusive access
+            for {PRICING.unlockExclusiveHours} hours.
           </p>
-        ) : (
-          <ul className="mt-4 space-y-3">
-            {availableUnits.map((unit) => (
-              <li
-                key={unit.id}
-                className="flex flex-wrap items-center justify-between gap-3 border border-border bg-background p-4"
-              >
-                <div>
-                  <p className="font-medium">Unit {unit.unitNumber}</p>
-                  <p className="text-xs text-muted">Available now</p>
-                </div>
-                <Button
-                  type="button"
-                  loading={unlockingId === unit.id}
-                  loadingLabel="Unlocking unit"
-                  onClick={() => handleUnlock(unit.id)}
+
+          {!isAuthenticated ? (
+            <Link
+              href={`/auth/login?next=/buildings/${buildingId}`}
+              className="mt-4 inline-block bg-primary px-4 py-2 text-sm font-medium text-primary-foreground"
+            >
+              Sign in to unlock
+            </Link>
+          ) : availableUnits.length === 0 ? (
+            <p className="mt-4 text-sm text-muted">
+              No units are available to unlock right now.
+            </p>
+          ) : (
+            <ul className="mt-4 space-y-3">
+              {availableUnits.map((unit) => (
+                <li
+                  key={unit.id}
+                  className="flex flex-wrap items-center justify-between gap-3 border border-border bg-background p-4"
                 >
-                  Unlock — {formatCurrency(PRICING.tenantUnlockFeeUgx)}
-                </Button>
-              </li>
-            ))}
-          </ul>
-        )}
+                  <div>
+                    <p className="font-medium">Unit {unit.unitNumber}</p>
+                    <p className="text-xs text-muted">Available now</p>
+                  </div>
+                  <Button
+                    type="button"
+                    loading={unlockingId === unit.id}
+                    loadingLabel="Unlocking unit"
+                    onClick={() => handleUnlock(unit.id)}
+                  >
+                    Unlock — {formatCurrency(PRICING.tenantUnlockFeeUgx)}
+                  </Button>
+                </li>
+              ))}
+            </ul>
+          )}
 
-        {error ? <p className="mt-3 text-sm text-red-600">{error}</p> : null}
+          {error ? <p className="mt-3 text-sm text-red-600">{error}</p> : null}
 
-        {isAuthenticated && availableUnits.length > 0 ? (
-          <p className="mt-3 text-xs text-muted">
-            Dev mode: payment simulated until Stripe / Flutterwave is connected.
-          </p>
-        ) : null}
-      </div>
+          {isAuthenticated && availableUnits.length > 0 ? (
+            <p className="mt-3 text-xs text-muted">
+              Dev mode: payment simulated until Stripe / Flutterwave is connected.
+            </p>
+          ) : null}
+        </div>
+      ) : null}
     </section>
   );
 }

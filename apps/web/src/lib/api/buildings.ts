@@ -1,5 +1,5 @@
 import type { BuildingSummary } from "@plotpin/shared-types";
-import { apiFetch } from "./client";
+import { apiFetch, getAccessToken } from "./client";
 
 const API_URL =
   process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
@@ -54,8 +54,13 @@ export async function fetchBuildingsInBounds(
   if (filters?.bedrooms != null) params.set("bedrooms", String(filters.bedrooms));
   if (filters?.bathrooms != null) params.set("bathrooms", String(filters.bathrooms));
 
+  const token = await getAccessToken();
+  const headers = new Headers();
+  if (token) headers.set("Authorization", `Bearer ${token}`);
+
   const res = await fetch(`${API_URL}/api/v1/buildings?${params}`, {
-    next: { revalidate: 30 },
+    headers,
+    cache: "no-store",
   });
   if (!res.ok) throw new Error("Failed to load buildings");
   return res.json();

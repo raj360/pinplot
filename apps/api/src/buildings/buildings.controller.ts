@@ -17,6 +17,7 @@ import {
   VerifyBuildingDto,
 } from "./dto/building.dto";
 import { SupabaseAuthGuard } from "../auth/supabase-auth.guard";
+import { OptionalSupabaseAuthGuard } from "../auth/optional-supabase-auth.guard";
 import { RolesGuard } from "../auth/roles.guard";
 import { RequireRoles } from "../auth/require-roles.decorator";
 import { CurrentUser } from "../auth/current-user.decorator";
@@ -27,8 +28,12 @@ export class BuildingsController {
   constructor(private readonly buildings: BuildingsService) {}
 
   @Get()
-  findInBounds(@Query() query: BuildingBoundsQueryDto) {
-    return this.buildings.findInBounds(query);
+  @UseGuards(OptionalSupabaseAuthGuard)
+  findInBounds(
+    @Query() query: BuildingBoundsQueryDto,
+    @CurrentUser() user?: AuthUser,
+  ) {
+    return this.buildings.findInBounds(query, user?.id);
   }
 
   @Get("mine/list")

@@ -7,25 +7,12 @@ import {
   googleMapsPlaceUrl,
 } from "@/lib/maps/directions";
 import { formatCurrency } from "@/lib/intl/format";
+import {
+  contactHref,
+  formatUnlockExpiry,
+} from "@/lib/unlocks/display";
 import { PRICING } from "@plotpin/shared-types";
 import type { TenantUnlock } from "@/lib/api/unlocks";
-
-function formatExpiry(expiresAt: string | null) {
-  if (!expiresAt) return "Exclusive access active";
-  const end = new Date(expiresAt);
-  const hours = Math.max(
-    0,
-    Math.round((end.getTime() - Date.now()) / (1000 * 60 * 60)),
-  );
-  if (hours <= 0) return "Access expiring soon";
-  return `${hours}h of exclusive access remaining`;
-}
-
-function contactHref(phone: string) {
-  if (phone.includes("@")) return `mailto:${phone}`;
-  const digits = phone.replace(/\s/g, "");
-  return digits.startsWith("+") ? `tel:${digits}` : `tel:+${digits}`;
-}
 
 export function UnlockedAccessCard({
   unlock,
@@ -48,7 +35,7 @@ export function UnlockedAccessCard({
           Unit {unlock.unitNumber}
           {unlock.buildingName ? ` · ${unlock.buildingName}` : ""}
         </p>
-        <p className="mt-1 text-sm opacity-90">{formatExpiry(unlock.expiresAt)}</p>
+        <p className="mt-1 text-sm opacity-90">{formatUnlockExpiry(unlock.expiresAt)}</p>
       </div>
 
       <div className="space-y-4 p-4">

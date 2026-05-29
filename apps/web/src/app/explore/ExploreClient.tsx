@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { PlotPinMap } from "@/components/maps/PlotPinMap";
 import { BuildingDetailPanel } from "@/components/buildings/BuildingDetailPanel";
+import { UnlockedAccessModal } from "@/components/buildings/UnlockedAccessModal";
 import { AppHeader } from "@/components/layout/AppHeader";
 import { ContentBand } from "@/components/layout/PageShell";
 import { layoutMaxClass, LAYOUT, contentBandInnerClass } from "@/lib/layout/shell";
@@ -17,7 +18,8 @@ import {
   type BuildingDetail,
 } from "@/lib/api/buildings";
 import { formatRentPerMonth } from "@/lib/intl/format";
-import { fetchMyUnlocks } from "@/lib/api/unlocks";
+import { fetchMyUnlocks, type TenantUnlock } from "@/lib/api/unlocks";
+import { hasAccessOnly } from "@/lib/unlocks/display";
 import { useAuth } from "@/lib/auth/use-auth";
 import type { BuildingSummary } from "@plotpin/shared-types";
 import { useExplorePreview } from "./useExplorePreview";
@@ -83,6 +85,9 @@ function FilterSelect({
 
 export function ExploreClient() {
   const [mapVisible, setMapVisible] = useState(true);
+  const [accessModalBuildingId, setAccessModalBuildingId] = useState<
+    string | null
+  >(null);
   const [allBuildings, setAllBuildings] = useState<BuildingSummary[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [selectedDetail, setSelectedDetail] = useState<BuildingDetail | null>(null);
@@ -97,37 +102,23 @@ export function ExploreClient() {
   const [unlockedLocations, setUnlockedLocations] = useState<
     Map<string, { lat: number; lng: number }>
   >(new Map());
+  const [myUnlocks, setMyUnlocks] = useState<TenantUnlock[]>([]);
   const { hoveredId, preview, setHover, loadSelectedDetail } = useExplorePreview();
+
+  const unlocksByBuilding = useMemo(() => {
+    const map = new Map<string, TenantUnlock[]>();
+    for (const unlock of myUnlocks) {
+      const existing = map.get(unlock.buildingId) ?? [];
+      existing.push(unlock);
+      map.set(unlock.buildingId, existing);
+    }
+    return map;
+  }, [myUnlocks]);
 
   const unlockedBuildingIds = useMemo(
     () => new Set(unlockedLocations.keys()),
     [unlockedLocations],
   );
-
-  useEffect(() => {
-    if (!isAuthenticated) {
-      setUnlockedLocations(new Map());
-      return;
-    }
-
-    let cancelled = false;
-    fetchMyUnlocks()
-      .then((unlocks) => {
-        if (cancelled) return;
-        const next = new Map<string, { lat: number; lng: number }>();
-        for (const unlock of unlocks) {
-          next.set(unlock.buildingId, unlock.location);
-        }
-        setUnlockedLocations(next);
-      })
-      .catch(() => {
-        if (!cancelled) setUnlockedLocations(new Map());
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [isAuthenticated]);
 
   const applySearchResults = useCallback((data: BuildingSummary[]) => {
     setAllBuildings(data);
@@ -136,6 +127,53 @@ export function ExploreClient() {
     setSelectedLoading(false);
     setHover(null);
   }, [setHover]);
+
+  const refreshBuildings = useCallback(async (searchFilters: SearchFilters) => {
+    const data = await loadBuildings(searchFilters);
+    setAllBuildings(data);
+    setSelectedId((prev) => {
+      if (prev && data.some((b) => b.id === prev)) return prev;
+      return data[0]?.id ?? null;
+    });
+  }, []);
+
+  useEffect(() => {
+    if (!isAuthenticated) {
+      setUnlockedLocations(new Map());
+      setMyUnlocks([]);
+      return;
+    }
+
+    let cancelled = false;
+    fetchMyUnlocks()
+      .then((unlocks) => {
+        if (cancelled) return;
+        setMyUnlocks(unlocks);
+        const next = new Map<string, { lat: number; lng: number }>();
+        for (const unlock of unlocks) {
+          next.set(unlock.buildingId, unlock.location);
+        }
+        setUnlockedLocations(next);
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setUnlockedLocations(new Map());
+          setMyUnlocks([]);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isAuthenticated]);
+
+  useEffect(() => {
+    if (!isAuthenticated || unlockedLocations.size === 0) return;
+
+    refreshBuildings(appliedFilters).catch(() => {
+      /* keep current list if refresh fails */
+    });
+  }, [isAuthenticated, unlockedLocations, appliedFilters, refreshBuildings]);
 
   useEffect(() => {
     let cancelled = false;
@@ -190,6 +228,49 @@ export function ExploreClient() {
     },
     [loadSelectedDetail, preview.detail, preview.id, setHover],
   );
+
+  const openAccessModal = useCallback((buildingId: string) => {
+    setAccessModalBuildingId(buildingId);
+  }, []);
+
+  const closeAccessModal = useCallback(() => {
+    setAccessModalBuildingId(null);
+  }, []);
+
+  const handleListSelect = useCallback(
+    (id: string) => {
+      const summary = allBuildings.find((building) => building.id === id);
+      if (summary && hasAccessOnly(summary)) {
+        openAccessModal(id);
+        return;
+      }
+      void handleSelect(id);
+    },
+    [allBuildings, handleSelect, openAccessModal],
+  );
+
+  const handleMapSelect = useCallback(
+    (id: string) => {
+      void handleSelect(id);
+    },
+    [handleSelect],
+  );
+
+  const handleMapAccessOpen = useCallback(
+    (id: string) => {
+      if ((unlocksByBuilding.get(id)?.length ?? 0) > 0) {
+        openAccessModal(id);
+      }
+    },
+    [openAccessModal, unlocksByBuilding],
+  );
+
+  const accessModalUnlocks = accessModalBuildingId
+    ? (unlocksByBuilding.get(accessModalBuildingId) ?? [])
+    : [];
+  const accessModalBuilding = accessModalBuildingId
+    ? allBuildings.find((building) => building.id === accessModalBuildingId)
+    : null;
 
   useEffect(() => {
     if (!hoveredId || !listRef.current) return;
@@ -352,38 +433,80 @@ export function ExploreClient() {
               const active = selectedId === building.id;
               const hovered = hoveredId === building.id;
               const rowLoading = preview.id === building.id && preview.loading;
+              const unlocked = (building.myUnlockCount ?? 0) > 0;
+              const accessOnly = hasAccessOnly(building);
 
               return (
                 <li key={building.id}>
-                  <button
-                    type="button"
+                  <div
                     data-building-id={building.id}
-                    onClick={() => handleSelect(building.id)}
                     onMouseEnter={() => setHover(building.id)}
                     onMouseLeave={() => setHover(null)}
                     className={cn(
-                      "w-full border-b border-border px-4 py-3 text-left transition-colors",
-                      active && "border-l-2 border-l-primary bg-primary/5",
-                      !active && hovered && "border-l-2 border-l-primary/40 bg-primary/5",
+                      "flex items-stretch border-b border-border transition-colors",
+                      active &&
+                        (unlocked
+                          ? "border-l-2 border-l-lime-600 bg-lime-50/60"
+                          : "border-l-2 border-l-primary bg-primary/5"),
+                      !active &&
+                        hovered &&
+                        (unlocked
+                          ? "border-l-2 border-l-lime-600/50 bg-lime-50/40"
+                          : "border-l-2 border-l-primary/40 bg-primary/5"),
                       !active && !hovered && "hover:bg-background/60",
                     )}
                   >
-                    <div className="flex items-start justify-between gap-2">
-                      <p className="font-medium text-primary">{building.name}</p>
-                      {rowLoading ? (
-                        <Spinner className="mt-0.5 size-3 shrink-0" label="Loading preview" />
-                      ) : null}
-                    </div>
-                    <p className="text-sm text-muted">
-                      {[building.district, building.city]
-                        .filter(Boolean)
-                        .join(", ")}
-                    </p>
-                    <p className="mt-1 text-xs text-muted">
-                      {building.availableUnitCount} available · from{" "}
-                      {formatRentPerMonth(building.rentFrom)}
-                    </p>
-                  </button>
+                    <button
+                      type="button"
+                      onClick={() => handleListSelect(building.id)}
+                      className="min-w-0 flex-1 px-4 py-3 text-left"
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <p
+                          className={cn(
+                            "font-medium",
+                            unlocked ? "text-lime-800" : "text-primary",
+                          )}
+                        >
+                          {building.name}
+                        </p>
+                        {rowLoading ? (
+                          <Spinner
+                            className="mt-0.5 size-3 shrink-0"
+                            label="Loading preview"
+                          />
+                        ) : null}
+                      </div>
+                      <p className="text-sm text-muted">
+                        {[building.district, building.city]
+                          .filter(Boolean)
+                          .join(", ")}
+                      </p>
+                      <p className="mt-1 text-xs text-muted">
+                        {building.availableUnitCount > 0 ? (
+                          <>
+                            {building.availableUnitCount} available · from{" "}
+                            {formatRentPerMonth(building.rentFrom)}
+                          </>
+                        ) : unlocked ? (
+                          <span className="font-medium text-lime-700">
+                            Your access · tap to open
+                          </span>
+                        ) : (
+                          <>No units available</>
+                        )}
+                      </p>
+                    </button>
+                    {unlocked && !accessOnly ? (
+                      <button
+                        type="button"
+                        onClick={() => openAccessModal(building.id)}
+                        className="shrink-0 self-center border-l border-border/70 px-3 py-2 text-[11px] font-medium text-lime-700 underline decoration-lime-600/40 underline-offset-2 hover:bg-lime-50/80 hover:text-lime-800"
+                      >
+                        Your access
+                      </button>
+                    ) : null}
+                  </div>
                 </li>
               );
             })}
@@ -417,7 +540,8 @@ export function ExploreClient() {
               hoverPreview={hoverPreview}
               unlockedBuildingIds={unlockedBuildingIds}
               unlockedLocations={unlockedLocations}
-              onSelect={handleSelect}
+              onSelect={handleMapSelect}
+              onAccessOpen={handleMapAccessOpen}
               onHover={setHover}
             />
           </section>
@@ -448,6 +572,13 @@ export function ExploreClient() {
           <BuildingDetailPanel building={panelDetail} compact />
         </div>
       )}
+
+      <UnlockedAccessModal
+        open={accessModalBuildingId !== null && accessModalUnlocks.length > 0}
+        unlocks={accessModalUnlocks}
+        buildingName={accessModalBuilding?.name}
+        onClose={closeAccessModal}
+      />
     </div>
   );
 }
