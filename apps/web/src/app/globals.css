@@ -56,6 +56,11 @@ footer * {
   border-radius: 9999px !important;
 }
 
+.app-header {
+  border-top-left-radius: 0 !important;
+  border-top-right-radius: 0 !important;
+}
+
 .plotpin-map-tooltip {
   pointer-events: none;
   position: absolute;

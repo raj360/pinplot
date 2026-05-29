@@ -14,6 +14,7 @@ import { AppHeader } from "@/components/layout/AppHeader";
 import { ContentBand } from "@/components/layout/PageShell";
 import { layoutMaxClass, LAYOUT, contentBandInnerClass } from "@/lib/layout/shell";
 import { cn } from "@/lib/utils/cn";
+import { AppLoadingOverlay } from "@/components/ui/app-loading-overlay";
 import { LoadingState } from "@/components/ui/loading-state";
 import { Spinner } from "@/components/ui/spinner";
 import {
@@ -29,6 +30,8 @@ import { useAuth } from "@/lib/auth/use-auth";
 import type { BuildingSummary } from "@plotpin/shared-types";
 import { useExplorePreview } from "./useExplorePreview";
 import { useIsMobile } from "@/lib/hooks/use-media-query";
+
+type DetailMode = "full" | "summary" | null;
 
 function parseMinFilter(value: string) {
   if (!value) return undefined;
@@ -67,6 +70,7 @@ function BuildingDetailSection({
 
 export function ExploreClient() {
   const [mapVisible, setMapVisible] = useState(true);
+  const [detailMode, setDetailMode] = useState<DetailMode>(null);
   const [accessModalBuildingId, setAccessModalBuildingId] = useState<
     string | null
   >(null);
@@ -105,18 +109,45 @@ export function ExploreClient() {
     [unlockedLocations],
   );
 
-  const applySearchResults = useCallback((data: BuildingSummary[]) => {
-    setAllBuildings(data);
-    setSelectedId(null);
-    setSelectedDetail(null);
-    setSelectedLoading(false);
-    setHover(null);
-  }, [setHover]);
+  const loadDetail = useCallback(
+    async (id: string) => {
+      setSelectedId(id);
+      setHover(id);
+      setSelectedLoading(true);
+      setSelectedDetail(null);
+      const detail = await loadSelectedDetail(id);
+      setSelectedDetail(detail);
+      setSelectedLoading(false);
+    },
+    [loadSelectedDetail, setHover],
+  );
+
+  const applySearchResults = useCallback(
+    async (data: BuildingSummary[]) => {
+      setAllBuildings(data);
+      setHover(null);
+      setDetailMode(null);
+      setMapVisible(true);
+
+      if (data.length === 0) {
+        setSelectedId(null);
+        setSelectedDetail(null);
+        setSelectedLoading(false);
+        return;
+      }
+
+      await loadDetail(data[0].id);
+    },
+    [loadDetail, setHover],
+  );
 
   const refreshBuildings = useCallback(async (searchFilters: ExploreSearchFilters) => {
     const data = await loadBuildings(searchFilters);
     setAllBuildings(data);
-    setSelectedId((prev) => (prev && data.some((b) => b.id === prev) ? prev : null));
+    setSelectedId((prev) => {
+      if (prev && data.some((b) => b.id === prev)) return prev;
+      return data[0]?.id ?? null;
+    });
   }, []);
 
   useEffect(() => {
@@ -161,9 +192,9 @@ export function ExploreClient() {
     let cancelled = false;
 
     loadBuildings(EMPTY_EXPLORE_FILTERS)
-      .then((data) => {
+      .then(async (data) => {
         if (!cancelled) {
-          applySearchResults(data);
+          await applySearchResults(data);
           setMapFitToken((token) => token + 1);
         }
       })
@@ -186,7 +217,7 @@ export function ExploreClient() {
     setError(null);
     try {
       const next = { ...filters };
-      applySearchResults(await loadBuildings(next));
+      await applySearchResults(await loadBuildings(next));
       setAppliedFilters(next);
       setMapFitToken((token) => token + 1);
     } catch {
@@ -201,7 +232,7 @@ export function ExploreClient() {
     setSearching(true);
     setError(null);
     try {
-      applySearchResults(await loadBuildings(EMPTY_EXPLORE_FILTERS));
+      await applySearchResults(await loadBuildings(EMPTY_EXPLORE_FILTERS));
       setAppliedFilters(EMPTY_EXPLORE_FILTERS);
       setMapFitToken((token) => token + 1);
     } catch {
@@ -210,26 +241,6 @@ export function ExploreClient() {
       setSearching(false);
     }
   }, [applySearchResults]);
-
-  const handleSelect = useCallback(
-    async (id: string) => {
-      setSelectedId(id);
-      setHover(id);
-      setSelectedLoading(true);
-      setSelectedDetail(null);
-
-      const detail = await loadSelectedDetail(id);
-      setSelectedDetail(detail);
-      setSelectedLoading(false);
-    },
-    [loadSelectedDetail, setHover],
-  );
-
-  const closeDetailPreview = useCallback(() => {
-    setSelectedId(null);
-    setSelectedDetail(null);
-    setSelectedLoading(false);
-  }, []);
 
   const openAccessModal = useCallback((buildingId: string) => {
     setAccessModalBuildingId(buildingId);
@@ -246,16 +257,39 @@ export function ExploreClient() {
         openAccessModal(id);
         return;
       }
-      void handleSelect(id);
+
+      if (isMobile) {
+        setDetailMode("full");
+        void loadDetail(id);
+        return;
+      }
+
+      setDetailMode("full");
+      setMapVisible(false);
+      void loadDetail(id);
     },
-    [allBuildings, handleSelect, openAccessModal],
+    [allBuildings, isMobile, loadDetail, openAccessModal],
   );
 
   const handleMapSelect = useCallback(
     (id: string) => {
-      void handleSelect(id);
+      const summary = allBuildings.find((building) => building.id === id);
+      if (summary && hasAccessOnly(summary)) {
+        openAccessModal(id);
+        return;
+      }
+
+      if (isMobile) {
+        setDetailMode("full");
+        void loadDetail(id);
+        return;
+      }
+
+      setDetailMode("summary");
+      setMapVisible(true);
+      void loadDetail(id);
     },
-    [handleSelect],
+    [allBuildings, isMobile, loadDetail, openAccessModal],
   );
 
   const handleMapAccessOpen = useCallback(
@@ -266,6 +300,22 @@ export function ExploreClient() {
     },
     [openAccessModal, unlocksByBuilding],
   );
+
+  const handleToggleMap = useCallback(() => {
+    setMapVisible((visible) => {
+      const next = !visible;
+      if (next) {
+        setDetailMode(null);
+      } else if (selectedId) {
+        setDetailMode("full");
+      }
+      return next;
+    });
+  }, [selectedId]);
+
+  const closeMobileSheet = useCallback(() => {
+    setDetailMode(null);
+  }, []);
 
   const accessModalUnlocks = accessModalBuildingId
     ? (unlocksByBuilding.get(accessModalBuildingId) ?? [])
@@ -290,6 +340,7 @@ export function ExploreClient() {
   }, [allBuildings, hoveredId]);
 
   const listLoading = loading || searching;
+  const overlayLoading = loading || searching;
 
   const activeFilterHint = useMemo(() => {
     const parts: string[] = [];
@@ -319,27 +370,29 @@ export function ExploreClient() {
     fitBoundsToken: mapFitToken,
   };
 
-  const showMobileSheet = Boolean(selectedId) && isMobile;
-  const showDesktopListSummary =
-    Boolean(selectedId) && !isMobile && mapVisible;
-  const showDesktopMapPaneSummary =
-    Boolean(selectedId) && !isMobile && !mapVisible;
+  const showMobileSheet = Boolean(selectedId) && isMobile && detailMode !== null;
+  const showMapSummary =
+    !isMobile && mapVisible && detailMode === "summary" && Boolean(selectedId);
+  const showFullDetailPane =
+    !isMobile && !mapVisible && Boolean(selectedId);
 
   return (
     <div className="flex min-h-screen flex-col bg-background md:h-screen md:overflow-hidden">
-      <AppHeader variant="wide" />
+      <div className="sticky top-0 z-30 shrink-0 bg-background shadow-sm">
+        <AppHeader variant="wide" />
 
-      <ContentBand width="wide" className="shrink-0 bg-[#eef2f6]" innerClassName="py-2">
-        <ExploreFilters
-          filters={filters}
-          onChange={setFilters}
-          onSearch={() => void runSearch()}
-          onReset={() => void runReset()}
-          searching={searching}
-          mapVisible={mapVisible}
-          onToggleMap={() => setMapVisible((v) => !v)}
-        />
-      </ContentBand>
+        <ContentBand width="wide" className="bg-[#eef2f6]" innerClassName="py-2">
+          <ExploreFilters
+            filters={filters}
+            onChange={setFilters}
+            onSearch={() => void runSearch()}
+            onReset={() => void runReset()}
+            searching={searching}
+            mapVisible={mapVisible}
+            onToggleMap={handleToggleMap}
+          />
+        </ContentBand>
+      </div>
 
       {error && (
         <div className={cn(contentBandInnerClass("wide"), "shrink-0")}>
@@ -347,7 +400,11 @@ export function ExploreClient() {
         </div>
       )}
 
-      {/* Mobile: natural page scroll. Desktop: fixed split pane with list scroll. */}
+      <AppLoadingOverlay
+        show={overlayLoading}
+        label={loading ? "Loading buildings" : "Searching"}
+      />
+
       <div className="flex flex-col md:min-h-0 md:flex-1 md:overflow-hidden">
         <div
           className={cn(
@@ -392,18 +449,11 @@ export function ExploreClient() {
               className={cn(
                 "explore-results-list touch-pan-y",
                 "md:min-h-0 md:flex-1 md:overflow-y-auto md:overscroll-contain",
-                searching && "opacity-60",
               )}
             >
-              {listLoading && allBuildings.length === 0 ? (
+              {loading && allBuildings.length === 0 ? (
                 <li className="px-4 py-8">
                   <LoadingState label="Loading buildings" compact />
-                </li>
-              ) : null}
-              {listLoading && allBuildings.length > 0 ? (
-                <li className="flex items-center gap-2 border-b border-border bg-background px-3 py-2 text-xs text-muted sm:px-4">
-                  <Spinner className="size-3" label="Updating results" />
-                  Updating results…
                 </li>
               ) : null}
               {allBuildings.map((building) => {
@@ -494,7 +544,7 @@ export function ExploreClient() {
               )}
             </ul>
 
-            {showDesktopListSummary ? (
+            {showMapSummary ? (
               <div className="explore-desktop-summary relative z-10 hidden max-h-[min(42vh,360px)] shrink-0 overflow-y-auto border-t-2 border-border bg-surface p-4 shadow-[0_-14px_36px_-14px_rgba(15,23,42,0.22)] ring-1 ring-black/5 md:block">
                 <div className="mb-2 flex items-center justify-between gap-2">
                   <p className="text-sm font-semibold text-primary">
@@ -502,7 +552,7 @@ export function ExploreClient() {
                   </p>
                   <button
                     type="button"
-                    onClick={closeDetailPreview}
+                    onClick={() => setDetailMode(null)}
                     className="text-xs text-muted hover:text-foreground"
                   >
                     Close
@@ -523,15 +573,13 @@ export function ExploreClient() {
             </section>
           ) : (
             <section className="hidden min-h-0 flex-1 overflow-y-auto bg-background p-6 md:block">
-              {!showDesktopMapPaneSummary ? (
-                <p className="text-muted">
-                  Select a building from the list.
-                </p>
-              ) : (
+              {showFullDetailPane ? (
                 <BuildingDetailSection
                   loading={selectedLoading}
                   detail={selectedDetail}
                 />
+              ) : (
+                <p className="text-muted">Select a building from the list.</p>
               )}
             </section>
           )}
@@ -544,7 +592,7 @@ export function ExploreClient() {
           buildingName={selectedBuilding?.name}
           loading={selectedLoading}
           detail={selectedDetail}
-          onClose={closeDetailPreview}
+          onClose={closeMobileSheet}
           variant="mobile"
         />
       ) : null}
