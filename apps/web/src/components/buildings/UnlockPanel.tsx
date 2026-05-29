@@ -4,12 +4,7 @@ import { UnlockPurchasePanel } from "@/components/buildings/UnlockPurchasePanel"
 import { UnlockedAccessCard } from "@/components/buildings/UnlockedAccessCard";
 import { LoadingState } from "@/components/ui/loading-state";
 import { useBuildingUnlocks } from "@/lib/unlocks/use-building-unlocks";
-
-type Unit = {
-  id: string;
-  unitNumber: string;
-  status: string;
-};
+import type { UnitLike } from "@/lib/buildings/unit-summary";
 
 /** Legacy wrapper — prefer BuildingPageClient on the building detail route. */
 export function UnlockPanel({
@@ -17,7 +12,7 @@ export function UnlockPanel({
   units,
 }: {
   buildingId: string;
-  units: Unit[];
+  units: UnitLike[];
 }) {
   const unlocks = useBuildingUnlocks(buildingId, units);
 

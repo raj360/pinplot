@@ -75,3 +75,8 @@ export function formatUnitGroup(group: UnitGroup) {
     ? `${group.count} units · ${label} · ${rent}`
     : `1 unit · ${label} · ${rent}`;
 }
+
+/** Single unit — bed/bath and monthly rent for unlock cards and tooltips. */
+export function formatUnitDetail(unit: UnitLike) {
+  return `${unit.bedrooms} bed / ${unit.bathrooms} bath · ${formatRentPerMonth(unit.rentAmount)}`;
+}

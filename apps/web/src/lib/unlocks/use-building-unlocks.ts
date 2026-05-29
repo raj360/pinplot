@@ -9,14 +9,9 @@ import {
   type TenantUnlock,
 } from "@/lib/api/unlocks";
 import { clearBuildingCache } from "@/lib/api/building-cache";
+import type { UnitLike } from "@/lib/buildings/unit-summary";
 
-type Unit = {
-  id: string;
-  unitNumber: string;
-  status: string;
-};
-
-export function useBuildingUnlocks(buildingId: string, units: Unit[]) {
+export function useBuildingUnlocks(buildingId: string, units: UnitLike[]) {
   const { isAuthenticated, loading: authLoading } = useAuth();
   const [myUnlocks, setMyUnlocks] = useState<TenantUnlock[]>([]);
   const [loadedBuildingId, setLoadedBuildingId] = useState<string | null>(null);

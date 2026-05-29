@@ -2,6 +2,7 @@ import Link from "next/link";
 import { PRICING, UnitStatus } from "@plotpin/shared-types";
 import type { BuildingDetail } from "@/lib/api/buildings";
 import {
+  formatUnitDetail,
   formatUnitGroup,
   groupAvailableUnits,
   listAvailableUnits,
@@ -45,7 +46,7 @@ function UnitGrid({ building }: { building: BuildingDetail }) {
         {building.units.map((unit) => (
           <div
             key={unit.id}
-            title={`Unit ${unit.unitNumber} — ${unit.status}`}
+            title={`Unit ${unit.unitNumber} · ${formatUnitDetail(unit)} · ${unit.status}`}
             className={`flex aspect-square items-center justify-center border text-xs font-semibold ${
               unit.status === UnitStatus.AVAILABLE
                 ? "border-primary bg-primary/10 text-primary"
@@ -159,6 +160,20 @@ export function BuildingDetailPanel({
       {summaryBox}
 
       {building.units.length > 0 ? <UnitGrid building={building} /> : null}
+
+      {listAvailableUnits(building.units).length > 0 ? (
+        <ul className="space-y-1.5 text-sm">
+          {listAvailableUnits(building.units).map((unit) => (
+            <li key={unit.id} className="text-muted">
+              <span className="font-medium text-foreground">
+                Unit {unit.unitNumber}
+              </span>
+              {" · "}
+              {formatUnitDetail(unit)}
+            </li>
+          ))}
+        </ul>
+      ) : null}
 
       {showUnlockLink ? (
         <>
