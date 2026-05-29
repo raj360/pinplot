@@ -8,6 +8,12 @@ import {
 import { MarkerClusterer } from "@googlemaps/markerclusterer";
 import { useEffect, useMemo, useRef } from "react";
 import type { BuildingSummary } from "@plotpin/shared-types";
+import {
+  EXPLORE_MAP_CLUSTER_ZOOM_STEP,
+  EXPLORE_MAP_DEFAULT_ZOOM,
+  EXPLORE_MAP_MAX_ZOOM,
+  EXPLORE_MAP_MIN_ZOOM,
+} from "@/lib/maps/config";
 
 const MAPS_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? "";
 const MAP_ID = process.env.NEXT_PUBLIC_GOOGLE_MAP_ID ?? "";
@@ -19,6 +25,7 @@ type AdvancedMarkerWithMeta = google.maps.marker.AdvancedMarkerElement & {
   plotpinLabel?: HTMLSpanElement;
   plotpinSpinner?: HTMLSpanElement;
   plotpinWrap?: HTMLDivElement;
+  plotpinUnlocked?: boolean;
 };
 
 type HoverPreview = {
@@ -32,6 +39,8 @@ type Props = {
   selectedId?: string | null;
   hoveredId?: string | null;
   hoverPreview?: HoverPreview;
+  unlockedBuildingIds?: ReadonlySet<string>;
+  unlockedLocations?: ReadonlyMap<string, { lat: number; lng: number }>;
   onSelect?: (id: string) => void;
   onHover?: (id: string | null) => void;
 };
@@ -41,6 +50,8 @@ export function PlotPinMap({
   selectedId,
   hoveredId,
   hoverPreview,
+  unlockedBuildingIds,
+  unlockedLocations,
   onSelect,
   onHover,
 }: Props) {
@@ -54,16 +65,24 @@ export function PlotPinMap({
     <APIProvider apiKey={MAPS_KEY} libraries={["marker"]}>
       <GoogleMap
         defaultCenter={KAMPALA_CENTER}
-        defaultZoom={13}
+        defaultZoom={EXPLORE_MAP_DEFAULT_ZOOM}
+        minZoom={EXPLORE_MAP_MIN_ZOOM}
+        maxZoom={EXPLORE_MAP_MAX_ZOOM}
         mapId={MAP_ID}
+        mapTypeId="roadmap"
+        mapTypeControl={false}
+        streetViewControl={false}
         gestureHandling="greedy"
         className="h-full w-full"
       >
+        <ExploreMapConstraints />
         <ClusteredMarkers
           buildings={buildings}
           selectedId={selectedId}
           hoveredId={hoveredId}
           hoverPreview={hoverPreview}
+          unlockedBuildingIds={unlockedBuildingIds}
+          unlockedLocations={unlockedLocations}
           onSelect={onSelect}
           onHover={onHover}
         />
@@ -72,7 +91,44 @@ export function PlotPinMap({
   );
 }
 
-function markerClasses(active: boolean, hovered: boolean) {
+function ExploreMapConstraints() {
+  const map = useMap();
+
+  useEffect(() => {
+    if (!map) return;
+
+    map.setOptions({
+      maxZoom: EXPLORE_MAP_MAX_ZOOM,
+      minZoom: EXPLORE_MAP_MIN_ZOOM,
+      mapTypeControl: false,
+      mapTypeId: "roadmap",
+      streetViewControl: false,
+    });
+
+    const listener = map.addListener("zoom_changed", () => {
+      const zoom = map.getZoom();
+      if (zoom != null && zoom > EXPLORE_MAP_MAX_ZOOM) {
+        map.setZoom(EXPLORE_MAP_MAX_ZOOM);
+      }
+    });
+
+    return () => listener.remove();
+  }, [map]);
+
+  return null;
+}
+
+function markerClasses(active: boolean, hovered: boolean, unlocked: boolean) {
+  if (unlocked) {
+    return [
+      "flex h-8 w-8 items-center justify-center text-xs font-semibold text-white shadow",
+      active || hovered ? "ring-2 ring-lime-800 ring-offset-1" : "",
+      active ? "bg-lime-700" : "bg-lime-500",
+    ]
+      .filter(Boolean)
+      .join(" ");
+  }
+
   return [
     "flex h-8 w-8 items-center justify-center text-xs font-semibold text-white shadow",
     active || hovered ? "ring-2 ring-primary ring-offset-1" : "",
@@ -108,6 +164,8 @@ function ClusteredMarkers({
   selectedId,
   hoveredId,
   hoverPreview,
+  unlockedBuildingIds,
+  unlockedLocations,
   onSelect,
   onHover,
 }: {
@@ -115,6 +173,8 @@ function ClusteredMarkers({
   selectedId?: string | null;
   hoveredId?: string | null;
   hoverPreview?: HoverPreview;
+  unlockedBuildingIds?: ReadonlySet<string>;
+  unlockedLocations?: ReadonlyMap<string, { lat: number; lng: number }>;
   onSelect?: (id: string) => void;
   onHover?: (id: string | null) => void;
 }) {
@@ -124,24 +184,36 @@ function ClusteredMarkers({
   const buildingsRef = useRef(buildings);
   const onHoverRef = useRef(onHover);
   const onSelectRef = useRef(onSelect);
-  buildingsRef.current = buildings;
-  onHoverRef.current = onHover;
-  onSelectRef.current = onSelect;
+  const unlockedIdsRef = useRef(unlockedBuildingIds);
+  const unlockedLocationsRef = useRef(unlockedLocations);
   const markersRef = useRef<AdvancedMarkerWithMeta[]>([]);
   const markerIdsRef = useRef(
     new globalThis.Map<google.maps.marker.AdvancedMarkerElement, string>(),
   );
 
+  useEffect(() => {
+    buildingsRef.current = buildings;
+    onHoverRef.current = onHover;
+    onSelectRef.current = onSelect;
+    unlockedIdsRef.current = unlockedBuildingIds;
+    unlockedLocationsRef.current = unlockedLocations;
+  }, [buildings, onHover, onSelect, unlockedBuildingIds, unlockedLocations]);
+
   const positions = useMemo(
     () =>
-      buildings.map((b) => ({
-        id: b.id,
-        name: b.name,
-        lat: b.approximateLat,
-        lng: b.approximateLng,
-        label: String(b.availableUnitCount),
-      })),
-    [buildings],
+      buildings.map((b) => {
+        const exact = unlockedLocations?.get(b.id);
+        const unlocked = unlockedBuildingIds?.has(b.id) ?? false;
+        return {
+          id: b.id,
+          name: b.name,
+          lat: exact?.lat ?? b.approximateLat,
+          lng: exact?.lng ?? b.approximateLng,
+          label: String(b.availableUnitCount),
+          unlocked,
+        };
+      }),
+    [buildings, unlockedBuildingIds, unlockedLocations],
   );
 
   useEffect(() => {
@@ -156,6 +228,8 @@ function ClusteredMarkers({
       map,
       onClusterClick: (_event, cluster) => {
         colocatedWindowRef.current?.close();
+
+        const currentZoom = map.getZoom() ?? EXPLORE_MAP_DEFAULT_ZOOM;
 
         const bounds = new google.maps.LatLngBounds();
         for (const marker of cluster.markers) {
@@ -173,12 +247,21 @@ function ClusteredMarkers({
           Math.abs(ne.lat() - sw.lat()) < 0.00001 &&
           Math.abs(ne.lng() - sw.lng()) < 0.00001;
 
-        if (samePoint) {
+        if (samePoint || currentZoom >= EXPLORE_MAP_MAX_ZOOM) {
           showColocatedList(cluster, map);
           return;
         }
 
-        map.fitBounds(bounds, 48);
+        if (cluster.position) {
+          map.panTo(cluster.position);
+        }
+
+        map.setZoom(
+          Math.min(
+            currentZoom + EXPLORE_MAP_CLUSTER_ZOOM_STEP,
+            EXPLORE_MAP_MAX_ZOOM,
+          ),
+        );
       },
     });
 
@@ -190,7 +273,7 @@ function ClusteredMarkers({
       const { tooltip, label, spinner } = createMapTooltip();
 
       const el = document.createElement("div");
-      el.className = markerClasses(false, false);
+      el.className = markerClasses(false, false, pos.unlocked);
       el.textContent = pos.label;
 
       wrap.appendChild(tooltip);
@@ -214,6 +297,7 @@ function ClusteredMarkers({
       marker.plotpinLabel = label;
       marker.plotpinSpinner = spinner;
       marker.plotpinWrap = wrap;
+      marker.plotpinUnlocked = pos.unlocked;
       markerIdsRef.current.set(marker, pos.id);
       markersRef.current.push(marker);
       clustererRef.current.addMarker(marker);
@@ -299,7 +383,9 @@ function ClusteredMarkers({
 
       const active = selectedId === id;
       const hovered = hoveredId === id;
-      el.className = markerClasses(active, hovered);
+      const unlocked =
+        marker.plotpinUnlocked ?? unlockedIdsRef.current?.has(id) ?? false;
+      el.className = markerClasses(active, hovered, unlocked);
       marker.zIndex = active || hovered ? 2 : 1;
 
       if (!tooltip || !label || !spinner) continue;
@@ -308,7 +394,8 @@ function ClusteredMarkers({
         const name =
           hoverPreview?.id === id
             ? hoverPreview.name
-            : (buildingsRef.current.find((b) => b.id === id)?.name ?? "Listing");
+            : (buildingsRef.current.find((b) => b.id === id)?.name ??
+              "Listing");
         const loading = hoverPreview?.id === id ? hoverPreview.loading : false;
 
         if (label.textContent !== name) label.textContent = name;

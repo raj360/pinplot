@@ -4,6 +4,10 @@ import {
 } from "@nestjs/common";
 import { DatabaseService } from "../database/database.service";
 import {
+  jitterPublicMapCoords,
+  publicMapCoords,
+} from "../common/location-jitter";
+import {
   BuildingBoundsQueryDto,
   CreateBuildingDto,
   CreateUnitDto,
@@ -18,6 +22,8 @@ type BuildingRow = {
   country_code: string;
   approximate_lat: number;
   approximate_lng: number;
+  exact_lat: number | null;
+  exact_lng: number | null;
   total_units: number;
   is_verified: boolean;
   is_featured: boolean;
@@ -45,6 +51,8 @@ export class BuildingsService {
         b.country_code,
         b.approximate_lat,
         b.approximate_lng,
+        b.exact_lat,
+        b.exact_lng,
         b.total_units,
         b.is_verified,
         b.is_featured,
@@ -231,6 +239,25 @@ export class BuildingsService {
       }
 
       await this.db.query("COMMIT");
+      const jittered = jitterPublicMapCoords(
+        building.id,
+        dto.approximateLat,
+        dto.approximateLng,
+      );
+      await this.db.query(
+        `UPDATE buildings
+         SET approximate_lat = $2, approximate_lng = $3,
+             exact_lat = COALESCE(exact_lat, $4),
+             exact_lng = COALESCE(exact_lng, $5)
+         WHERE id = $1`,
+        [
+          building.id,
+          jittered.lat,
+          jittered.lng,
+          dto.exactLat ?? dto.approximateLat,
+          dto.exactLng ?? dto.approximateLng,
+        ],
+      );
       return this.findById(building.id, true);
     } catch (err) {
       await this.db.query("ROLLBACK");
@@ -308,14 +335,21 @@ export class BuildingsService {
   }
 
   private toSummary(row: BuildingRow) {
+    const coords = publicMapCoords(
+      row.id,
+      row.approximate_lat,
+      row.approximate_lng,
+      row.exact_lat,
+      row.exact_lng,
+    );
     return {
       id: row.id,
       name: row.name,
       city: row.city,
       district: row.district,
       countryCode: row.country_code,
-      approximateLat: row.approximate_lat,
-      approximateLng: row.approximate_lng,
+      approximateLat: coords.lat,
+      approximateLng: coords.lng,
       totalUnits: row.total_units,
       isVerified: row.is_verified,
       isFeatured: row.is_featured,

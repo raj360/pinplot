@@ -17,6 +17,8 @@ import {
   type BuildingDetail,
 } from "@/lib/api/buildings";
 import { formatRentPerMonth } from "@/lib/intl/format";
+import { fetchMyUnlocks } from "@/lib/api/unlocks";
+import { useAuth } from "@/lib/auth/use-auth";
 import type { BuildingSummary } from "@plotpin/shared-types";
 import { useExplorePreview } from "./useExplorePreview";
 
@@ -91,7 +93,41 @@ export function ExploreClient() {
   const [filters, setFilters] = useState<SearchFilters>(EMPTY_FILTERS);
   const [appliedFilters, setAppliedFilters] = useState<SearchFilters>(EMPTY_FILTERS);
   const listRef = useRef<HTMLUListElement>(null);
+  const { isAuthenticated } = useAuth();
+  const [unlockedLocations, setUnlockedLocations] = useState<
+    Map<string, { lat: number; lng: number }>
+  >(new Map());
   const { hoveredId, preview, setHover, loadSelectedDetail } = useExplorePreview();
+
+  const unlockedBuildingIds = useMemo(
+    () => new Set(unlockedLocations.keys()),
+    [unlockedLocations],
+  );
+
+  useEffect(() => {
+    if (!isAuthenticated) {
+      setUnlockedLocations(new Map());
+      return;
+    }
+
+    let cancelled = false;
+    fetchMyUnlocks()
+      .then((unlocks) => {
+        if (cancelled) return;
+        const next = new Map<string, { lat: number; lng: number }>();
+        for (const unlock of unlocks) {
+          next.set(unlock.buildingId, unlock.location);
+        }
+        setUnlockedLocations(next);
+      })
+      .catch(() => {
+        if (!cancelled) setUnlockedLocations(new Map());
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isAuthenticated]);
 
   const applySearchResults = useCallback((data: BuildingSummary[]) => {
     setAllBuildings(data);
@@ -379,6 +415,8 @@ export function ExploreClient() {
               selectedId={selectedId}
               hoveredId={hoveredId}
               hoverPreview={hoverPreview}
+              unlockedBuildingIds={unlockedBuildingIds}
+              unlockedLocations={unlockedLocations}
               onSelect={handleSelect}
               onHover={setHover}
             />
