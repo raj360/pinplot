@@ -20,6 +20,7 @@ type BuildingRow = {
   city: string;
   district: string | null;
   country_code: string;
+  building_type: string;
   approximate_lat: number;
   approximate_lng: number;
   exact_lat: number | null;
@@ -70,6 +71,7 @@ export class BuildingsService {
         b.city,
         b.district,
         b.country_code,
+        b.building_type,
         b.approximate_lat,
         b.approximate_lng,
         b.exact_lat,
@@ -131,6 +133,11 @@ export class BuildingsService {
       )`;
     }
 
+    if (query.buildingType) {
+      params.push(query.buildingType);
+      sql += ` AND b.building_type = $${params.length}::building_type`;
+    }
+
     sql += ` ORDER BY b.is_featured DESC, b.created_at DESC LIMIT 200`;
 
     const { rows } = await this.db.query<BuildingRow>(sql, params);
@@ -155,6 +162,7 @@ export class BuildingsService {
         b.city,
         b.district,
         b.country_code,
+        b.building_type,
         b.approximate_lat,
         b.approximate_lng,
         b.exact_lat,
@@ -184,6 +192,11 @@ export class BuildingsService {
     if (query.countryCode) {
       params.push(query.countryCode.toUpperCase());
       sql += ` AND b.country_code = $${params.length}`;
+    }
+
+    if (query.buildingType) {
+      params.push(query.buildingType);
+      sql += ` AND b.building_type = $${params.length}::building_type`;
     }
 
     sql += `
@@ -401,8 +414,8 @@ export class BuildingsService {
         `INSERT INTO buildings (
           landlord_id, name, description, city, district, country_code,
           approximate_lat, approximate_lng, exact_address, exact_lat, exact_lng,
-          total_units, video_url, is_verified
-        ) VALUES ($1,$2,$3,$4,$5,'UG',$6,$7,$8,$9,$10,$11,$12,FALSE)
+          total_units, video_url, building_type, is_verified
+        ) VALUES ($1,$2,$3,$4,$5,'UG',$6,$7,$8,$9,$10,$11,$12,$13,FALSE)
         RETURNING *`,
         [
           landlordId,
@@ -417,6 +430,7 @@ export class BuildingsService {
           dto.exactLng ?? dto.approximateLng,
           dto.totalUnits,
           dto.videoUrl ?? null,
+          dto.buildingType ?? "apartment",
         ],
       );
       const building = rows[0] as { id: string };
@@ -537,6 +551,7 @@ export class BuildingsService {
       city: row.city,
       district: row.district,
       countryCode: row.country_code,
+      buildingType: row.building_type,
       approximateLat: coords.lat,
       approximateLng: coords.lng,
       totalUnits: row.total_units,

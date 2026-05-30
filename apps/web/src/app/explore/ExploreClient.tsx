@@ -68,6 +68,7 @@ async function loadBuildings(filters: ExploreSearchFilters) {
     bathrooms: parseMinFilter(filters.bathrooms),
     minRent,
     maxRent,
+    buildingType: filters.buildingType || undefined,
     countryCode: DEFAULT_EXPLORE_COUNTRY,
   });
 }

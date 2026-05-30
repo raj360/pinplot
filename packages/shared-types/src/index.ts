@@ -44,12 +44,24 @@ export enum PaymentStatus {
   REFUNDED = "REFUNDED",
 }
 
+/** Listing property type — used in explore filters and landlord create flow. */
+export const BUILDING_TYPES = [
+  "apartment",
+  "studio",
+  "bungalow",
+  "house",
+  "airbnb",
+] as const;
+
+export type BuildingType = (typeof BUILDING_TYPES)[number];
+
 export type BuildingSummary = {
   id: string;
   name: string;
   city: string;
   district: string;
   countryCode: string;
+  buildingType: BuildingType;
   approximateLat: number;
   approximateLng: number;
   availableUnitCount: number;

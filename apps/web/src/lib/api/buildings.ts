@@ -45,6 +45,7 @@ export async function fetchBuildingsInBounds(
     maxRent?: number;
     bedrooms?: number;
     bathrooms?: number;
+    buildingType?: string;
     countryCode?: string;
   },
 ): Promise<BuildingSummary[]> {
@@ -59,6 +60,7 @@ export async function fetchBuildingsInBounds(
   if (filters?.maxRent != null) params.set("maxRent", String(filters.maxRent));
   if (filters?.bedrooms != null) params.set("bedrooms", String(filters.bedrooms));
   if (filters?.bathrooms != null) params.set("bathrooms", String(filters.bathrooms));
+  if (filters?.buildingType) params.set("buildingType", filters.buildingType);
   if (filters?.countryCode) params.set("countryCode", filters.countryCode);
 
   const token = await getAccessToken();
@@ -114,6 +116,7 @@ export type CreateBuildingPayload = {
   approximateLng: number;
   exactAddress?: string;
   videoUrl?: string;
+  buildingType?: string;
   totalUnits: number;
   units: Array<{
     unitNumber: string;

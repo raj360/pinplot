@@ -5,7 +5,7 @@ import { ExploreActiveFilterChips } from "@/components/explore/ExploreActiveFilt
 import { AreaSearchCombobox } from "@/components/explore/AreaSearchCombobox";
 import { ComboSelect } from "@/components/ui/combo-select";
 import { Spinner } from "@/components/ui/spinner";
-import { BUILDING_TYPE_FILTER_ENABLED, BUILDING_TYPE_OPTIONS } from "@/lib/filters/building-types";
+import { BUILDING_TYPE_OPTIONS } from "@/lib/filters/building-types";
 import { buildExploreFilterChips } from "@/lib/filters/explore-filter-chips";
 import { RENT_RANGE_OPTIONS } from "@/lib/filters/rent-ranges";
 import type { GeoPoint } from "@/lib/geo/uganda";
@@ -99,7 +99,7 @@ export function ExploreFilters({
     appliedFilters.priceRange,
     appliedFilters.bedrooms,
     appliedFilters.bathrooms,
-    BUILDING_TYPE_FILTER_ENABLED ? appliedFilters.buildingType : "",
+    appliedFilters.buildingType,
   ].filter(Boolean).length;
 
   const appliedChips = useMemo(
@@ -202,12 +202,6 @@ export function ExploreFilters({
         disabled={searching}
         className="mt-2.5"
       />
-
-      {!BUILDING_TYPE_FILTER_ENABLED && filters.buildingType ? (
-        <p className="mt-1.5 text-[11px] text-muted">
-          Property type filter is preview-only — coming soon.
-        </p>
-      ) : null}
 
       <div className="mt-2.5 flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-t border-border/70 pt-2.5 text-sm">
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1">

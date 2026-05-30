@@ -1,6 +1,7 @@
 import {
   IsArray,
   IsBoolean,
+  IsIn,
   IsInt,
   IsNumber,
   IsOptional,
@@ -11,6 +12,7 @@ import {
   ValidateNested,
 } from "class-validator";
 import { Type } from "class-transformer";
+import { BUILDING_TYPES } from "@plotpin/shared-types";
 
 export class BuildingBoundsQueryDto {
   @Type(() => Number)
@@ -61,6 +63,10 @@ export class BuildingBoundsQueryDto {
   @IsOptional()
   @IsString()
   countryCode?: string;
+
+  @IsOptional()
+  @IsIn([...BUILDING_TYPES])
+  buildingType?: string;
 }
 
 export class CreateBuildingDto {
@@ -111,6 +117,10 @@ export class CreateBuildingDto {
   @IsInt()
   @Min(1)
   totalUnits!: number;
+
+  @IsOptional()
+  @IsIn([...BUILDING_TYPES])
+  buildingType?: string;
 
   @IsOptional()
   @IsArray()
