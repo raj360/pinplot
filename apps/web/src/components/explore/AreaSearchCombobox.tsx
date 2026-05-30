@@ -33,6 +33,10 @@ type AreaSearchComboboxProps = {
   compact?: boolean;
   placeholder?: string;
   allowClear?: boolean;
+  /** Highlight trigger when a non-default area is selected. */
+  active?: boolean;
+  /** Dim controls while a search request is in flight. */
+  loading?: boolean;
 };
 
 type OptionGroup = {
@@ -54,6 +58,8 @@ export function AreaSearchCombobox({
   compact = true,
   placeholder = "All Kampala",
   allowClear = true,
+  active = false,
+  loading = false,
 }: AreaSearchComboboxProps) {
   const triggerId = useId();
   const listboxId = `${triggerId}-listbox`;
@@ -166,6 +172,7 @@ export function AreaSearchCombobox({
           className={cn(
             "mb-0.5 block text-foreground",
             compact ? "text-xs font-medium" : "text-sm",
+            loading && "opacity-60",
           )}
         >
           {label}
@@ -176,13 +183,18 @@ export function AreaSearchCombobox({
         id={triggerId}
         type="button"
         onClick={toggle}
+        disabled={loading}
         aria-expanded={open}
         aria-haspopup="listbox"
         aria-controls={listboxId}
         className={cn(
-          "flex w-full items-center justify-between gap-2 border border-border bg-surface text-left text-foreground transition-colors",
+          "flex w-full items-center justify-between gap-2 border bg-surface text-left text-foreground transition-colors",
+          active && value
+            ? "border-primary/45 bg-primary/5"
+            : "border-border",
           "hover:border-primary/40 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary/25",
           compact ? "min-h-9 px-2.5 py-1.5 text-sm" : "min-h-10 px-3 py-2 text-sm",
+          loading && "pointer-events-none opacity-60",
         )}
       >
         <span

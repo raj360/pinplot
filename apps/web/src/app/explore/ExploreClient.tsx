@@ -7,6 +7,7 @@ import { PlotPinMap } from "@/components/maps/PlotPinMap";
 import { BuildingDetailExperience } from "@/components/buildings/BuildingDetailExperience";
 import { BuildingPreviewModal } from "@/components/explore/BuildingPreviewModal";
 import { UnlockedAccessModal } from "@/components/buildings/UnlockedAccessModal";
+import { ExploreEmptyResults } from "@/components/explore/ExploreEmptyResults";
 import {
   ExploreFilters,
   EMPTY_EXPLORE_FILTERS,
@@ -25,16 +26,11 @@ import {
   type BuildingDetail,
   type Bounds,
 } from "@/lib/api/buildings";
-import { parseRentRange, rentRangeLabel } from "@/lib/filters/rent-ranges";
+import { parseRentRange } from "@/lib/filters/rent-ranges";
 import {
   getBoundsForSearch,
   getMapFocusForSearch,
-  searchAreaLabel,
 } from "@/lib/filters/search-areas";
-import {
-  BUILDING_TYPE_FILTER_ENABLED,
-  buildingTypeLabel,
-} from "@/lib/filters/building-types";
 import { DEFAULT_EXPLORE_COUNTRY } from "@/lib/geo/uganda";
 import { useExploreGeolocation } from "@/lib/hooks/use-explore-geolocation";
 import { formatRentPerMonth } from "@/lib/intl/format";
@@ -54,6 +50,8 @@ import {
 type DetailMode = "full" | "summary" | null;
 
 const EMPTY_UNLOCKS: TenantUnlock[] = [];
+const LIVE_SEARCH_STORAGE_KEY = "plotpin-explore-live-search";
+const LIVE_SEARCH_DEBOUNCE_MS = 450;
 
 function parseMinFilter(value: string) {
   if (!value) return undefined;
@@ -153,7 +151,31 @@ export function ExploreClient() {
   >(() => Promise.resolve());
   const searchGenerationRef = useRef(0);
   const initialLoadStartedRef = useRef(false);
+  const liveSearchTimerRef = useRef<number | undefined>(undefined);
+  const filtersRef = useRef(filters);
+  const [liveSearchEnabled, setLiveSearchEnabled] = useState(false);
   const userLocationForSearch = geo.inUganda ? geo.location : null;
+
+  useEffect(() => {
+    filtersRef.current = filters;
+  }, [filters]);
+
+  useEffect(() => {
+    try {
+      setLiveSearchEnabled(
+        window.localStorage.getItem(LIVE_SEARCH_STORAGE_KEY) === "1",
+      );
+    } catch {
+      setLiveSearchEnabled(false);
+    }
+  }, []);
+
+  useEffect(
+    () => () => {
+      window.clearTimeout(liveSearchTimerRef.current);
+    },
+    [],
+  );
 
   useEffect(() => {
     appliedFiltersRef.current = appliedFilters;
@@ -464,6 +486,36 @@ export function ExploreClient() {
     await executeSearch(EMPTY_EXPLORE_FILTERS, { history: "replace" });
   }, [executeSearch, geo]);
 
+  const handleFiltersChange = useCallback(
+    (next: ExploreSearchFilters) => {
+      setFilters(next);
+      if (!liveSearchEnabled) return;
+
+      window.clearTimeout(liveSearchTimerRef.current);
+      liveSearchTimerRef.current = window.setTimeout(() => {
+        void executeSearchRef.current(next);
+      }, LIVE_SEARCH_DEBOUNCE_MS);
+    },
+    [liveSearchEnabled],
+  );
+
+  const handleLiveSearchChange = useCallback(
+    (enabled: boolean) => {
+      setLiveSearchEnabled(enabled);
+      try {
+        window.localStorage.setItem(LIVE_SEARCH_STORAGE_KEY, enabled ? "1" : "0");
+      } catch {
+        // ignore storage failures
+      }
+
+      if (enabled) {
+        window.clearTimeout(liveSearchTimerRef.current);
+        void executeSearch({ ...filtersRef.current });
+      }
+    },
+    [executeSearch],
+  );
+
   const openAccessModal = useCallback((buildingId: string) => {
     setAccessModalBuildingId(buildingId);
   }, []);
@@ -556,26 +608,6 @@ export function ExploreClient() {
   }, [allBuildings, hoveredId]);
 
   const listLoading = loading || searching;
-  const overlayLoading = loading || searching;
-
-  const activeFilterHint = useMemo(() => {
-    const parts: string[] = [];
-    const area = searchAreaLabel(appliedFilters.city);
-    if (area) parts.push(area);
-    const priceLabel = rentRangeLabel(appliedFilters.priceRange);
-    if (priceLabel) parts.push(priceLabel);
-    if (appliedFilters.bedrooms) {
-      parts.push(`${appliedFilters.bedrooms}+ bedroom`);
-    }
-    if (appliedFilters.bathrooms) {
-      parts.push(`${appliedFilters.bathrooms}+ bathroom`);
-    }
-    if (BUILDING_TYPE_FILTER_ENABLED && appliedFilters.buildingType) {
-      const typeLabel = buildingTypeLabel(appliedFilters.buildingType);
-      if (typeLabel) parts.push(typeLabel);
-    }
-    return parts.length ? parts.join(" · ") : null;
-  }, [appliedFilters]);
 
   const mapProps = {
     buildings: allBuildings,
@@ -606,11 +638,14 @@ export function ExploreClient() {
           <ExploreFilters
             filters={filters}
             appliedFilters={appliedFilters}
-            onChange={setFilters}
+            onChange={handleFiltersChange}
             onSearch={() => void runSearch()}
             onReset={() => void runReset()}
             onRemoveAppliedFilter={(key) => void removeAppliedFilter(key)}
             searching={searching}
+            filterLoading={searching && !loading}
+            liveSearch={liveSearchEnabled}
+            onLiveSearchChange={handleLiveSearchChange}
             mapVisible={mapVisible}
             onToggleMap={handleToggleMap}
             resultCount={allBuildings.length}
@@ -629,10 +664,7 @@ export function ExploreClient() {
         </div>
       )}
 
-      <AppLoadingOverlay
-        show={overlayLoading}
-        label={loading ? "Loading buildings" : "Searching"}
-      />
+      <AppLoadingOverlay show={loading} label="Loading buildings" />
 
       <div className="flex flex-col md:min-h-0 md:flex-1 md:overflow-hidden">
         <div
@@ -666,11 +698,6 @@ export function ExploreClient() {
                   </span>
                 )}
               </span>
-              {activeFilterHint ? (
-                <span className="max-w-[55%] truncate text-xs text-muted">
-                  {activeFilterHint}
-                </span>
-              ) : null}
             </div>
 
             <ul
@@ -771,12 +798,15 @@ export function ExploreClient() {
                   </li>
                 );
               })}
-              {!listLoading && allBuildings.length === 0 && (
-                <li className="px-4 py-10 text-center text-sm text-muted">
-                  No available units match your search. Try fewer filters or another
-                  area.
+              {!listLoading && allBuildings.length === 0 ? (
+                <li>
+                  <ExploreEmptyResults
+                    appliedFilters={appliedFilters}
+                    onRemoveFilter={(key) => void removeAppliedFilter(key)}
+                    onReset={() => void runReset()}
+                  />
                 </li>
-              )}
+              ) : null}
             </ul>
 
             {showMapSummary ? (

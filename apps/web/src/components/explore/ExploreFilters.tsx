@@ -51,6 +51,10 @@ type ExploreFiltersProps = {
   onReset: () => void;
   onRemoveAppliedFilter: (key: keyof ExploreSearchFilters) => void;
   searching: boolean;
+  /** True while refetching results — dims filter controls without full-page overlay. */
+  filterLoading?: boolean;
+  liveSearch?: boolean;
+  onLiveSearchChange?: (enabled: boolean) => void;
   mapVisible: boolean;
   onToggleMap: () => void;
   resultCount?: number;
@@ -69,6 +73,9 @@ export function ExploreFilters({
   onReset,
   onRemoveAppliedFilter,
   searching,
+  filterLoading = false,
+  liveSearch = false,
+  onLiveSearchChange,
   mapVisible,
   onToggleMap,
   resultCount,
@@ -111,7 +118,13 @@ export function ExploreFilters({
   );
 
   return (
-    <form onSubmit={handleSubmit} className="px-3 py-2.5 sm:px-4 sm:py-3">
+    <form onSubmit={handleSubmit} className="relative px-3 py-2.5 sm:px-4 sm:py-3">
+      {filterLoading ? (
+        <div
+          className="pointer-events-none absolute inset-0 z-10 bg-[#eef2f6]/55"
+          aria-hidden
+        />
+      ) : null}
       {/*
         Breakpoints:
         - default/sm: 2 cols — area + rent full width each on small phones
@@ -128,6 +141,8 @@ export function ExploreFilters({
           onRequestLocation={onRequestLocation}
           onClearLocation={onClearLocation}
           locationLoading={locationLoading}
+          active={Boolean(filters.city)}
+          loading={filterLoading}
           className="col-span-2 min-w-0 md:col-span-4 xl:col-span-2"
         />
         <ComboSelect
@@ -137,7 +152,10 @@ export function ExploreFilters({
           onChange={(priceRange) => patch({ priceRange })}
           options={rentOptions}
           active={Boolean(filters.priceRange)}
-          className="col-span-2 min-w-0 self-start md:col-span-1 xl:col-span-1 [&_button]:bg-surface"
+          className={cn(
+            "col-span-2 min-w-0 self-start md:col-span-1 xl:col-span-1 [&_button]:bg-surface",
+            filterLoading && "[&_button]:pointer-events-none [&_button]:opacity-60",
+          )}
         />
         <ComboSelect
           label="Bedrooms"
@@ -146,7 +164,10 @@ export function ExploreFilters({
           onChange={(bedrooms) => patch({ bedrooms })}
           options={BEDROOM_OPTIONS}
           active={Boolean(filters.bedrooms)}
-          className="min-w-0 self-start md:col-span-1 [&_button]:bg-surface"
+          className={cn(
+            "min-w-0 self-start md:col-span-1 [&_button]:bg-surface",
+            filterLoading && "[&_button]:pointer-events-none [&_button]:opacity-60",
+          )}
         />
         <ComboSelect
           label="Bathrooms"
@@ -155,7 +176,10 @@ export function ExploreFilters({
           onChange={(bathrooms) => patch({ bathrooms })}
           options={BATHROOM_OPTIONS}
           active={Boolean(filters.bathrooms)}
-          className="min-w-0 self-start md:col-span-1 [&_button]:bg-surface"
+          className={cn(
+            "min-w-0 self-start md:col-span-1 [&_button]:bg-surface",
+            filterLoading && "[&_button]:pointer-events-none [&_button]:opacity-60",
+          )}
         />
         <ComboSelect
           label="Property type"
@@ -164,7 +188,10 @@ export function ExploreFilters({
           onChange={(buildingType) => patch({ buildingType })}
           options={[...BUILDING_TYPE_OPTIONS]}
           active={Boolean(filters.buildingType)}
-          className="col-span-2 min-w-0 self-start md:col-span-1 xl:col-span-1 [&_button]:bg-surface"
+          className={cn(
+            "col-span-2 min-w-0 self-start md:col-span-1 xl:col-span-1 [&_button]:bg-surface",
+            filterLoading && "[&_button]:pointer-events-none [&_button]:opacity-60",
+          )}
           placeholder="Any type"
         />
       </div>
@@ -184,20 +211,27 @@ export function ExploreFilters({
 
       <div className="mt-2.5 flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-t border-border/70 pt-2.5 text-sm">
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-          <button
-            type="submit"
-            disabled={searching}
-            className="inline-flex min-h-9 items-center gap-1.5 rounded-sm bg-primary px-3.5 py-1.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-60"
-          >
-            {searching ? (
-              <>
-                <Spinner className="size-3.5" label="Searching buildings" />
-                Searching…
-              </>
-            ) : (
-              "Search"
-            )}
-          </button>
+          {!liveSearch ? (
+            <button
+              type="submit"
+              disabled={searching}
+              className="inline-flex min-h-9 items-center gap-1.5 rounded-sm bg-primary px-3.5 py-1.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-60"
+            >
+              {searching ? (
+                <>
+                  <Spinner className="size-3.5" label="Searching buildings" />
+                  Searching…
+                </>
+              ) : (
+                "Search"
+              )}
+            </button>
+          ) : searching ? (
+            <span className="inline-flex min-h-9 items-center gap-1.5 text-sm text-muted">
+              <Spinner className="size-3.5" label="Searching buildings" />
+              Updating…
+            </span>
+          ) : null}
           <button
             type="button"
             onClick={onReset}
@@ -206,6 +240,18 @@ export function ExploreFilters({
           >
             Reset
           </button>
+          {onLiveSearchChange ? (
+            <label className="inline-flex min-h-9 cursor-pointer items-center gap-2 text-xs text-muted">
+              <input
+                type="checkbox"
+                checked={liveSearch}
+                onChange={(event) => onLiveSearchChange(event.target.checked)}
+                disabled={searching}
+                className="size-3.5 rounded border-border text-primary focus:ring-primary/30"
+              />
+              Update as you filter
+            </label>
+          ) : null}
           {activeCount > 0 ? (
             <span className="text-xs text-muted">
               {activeCount} filter{activeCount === 1 ? "" : "s"} active
