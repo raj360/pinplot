@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * Apply SQL migrations in supabase/migrations/ order.
- * Uses DATABASE_URL from .env (Supabase Postgres recommended).
+ * Uses DIRECT_URL from .env (session pooler :5432), falling back to DATABASE_URL.
  */
 import { readFileSync, readdirSync } from "fs";
 import { join, dirname } from "path";
@@ -31,10 +31,19 @@ function loadEnv() {
 
 loadEnv();
 
-const connectionString = process.env.DATABASE_URL;
+const connectionString = process.env.DIRECT_URL ?? process.env.DATABASE_URL;
 if (!connectionString) {
-  console.error("DATABASE_URL is not set. Add your Supabase Postgres URI to .env");
+  console.error(
+    "DIRECT_URL (or DATABASE_URL) is not set. Add your Supabase session pooler URI to .env",
+  );
   process.exit(1);
+}
+
+function supabaseSsl(connectionString) {
+  return (
+    connectionString.includes("supabase.co") ||
+    connectionString.includes("pooler.supabase.com")
+  );
 }
 
 const migrationsDir = join(root, "supabase", "migrations");
@@ -45,7 +54,7 @@ const files = readdirSync(migrationsDir)
 async function main() {
   const client = new pg.Client({
     connectionString,
-    ssl: connectionString.includes("supabase.co")
+    ssl: supabaseSsl(connectionString)
       ? { rejectUnauthorized: false }
       : undefined,
   });

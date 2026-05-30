@@ -1,4 +1,5 @@
 import type { TenantUnlock } from "@/lib/api/unlocks";
+import { telHref, whatsAppHref } from "@plotpin/shared-types";
 
 export function formatUnlockExpiry(expiresAt: string | null) {
   if (!expiresAt) return "Exclusive access active";
@@ -11,11 +12,12 @@ export function formatUnlockExpiry(expiresAt: string | null) {
   return `${hours}h of exclusive access remaining`;
 }
 
+/** @deprecated Prefer telHref from @plotpin/shared-types */
 export function contactHref(phone: string) {
-  if (phone.includes("@")) return `mailto:${phone}`;
-  const digits = phone.replace(/\s/g, "");
-  return digits.startsWith("+") ? `tel:${digits}` : `tel:+${digits}`;
+  return telHref(phone);
 }
+
+export { telHref, whatsAppHref };
 
 export function getBuildingUnlocks(
   unlocks: TenantUnlock[],

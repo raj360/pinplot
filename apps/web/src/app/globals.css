@@ -8,6 +8,8 @@
   --muted: #64748b;
   --border: #e2e8f0;
   --surface: #ffffff;
+  /** Light gray chrome — filter strips, dashboard canvas (SchoolSpring-style). */
+  --panel: #eceff3;
   --accent-orange: #ea580c;
 }
 
@@ -19,6 +21,7 @@
   --color-muted: var(--muted);
   --color-border: var(--border);
   --color-surface: var(--surface);
+  --color-panel: var(--panel);
   --color-accent-orange: var(--accent-orange);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
@@ -54,6 +57,103 @@ footer * {
 .spinner-ring,
 .user-avatar {
   border-radius: 9999px !important;
+}
+
+.app-header {
+  border-top-left-radius: 0 !important;
+  border-top-right-radius: 0 !important;
+}
+
+.plotpin-map-marker-wrap {
+  position: relative;
+  width: 0;
+  height: 0;
+  cursor: pointer;
+  overflow: visible;
+}
+
+.plotpin-map-marker {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  filter: drop-shadow(0 1px 2px rgb(15 23 42 / 0.24));
+}
+
+.plotpin-map-marker--highlight {
+  filter:
+    drop-shadow(0 0 0 2px #fff)
+    drop-shadow(0 0 0 4px var(--primary))
+    drop-shadow(0 1px 2px rgb(15 23 42 / 0.24));
+}
+
+.plotpin-map-marker--highlight-unlocked {
+  filter:
+    drop-shadow(0 0 0 2px #fff)
+    drop-shadow(0 0 0 4px #166534)
+    drop-shadow(0 1px 2px rgb(15 23 42 / 0.24));
+}
+
+.plotpin-map-marker-wrap .plotpin-map-marker {
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.plotpin-map-marker__body {
+  display: flex;
+  height: 1.5rem;
+  width: 1.5rem;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.625rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.plotpin-map-marker__tail {
+  width: 0;
+  height: 0;
+  margin-top: -1px;
+  border-left: 5px solid transparent;
+  border-right: 5px solid transparent;
+  border-top: 6px solid;
+}
+
+.plotpin-map-marker--available .plotpin-map-marker__body {
+  background: #fdba74;
+  color: #7c2d12;
+}
+
+.plotpin-map-marker--available .plotpin-map-marker__tail {
+  border-top-color: #fdba74;
+}
+
+.plotpin-map-marker--active .plotpin-map-marker__body {
+  background: var(--primary);
+  color: #fff;
+}
+
+.plotpin-map-marker--active .plotpin-map-marker__tail {
+  border-top-color: var(--primary);
+}
+
+.plotpin-map-marker--unlocked .plotpin-map-marker__body {
+  background: #84cc16;
+  color: #fff;
+}
+
+.plotpin-map-marker--unlocked .plotpin-map-marker__tail {
+  border-top-color: #84cc16;
+}
+
+.plotpin-map-marker--unlocked-active .plotpin-map-marker__body {
+  background: #15803d;
+  color: #fff;
+}
+
+.plotpin-map-marker--unlocked-active .plotpin-map-marker__tail {
+  border-top-color: #15803d;
 }
 
 .plotpin-map-tooltip {
@@ -129,5 +229,26 @@ footer * {
 @keyframes plotpin-map-spin {
   to {
     transform: rotate(360deg);
+  }
+}
+
+/* Explore mobile — map band is interactive; list scrolls with the page below. */
+.explore-mobile-map {
+  isolation: isolate;
+  touch-action: pan-x pan-y pinch-zoom;
+}
+
+.explore-mobile-map > div,
+.explore-mobile-map iframe {
+  touch-action: pan-x pan-y pinch-zoom;
+}
+
+.explore-results-list {
+  -webkit-overflow-scrolling: touch;
+}
+
+@media (max-width: 767px) {
+  .explore-results-list {
+    overflow: visible;
   }
 }

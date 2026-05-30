@@ -16,6 +16,7 @@ import {
   LocationPinPicker,
   type LatLng,
 } from "@/components/maps/LocationPinPicker";
+import { BUILDING_TYPE_OPTIONS } from "@/lib/filters/building-types";
 import {
   normalizeYouTubeUrl,
   type AddressHints,
@@ -46,6 +47,7 @@ export default function NewBuildingPage() {
   const [streetHint, setStreetHint] = useState("");
   const [landmarkHint, setLandmarkHint] = useState("");
   const [youtubeUrl, setYoutubeUrl] = useState("");
+  const [buildingType, setBuildingType] = useState("apartment");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -94,6 +96,7 @@ export default function NewBuildingPage() {
         approximateLng: location.lng,
         exactAddress: exactAddress.trim(),
         videoUrl,
+        buildingType,
         totalUnits: units.length,
         units,
       });
@@ -178,6 +181,23 @@ export default function NewBuildingPage() {
           <h2 className="font-semibold">Building details</h2>
           <Field label="Name" name="name" required />
           <Field label="Description" name="description" />
+          <label className="block text-sm">
+            Property type
+            <select
+              name="buildingType"
+              value={buildingType}
+              onChange={(event) => setBuildingType(event.target.value)}
+              className="mt-1 w-full border border-border bg-surface px-3 py-2"
+            >
+              {BUILDING_TYPE_OPTIONS.filter((option) => option.value).map(
+                (option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ),
+              )}
+            </select>
+          </label>
           <div className="grid gap-3 sm:grid-cols-2">
             <ControlledField
               label="City"

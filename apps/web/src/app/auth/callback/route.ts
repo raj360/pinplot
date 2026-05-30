@@ -36,9 +36,12 @@ export async function GET(request: Request) {
     data: { session },
   } = await supabase.auth.getSession();
 
+  const destination = next.startsWith("/") ? next : `/${next}`;
+
   if (session?.access_token) {
     await syncProfileAfterAuth(session.access_token);
   }
 
-  return NextResponse.redirect(`${origin}${next.startsWith("/") ? next : `/${next}`}`);
+  const completeProfileUrl = `/auth/complete-profile?next=${encodeURIComponent(destination)}`;
+  return NextResponse.redirect(`${origin}${completeProfileUrl}`);
 }

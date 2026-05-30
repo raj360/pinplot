@@ -4,6 +4,20 @@
 
 ---
 
+## Where we stand (product snapshot)
+
+**Phase:** Sprint 3 — monetization & trust UX (~**70% of unlock journey complete**)
+
+| Persona | Can do today | Not yet |
+|---------|----------------|---------|
+| **Tenant** | Browse map, filter, unlock unit (dev payment), see exact address + directions, call/WhatsApp landlord, view gated photos/video, manage unlocks | Real card/mobile-money payment |
+| **Landlord** | Submit building, upload cover + YouTube, complete profile (intl phone), get verified | Pay listing fee, toggle unit status in UI |
+| **Admin** | Approve buildings, review media + landlord email | Reject flow, pricing config |
+
+**Core loop status:** Discover → unlock (simulated) → contact + visit **works end-to-end**. Revenue collection and landlord listing fees are the main gaps before soft launch.
+
+---
+
 ## Phase 2 — Core Product ✅ Complete
 
 - [x] Supabase Auth + profile sync (email OTP, Google OAuth)
@@ -16,40 +30,60 @@
 - [x] RLS lockdown migration (`004`)
 - [x] Building video URL migration (`007`)
 
-**Verified flow:** Landlord submit → admin approve → building verified on dashboard. Public map requires units marked `AVAILABLE` (Sprint 3).
+**Verified flow:** Landlord submit → admin approve → building verified on dashboard.
 
 ---
 
-## Phase 3 — Payments 🔄 Current (Sprint 3)
+## Phase 3 — Payments & trust 🔄 Current (Sprint 3)
 
-**Goal:** Monetization live — 30k UGX listing, 20k UGX unlock.
+**Goal:** 30k UGX listing + 20k UGX unlock live; trustworthy contact handoff.
 
 **Recommended build order:**
 
-1. ~~Unlock transaction + contact reveal (S3-04, S3-06)~~ ✅
-2. ~~Unlock UX polish (S3-08–S3-17)~~ ✅
-3. Payment providers (S3-01 Stripe, S3-02 Flutterwave)
-4. Landlord listing fee + unit toggle (S3-03, S3-07)
-5. Webhooks + idempotency (S3-05)
+1. ~~Unlock transaction + contact reveal~~ ✅
+2. ~~Unlock + building page UX polish~~ ✅
+3. ~~Profile + contact quality (phone, Call/WhatsApp)~~ ✅
+4. Payment providers (S3-01 Stripe, S3-02 Flutterwave)
+5. Landlord listing fee + unit toggle (S3-03, S3-07)
+6. Webhooks + idempotency (S3-05)
+7. Phone SMS verification (S3-21 — post-payment slice)
 
 ### Unlock core ✅
 
-- [x] `FOR UPDATE` first-unlock-wins transaction (`POST /units/:id/unlock`)
+- [x] `FOR UPDATE` first-unlock-wins transaction
 - [x] Reveal exact address + landlord contact after unlock
-- [x] Dev unlock simulation (`ALLOW_DEV_UNLOCK` in non-production)
-- [x] My unlocks page (`/tenant/unlocks`) + directions + satellite mini map
-- [x] `GET /unlocks/mine` and `GET /unlocks/building/:id`
+- [x] Dev unlock simulation (`ALLOW_DEV_UNLOCK`)
+- [x] My unlocks page + directions + satellite mini map
+- [x] Unlock list APIs (`/unlocks/mine`, `/unlocks/building/:id`)
+- [x] Live exclusive-access countdown on unlock cards
 
 ### Explore + privacy UX ✅
 
-- [x] Unlocked buildings stay on explore map when tenant has active access (0 public units)
-- [x] Optional auth on `GET /buildings` → `myUnlockCount` on summaries
-- [x] Location jitter for public pins (~150–280 m); exact coords only after unlock
-- [x] Explore map: roadmap only, max zoom 14, stepped cluster drill-down
-- [x] Lime pins + access modal (directions, contact, link to building page)
-- [x] Sidebar stays discovery-only; access details in modal (no hover flicker)
+- [x] Unlocked buildings stay on explore map when tenant has active access
+- [x] Optional auth on `GET /buildings` → `myUnlockCount`
+- [x] Location jitter for public pins; exact coords after unlock
+- [x] Explore map: roadmap only, max zoom 14, cluster drill-down
+- [x] Lime pins + access modal (no sidebar flicker)
 - [x] Unit availability summary on building detail / explore panel
-- [x] SchoolSpring-style map tooltips + list/map hover sync (debounced cache)
+- [x] SchoolSpring-style map tooltips + list/map hover sync
+
+### Building page + media ✅
+
+- [x] Gated cover photo + building tour until unlock (`S3-20`)
+- [x] Unlocked layout: media once → Step 1 Visit → Step 2 Unlock more → collapsed overview
+- [x] Photo gallery lightbox + compact preview strip
+- [x] Multi-image support via `unit_images` + `imageUrls` API
+- [x] Visitor layout: unit grid + sticky unlock sidebar
+
+### Profiles + contact ✅
+
+- [x] Profile completion modal + post-sign-in step (`/auth/complete-profile`)
+- [x] Settings profile editor (`PATCH /profiles/me`)
+- [x] International phone input (Uganda default) + optional secondary phone (`008`)
+- [x] Call + WhatsApp actions on unlock contact
+- [x] Live landlord phone fallback when profile updated after unlock
+- [x] Email-only fallback messaging when landlord has no phone
+- [ ] SMS phone verification (`phone_verified_at`) — UI stub only; provider TBD
 
 ### Payments (remaining)
 
@@ -59,10 +93,10 @@
 - [ ] Landlord unit status toggle UI
 - [ ] Payment webhooks + idempotency
 
-### Stability (recommended before launch)
+### Stability (pre-launch)
 
-- [ ] Auth guard DB resilience (graceful fallback on transient `EHOSTUNREACH`)
-- [ ] Postgres pool tuning (Supabase pooler `:6543`, keep-alive, retries)
+- [ ] Auth guard DB resilience (graceful fallback on transient `EHOSTUNREACH`) — `S3-18`
+- [x] Postgres pool tuning (Supabase pooler `:6543`, session `:5432` for migrations)
 
 ---
 
@@ -73,6 +107,7 @@
 - [ ] PWA manifest (also resolves `/sw.js` 404 in dev)
 - [ ] 20–30 verified Kampala buildings
 - [ ] Soft launch (WhatsApp, social)
+- [ ] Require landlord phone before listing goes live (policy + validation)
 
 ---
 
@@ -80,10 +115,11 @@
 
 - [ ] React Native app
 - [ ] Featured listings
-- [ ] Multi-photo gallery on listings
 - [ ] Kenya / Tanzania
 - [ ] SEO district pages
 
+*Note: Multi-photo gallery on listings is partially done (API + lightbox); extend landlord upload UX in a later slice.*
+
 ---
 
-*Last updated: 2026-05-29 — Sprint 3 unlock core + explore UX complete; payments next*
+*Last updated: 2026-05-29 — Unlock UX, profiles, and contact handoff complete; real payments next*

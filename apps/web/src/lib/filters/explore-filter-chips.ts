@@ -1,0 +1,55 @@
+import type { ExploreSearchFilters } from "@/components/explore/ExploreFilters";
+import type { Bounds } from "@/lib/api/buildings";
+import { buildingTypeLabel } from "@/lib/filters/building-types";
+import { rentRangeShortLabel } from "@/lib/filters/rent-ranges";
+import { searchAreaLabel } from "@/lib/filters/search-areas";
+import { mapAreaChipLabel } from "@/lib/explore/map-bounds";
+
+export type ExploreFilterChipKey = keyof ExploreSearchFilters | "mapArea";
+
+export type ExploreFilterChip = {
+  key: ExploreFilterChipKey;
+  label: string;
+};
+
+export function buildExploreFilterChips(
+  filters: ExploreSearchFilters,
+  mapBounds?: Bounds | null,
+): ExploreFilterChip[] {
+  const chips: ExploreFilterChip[] = [];
+
+  if (mapBounds) {
+    chips.push({ key: "mapArea", label: mapAreaChipLabel() });
+  }
+
+  const area = searchAreaLabel(filters.city) ?? filters.city.trim();
+  if (area) {
+    chips.push({ key: "city", label: area });
+  }
+
+  const price = rentRangeShortLabel(filters.priceRange);
+  if (price) {
+    chips.push({ key: "priceRange", label: price });
+  }
+
+  if (filters.bedrooms) {
+    chips.push({
+      key: "bedrooms",
+      label: `${filters.bedrooms}+ bedroom${filters.bedrooms === "1" ? "" : "s"}`,
+    });
+  }
+
+  if (filters.bathrooms) {
+    chips.push({
+      key: "bathrooms",
+      label: `${filters.bathrooms}+ bathroom${filters.bathrooms === "1" ? "" : "s"}`,
+    });
+  }
+
+  const typeLabel = buildingTypeLabel(filters.buildingType);
+  if (typeLabel) {
+    chips.push({ key: "buildingType", label: typeLabel });
+  }
+
+  return chips;
+}

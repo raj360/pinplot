@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect } from "react";
+import { BuildingUnlockedHero } from "@/components/buildings/BuildingUnlockedHero";
 import { UnlockedAccessCompact } from "@/components/buildings/UnlockedAccessCompact";
+import { mergeBuildingMedia } from "@/lib/buildings/media";
 import type { TenantUnlock } from "@/lib/api/unlocks";
 
 export function UnlockedAccessModal({
@@ -9,11 +11,13 @@ export function UnlockedAccessModal({
   buildingName,
   open,
   onClose,
+  onViewFullDetails,
 }: {
   unlocks: TenantUnlock[];
   buildingName?: string;
   open: boolean;
   onClose: () => void;
+  onViewFullDetails?: () => void;
 }) {
   useEffect(() => {
     if (!open) return;
@@ -33,6 +37,12 @@ export function UnlockedAccessModal({
   }, [open, onClose]);
 
   if (!open || unlocks.length === 0) return null;
+
+  const title = buildingName ?? unlocks[0]?.buildingName ?? "Building access";
+  const media = mergeBuildingMedia(undefined, unlocks[0]);
+  const hasMedia = Boolean(
+    media.coverImageUrl || media.imageUrls?.length || media.videoUrl,
+  );
 
   return (
     <div
@@ -58,7 +68,7 @@ export function UnlockedAccessModal({
               id="unlocked-access-modal-title"
               className="text-lg font-bold leading-tight"
             >
-              {buildingName ?? unlocks[0]?.buildingName ?? "Building access"}
+              {title}
             </h2>
           </div>
           <button
@@ -71,8 +81,23 @@ export function UnlockedAccessModal({
         </div>
 
         <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-4">
+          {hasMedia ? (
+            <BuildingUnlockedHero
+              compact
+              name={title}
+              imageUrls={media.imageUrls}
+              coverImageUrl={media.coverImageUrl}
+              videoUrl={media.videoUrl}
+            />
+          ) : null}
           {unlocks.map((unlock) => (
-            <UnlockedAccessCompact key={unlock.unlockId} unlock={unlock} />
+            <UnlockedAccessCompact
+              key={unlock.unlockId}
+              unlock={unlock}
+              showBuildingName={false}
+              showFullLink={Boolean(onViewFullDetails)}
+              onViewFullDetails={onViewFullDetails}
+            />
           ))}
         </div>
       </div>

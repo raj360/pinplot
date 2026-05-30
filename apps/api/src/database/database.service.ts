@@ -20,12 +20,17 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
       throw new Error("DATABASE_URL is not configured");
     }
 
+    const useSupabaseSsl =
+      connectionString.includes("supabase.co") ||
+      connectionString.includes("pooler.supabase.com");
+
     this.pool = new Pool({
       connectionString,
-      ssl: connectionString.includes("supabase.co")
-        ? { rejectUnauthorized: false }
-        : undefined,
+      ssl: useSupabaseSsl ? { rejectUnauthorized: false } : undefined,
       max: 10,
+      idleTimeoutMillis: 30_000,
+      connectionTimeoutMillis: 10_000,
+      keepAlive: true,
     });
 
     this.pool.on("error", (err) => {

@@ -1,22 +1,25 @@
 "use client";
 
 import Link from "next/link";
+import { exploreBuildingUrl } from "@/lib/explore/urls";
+import { UnlockCountdown } from "@/components/unlocks/UnlockCountdown";
 import {
   googleMapsDirectionsUrl,
   googleMapsPlaceUrl,
 } from "@/lib/maps/directions";
-import {
-  contactHref,
-  formatUnlockExpiry,
-} from "@/lib/unlocks/display";
+import { ContactActions } from "@/components/contact/ContactActions";
 import type { TenantUnlock } from "@/lib/api/unlocks";
 
 export function UnlockedAccessCompact({
   unlock,
   showFullLink = true,
+  showBuildingName = false,
+  onViewFullDetails,
 }: {
   unlock: TenantUnlock;
   showFullLink?: boolean;
+  showBuildingName?: boolean;
+  onViewFullDetails?: () => void;
 }) {
   const { lat, lng } = unlock.location;
   const contact = unlock.contact.phone;
@@ -30,10 +33,10 @@ export function UnlockedAccessCompact({
         </p>
         <p className="mt-0.5 text-base font-bold">
           Unit {unlock.unitNumber}
-          {unlock.buildingName ? ` · ${unlock.buildingName}` : ""}
+          {showBuildingName && unlock.buildingName ? ` · ${unlock.buildingName}` : ""}
         </p>
         <p className="mt-0.5 text-xs opacity-90">
-          {formatUnlockExpiry(unlock.expiresAt)}
+          <UnlockCountdown expiresAt={unlock.expiresAt} />
         </p>
       </div>
 
@@ -52,12 +55,14 @@ export function UnlockedAccessCompact({
             <p className="text-[11px] font-medium uppercase tracking-wide text-muted">
               Landlord contact
             </p>
-            <a
-              href={contactHref(contact)}
-              className="mt-1 inline-block font-medium text-primary hover:underline"
-            >
-              {contact}
-            </a>
+            <div className="mt-2">
+              <ContactActions
+                compact
+                contact={contact}
+                secondaryContact={unlock.contact.phoneSecondary}
+                whatsAppMessage={`Hi, I unlocked Unit ${unlock.unitNumber} on PlotPin and would like to arrange a viewing.`}
+              />
+            </div>
           </div>
         ) : null}
 
@@ -80,12 +85,20 @@ export function UnlockedAccessCompact({
           </a>
         </div>
 
-        {showFullLink && unlock.buildingId ? (
-          <Link
-            href={`/buildings/${unlock.buildingId}`}
+        {showFullLink && onViewFullDetails ? (
+          <button
+            type="button"
+            onClick={onViewFullDetails}
             className="inline-block text-sm font-medium text-primary hover:underline"
           >
-            View full building page
+            View full details
+          </button>
+        ) : showFullLink && unlock.buildingId ? (
+          <Link
+            href={exploreBuildingUrl(unlock.buildingId, { hideMap: true })}
+            className="inline-block text-sm font-medium text-primary hover:underline"
+          >
+            View full details
           </Link>
         ) : null}
       </div>
