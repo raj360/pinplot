@@ -775,6 +775,11 @@
     jsonc-parser "3.3.1"
     pluralize "8.0.0"
 
+"@nestjs/throttler@^6.5.0":
+  version "6.5.0"
+  resolved "https://registry.npmjs.org/@nestjs/throttler/-/throttler-6.5.0.tgz#1ee550a258c4ae697d3978f2c8932adff927439e"
+  integrity sha512-9j0ZRfH0QE1qyrj9JjIRDz5gQLPqq9yVC2nHsrosDVAfI5HHw08/aUAWx9DZLSdQf4HDkmhTTEGLrRFHENvchQ==
+
 "@next/env@16.0.11":
   version "16.0.11"
   resolved "https://registry.npmjs.org/@next/env/-/env-16.0.11.tgz#81e00c7bd8d6b833993e3b85afc50de65253ec7d"
