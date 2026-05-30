@@ -1,10 +1,12 @@
 "use client";
 
-import type { FormEvent } from "react";
+import { useMemo, type FormEvent } from "react";
+import { ExploreActiveFilterChips } from "@/components/explore/ExploreActiveFilterChips";
 import { AreaSearchCombobox } from "@/components/explore/AreaSearchCombobox";
 import { ComboSelect } from "@/components/ui/combo-select";
 import { Spinner } from "@/components/ui/spinner";
 import { BUILDING_TYPE_FILTER_ENABLED, BUILDING_TYPE_OPTIONS } from "@/lib/filters/building-types";
+import { buildExploreFilterChips } from "@/lib/filters/explore-filter-chips";
 import { RENT_RANGE_OPTIONS } from "@/lib/filters/rent-ranges";
 import type { GeoPoint } from "@/lib/geo/uganda";
 import { cn } from "@/lib/utils/cn";
@@ -43,9 +45,11 @@ const BATHROOM_OPTIONS = [
 
 type ExploreFiltersProps = {
   filters: ExploreSearchFilters;
+  appliedFilters: ExploreSearchFilters;
   onChange: (filters: ExploreSearchFilters) => void;
   onSearch: () => void;
   onReset: () => void;
+  onRemoveAppliedFilter: (key: keyof ExploreSearchFilters) => void;
   searching: boolean;
   mapVisible: boolean;
   onToggleMap: () => void;
@@ -59,9 +63,11 @@ type ExploreFiltersProps = {
 
 export function ExploreFilters({
   filters,
+  appliedFilters,
   onChange,
   onSearch,
   onReset,
+  onRemoveAppliedFilter,
   searching,
   mapVisible,
   onToggleMap,
@@ -82,12 +88,27 @@ export function ExploreFilters({
   }
 
   const activeCount = [
-    filters.city,
-    filters.priceRange,
-    filters.bedrooms,
-    filters.bathrooms,
-    BUILDING_TYPE_FILTER_ENABLED ? filters.buildingType : "",
+    appliedFilters.city,
+    appliedFilters.priceRange,
+    appliedFilters.bedrooms,
+    appliedFilters.bathrooms,
+    BUILDING_TYPE_FILTER_ENABLED ? appliedFilters.buildingType : "",
   ].filter(Boolean).length;
+
+  const appliedChips = useMemo(
+    () => buildExploreFilterChips(appliedFilters),
+    [appliedFilters],
+  );
+
+  const rentOptions = useMemo(
+    () =>
+      RENT_RANGE_OPTIONS.map(({ value, label, shortLabel }) => ({
+        value,
+        label,
+        shortLabel,
+      })),
+    [],
+  );
 
   return (
     <form onSubmit={handleSubmit} className="px-3 py-2.5 sm:px-4 sm:py-3">
@@ -114,7 +135,8 @@ export function ExploreFilters({
           compact
           value={filters.priceRange}
           onChange={(priceRange) => patch({ priceRange })}
-          options={RENT_RANGE_OPTIONS}
+          options={rentOptions}
+          active={Boolean(filters.priceRange)}
           className="col-span-2 min-w-0 self-start md:col-span-1 xl:col-span-1 [&_button]:bg-surface"
         />
         <ComboSelect
@@ -123,6 +145,7 @@ export function ExploreFilters({
           value={filters.bedrooms}
           onChange={(bedrooms) => patch({ bedrooms })}
           options={BEDROOM_OPTIONS}
+          active={Boolean(filters.bedrooms)}
           className="min-w-0 self-start md:col-span-1 [&_button]:bg-surface"
         />
         <ComboSelect
@@ -131,6 +154,7 @@ export function ExploreFilters({
           value={filters.bathrooms}
           onChange={(bathrooms) => patch({ bathrooms })}
           options={BATHROOM_OPTIONS}
+          active={Boolean(filters.bathrooms)}
           className="min-w-0 self-start md:col-span-1 [&_button]:bg-surface"
         />
         <ComboSelect
@@ -139,10 +163,18 @@ export function ExploreFilters({
           value={filters.buildingType}
           onChange={(buildingType) => patch({ buildingType })}
           options={[...BUILDING_TYPE_OPTIONS]}
+          active={Boolean(filters.buildingType)}
           className="col-span-2 min-w-0 self-start md:col-span-1 xl:col-span-1 [&_button]:bg-surface"
           placeholder="Any type"
         />
       </div>
+
+      <ExploreActiveFilterChips
+        chips={appliedChips}
+        onRemove={onRemoveAppliedFilter}
+        disabled={searching}
+        className="mt-2.5"
+      />
 
       {!BUILDING_TYPE_FILTER_ENABLED && filters.buildingType ? (
         <p className="mt-1.5 text-[11px] text-muted">

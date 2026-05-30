@@ -317,24 +317,39 @@ export function ExploreClient() {
     };
   }, [applySearchResults, consumeDeepLink]);
 
+  const executeSearch = useCallback(
+    async (next: ExploreSearchFilters) => {
+      setSearching(true);
+      setError(null);
+      try {
+        const focus = getMapFocusForSearch(next.city, userLocationForSearch);
+        setMapFocusBounds(focus?.bounds ?? null);
+        const data = await loadBuildings(next);
+        await applySearchResults(data);
+        setAppliedFilters(next);
+        consumeDeepLink(data);
+        setMapFitToken((token) => token + 1);
+      } catch {
+        setError("Could not load buildings. Is the API running?");
+      } finally {
+        setSearching(false);
+      }
+    },
+    [applySearchResults, consumeDeepLink, userLocationForSearch],
+  );
+
   const runSearch = useCallback(async () => {
-    setSearching(true);
-    setError(null);
-    try {
-      const next = { ...filters };
-      const focus = getMapFocusForSearch(next.city, userLocationForSearch);
-      setMapFocusBounds(focus?.bounds ?? null);
-      const data = await loadBuildings(next);
-      await applySearchResults(data);
-      setAppliedFilters(next);
-      consumeDeepLink(data);
-      setMapFitToken((token) => token + 1);
-    } catch {
-      setError("Could not load buildings. Is the API running?");
-    } finally {
-      setSearching(false);
-    }
-  }, [applySearchResults, consumeDeepLink, filters, userLocationForSearch]);
+    await executeSearch({ ...filters });
+  }, [executeSearch, filters]);
+
+  const removeAppliedFilter = useCallback(
+    async (key: keyof ExploreSearchFilters) => {
+      const next = { ...appliedFilters, [key]: "" };
+      setFilters(next);
+      await executeSearch(next);
+    },
+    [appliedFilters, executeSearch],
+  );
 
   const runReset = useCallback(async () => {
     geo.clearLocation();
@@ -351,7 +366,7 @@ export function ExploreClient() {
     } finally {
       setSearching(false);
     }
-  }, [applySearchResults, consumeDeepLink, geo.clearLocation]);
+  }, [applySearchResults, geo.clearLocation]);
 
   const openAccessModal = useCallback((buildingId: string) => {
     setAccessModalBuildingId(buildingId);
@@ -494,9 +509,11 @@ export function ExploreClient() {
         <ContentBand width="wide" className="bg-[#eef2f6]" innerClassName="py-1 sm:py-1.5">
           <ExploreFilters
             filters={filters}
+            appliedFilters={appliedFilters}
             onChange={setFilters}
             onSearch={() => void runSearch()}
             onReset={() => void runReset()}
+            onRemoveAppliedFilter={(key) => void removeAppliedFilter(key)}
             searching={searching}
             mapVisible={mapVisible}
             onToggleMap={handleToggleMap}

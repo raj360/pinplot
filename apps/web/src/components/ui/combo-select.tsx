@@ -14,6 +14,7 @@ import { cn } from "@/lib/utils/cn";
 export type ComboSelectOption = {
   value: string;
   label: string;
+  shortLabel?: string;
 };
 
 type ComboSelectProps = {
@@ -26,6 +27,8 @@ type ComboSelectProps = {
   /** Placeholder when value is empty — shown inside the trigger. */
   placeholder?: string;
   compact?: boolean;
+  /** Highlight trigger when a non-default value is selected. */
+  active?: boolean;
 };
 
 /** LPMS-style custom combo — button trigger + anchored list (no native select). */
@@ -38,6 +41,7 @@ export function ComboSelect({
   id,
   placeholder,
   compact = true,
+  active = false,
 }: ComboSelectProps) {
   const generatedId = useId();
   const selectId = id ?? generatedId;
@@ -47,12 +51,27 @@ export function ComboSelect({
   const [activeIndex, setActiveIndex] = useState(-1);
 
   const selected = options.find((opt) => opt.value === value);
-  const displayLabel = selected?.label ?? placeholder ?? options[0]?.label ?? "Select";
+  const triggerLabel =
+    selected?.shortLabel ?? selected?.label ?? placeholder ?? options[0]?.label ?? "Select";
 
   const close = useCallback(() => {
     setOpen(false);
     setActiveIndex(-1);
   }, []);
+
+  const openPanel = useCallback(() => {
+    const index = options.findIndex((opt) => opt.value === value);
+    setActiveIndex(index >= 0 ? index : 0);
+    setOpen(true);
+  }, [options, value]);
+
+  const toggle = useCallback(() => {
+    if (open) {
+      close();
+    } else {
+      openPanel();
+    }
+  }, [close, open, openPanel]);
 
   useEffect(() => {
     if (!open) return;
@@ -67,12 +86,6 @@ export function ComboSelect({
     return () => document.removeEventListener("mousedown", onPointerDown);
   }, [close, open]);
 
-  useEffect(() => {
-    if (!open) return;
-    const index = options.findIndex((opt) => opt.value === value);
-    setActiveIndex(index >= 0 ? index : 0);
-  }, [open, options, value]);
-
   function selectOption(nextValue: string) {
     onChange(nextValue);
     close();
@@ -81,7 +94,7 @@ export function ComboSelect({
   function onTriggerKeyDown(event: KeyboardEvent<HTMLButtonElement>) {
     if (event.key === "ArrowDown" || event.key === "Enter" || event.key === " ") {
       event.preventDefault();
-      setOpen(true);
+      if (!open) openPanel();
     }
     if (event.key === "Escape") close();
   }
@@ -126,16 +139,19 @@ export function ComboSelect({
         aria-haspopup="listbox"
         aria-expanded={open}
         aria-controls={listboxId}
-        onClick={() => setOpen((v) => !v)}
+        onClick={toggle}
         onKeyDown={onTriggerKeyDown}
         className={cn(
-          "flex w-full min-w-0 items-center justify-between gap-2 border border-border bg-surface text-left text-foreground transition-colors",
+          "flex w-full min-w-0 items-center justify-between gap-2 border bg-surface text-left text-foreground transition-colors",
+          active && value
+            ? "border-primary/45 bg-primary/5"
+            : "border-border",
           "hover:border-primary/40 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary/25",
           compact ? "min-h-9 px-2.5 py-1.5 text-sm" : "min-h-10 px-3 py-2 text-sm",
         )}
       >
         <span className={cn("min-w-0 truncate", !selected && placeholder && "text-muted")}>
-          {displayLabel}
+          {triggerLabel}
         </span>
         <ChevronDown
           aria-hidden
