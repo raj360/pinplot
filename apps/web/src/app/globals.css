@@ -8,6 +8,8 @@
   --muted: #64748b;
   --border: #e2e8f0;
   --surface: #ffffff;
+  /** Light gray chrome — filter strips, dashboard canvas (SchoolSpring-style). */
+  --panel: #eceff3;
   --accent-orange: #ea580c;
 }
 
@@ -19,6 +21,7 @@
   --color-muted: var(--muted);
   --color-border: var(--border);
   --color-surface: var(--surface);
+  --color-panel: var(--panel);
   --color-accent-orange: var(--accent-orange);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);

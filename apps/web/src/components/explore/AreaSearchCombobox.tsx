@@ -46,7 +46,7 @@ type OptionGroup = {
 
 /** LPMS-style searchable picker — closed trigger + in-panel search (CaseLinkedSearchCombobox). */
 export function AreaSearchCombobox({
-  label = "Search area",
+  label,
   value,
   onChange,
   userLocation = null,
@@ -56,7 +56,7 @@ export function AreaSearchCombobox({
   locationLoading = false,
   className,
   compact = true,
-  placeholder = "All Kampala",
+  placeholder = "Search area",
   allowClear = true,
   active = false,
   loading = false,
@@ -187,6 +187,7 @@ export function AreaSearchCombobox({
         aria-expanded={open}
         aria-haspopup="listbox"
         aria-controls={listboxId}
+        aria-label={!label ? placeholder : undefined}
         className={cn(
           "flex w-full items-center justify-between gap-2 border bg-surface text-left text-foreground transition-colors",
           active && value

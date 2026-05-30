@@ -45,7 +45,7 @@ type StatCardProps = {
 
 export function StatCard({ label, value }: StatCardProps) {
   return (
-    <div className="border border-border bg-background px-4 py-3">
+    <div className="border border-border bg-surface px-4 py-3">
       <dt className="text-xs font-medium uppercase tracking-wide text-muted">
         {label}
       </dt>

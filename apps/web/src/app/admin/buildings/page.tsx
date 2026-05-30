@@ -66,7 +66,7 @@ export default function AdminBuildingsPage() {
         {pending.map((b) => (
           <li
             key={b.id}
-            className="border border-border bg-background p-4"
+            className="border border-border bg-surface p-4"
           >
             <div className="flex flex-wrap items-start justify-between gap-4">
               <div>

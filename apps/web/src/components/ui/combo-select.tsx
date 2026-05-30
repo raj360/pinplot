@@ -51,8 +51,10 @@ export function ComboSelect({
   const [activeIndex, setActiveIndex] = useState(-1);
 
   const selected = options.find((opt) => opt.value === value);
-  const triggerLabel =
-    selected?.shortLabel ?? selected?.label ?? placeholder ?? options[0]?.label ?? "Select";
+  const isEmpty = !value;
+  const triggerLabel = isEmpty
+    ? (placeholder ?? options.find((opt) => opt.value === "")?.label ?? "Select")
+    : (selected?.shortLabel ?? selected?.label ?? placeholder ?? "Select");
 
   const close = useCallback(() => {
     setOpen(false);
@@ -139,6 +141,7 @@ export function ComboSelect({
         aria-haspopup="listbox"
         aria-expanded={open}
         aria-controls={listboxId}
+        aria-label={!label && placeholder ? placeholder : undefined}
         onClick={toggle}
         onKeyDown={onTriggerKeyDown}
         className={cn(
@@ -150,7 +153,7 @@ export function ComboSelect({
           compact ? "min-h-9 px-2.5 py-1.5 text-sm" : "min-h-10 px-3 py-2 text-sm",
         )}
       >
-        <span className={cn("min-w-0 truncate", !selected && placeholder && "text-muted")}>
+        <span className={cn("min-w-0 truncate", isEmpty && "text-muted")}>
           {triggerLabel}
         </span>
         <ChevronDown

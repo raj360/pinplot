@@ -74,7 +74,7 @@ export default function LandlordDashboardClient() {
           {buildings.map((b) => (
             <li
               key={b.id}
-              className="flex flex-wrap items-center justify-between gap-3 border border-border bg-background p-4"
+              className="flex flex-wrap items-center justify-between gap-3 border border-border bg-surface p-4"
             >
               <div className="min-w-0">
                 <p className="font-semibold text-foreground">{b.name}</p>

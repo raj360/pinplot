@@ -50,7 +50,7 @@ export function SidebarAppShell({
           ) : null}
         </aside>
 
-        <div className={pageMainBesideSidebarClass("py-5 md:py-8")}>
+        <div className={pageMainBesideSidebarClass("bg-panel py-5 md:py-8")}>
           {children}
         </div>
       </div>

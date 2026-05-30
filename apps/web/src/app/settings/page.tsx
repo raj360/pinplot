@@ -14,7 +14,7 @@ export default function SettingsPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-background">
+      <div className="min-h-screen bg-panel">
         <AppHeader />
         <LoadingState label="Loading settings" />
       </div>
@@ -23,7 +23,7 @@ export default function SettingsPage() {
 
   if (!isAuthenticated) {
     return (
-      <div className="min-h-screen bg-background">
+      <div className="min-h-screen bg-panel">
         <AppHeader />
         <PageMain>
           <p className="text-sm text-muted">
@@ -41,7 +41,7 @@ export default function SettingsPage() {
   const displayName = getUserDisplayLabel(user?.email, profile);
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-panel">
       <AppHeader />
       <PageMain>
         <h1 className="text-2xl font-bold">Settings</h1>

@@ -61,6 +61,10 @@ type ExploreFiltersProps = {
   onLiveSearchChange?: (enabled: boolean) => void;
   mapVisible: boolean;
   onToggleMap: () => void;
+  /** Mobile: search buildings in the current map viewport (filter bar). */
+  showMapAreaSearch?: boolean;
+  onSearchMapArea?: () => void;
+  mapAreaSearching?: boolean;
   resultCount?: number;
   userLocation?: GeoPoint | null;
   inUganda?: boolean;
@@ -84,6 +88,9 @@ export function ExploreFilters({
   onLiveSearchChange,
   mapVisible,
   onToggleMap,
+  showMapAreaSearch = false,
+  onSearchMapArea,
+  mapAreaSearching = false,
   resultCount,
   userLocation = null,
   inUganda = false,
@@ -133,10 +140,13 @@ export function ExploreFilters({
   );
 
   return (
-    <form onSubmit={handleSubmit} className="relative px-3 py-2.5 sm:px-4 sm:py-3">
+    <form
+      onSubmit={handleSubmit}
+      className="relative px-3 py-2.5 sm:px-4 sm:py-3"
+    >
       {filterLoading ? (
         <div
-          className="pointer-events-none absolute inset-0 z-10 bg-[#eef2f6]/55"
+          className="pointer-events-none absolute inset-0 z-10 bg-panel/60"
           aria-hidden
         />
       ) : null}
@@ -161,8 +171,8 @@ export function ExploreFilters({
           className="col-span-2 min-w-0 md:col-span-4 xl:col-span-2"
         />
         <ComboSelect
-          label="Monthly rent"
           compact
+          placeholder="Monthly rent"
           value={filters.priceRange}
           onChange={(priceRange) => patch({ priceRange })}
           options={rentOptions}
@@ -173,8 +183,8 @@ export function ExploreFilters({
           )}
         />
         <ComboSelect
-          label="Bedrooms"
           compact
+          placeholder="Bedrooms"
           value={filters.bedrooms}
           onChange={(bedrooms) => patch({ bedrooms })}
           options={BEDROOM_OPTIONS}
@@ -185,8 +195,8 @@ export function ExploreFilters({
           )}
         />
         <ComboSelect
-          label="Bathrooms"
           compact
+          placeholder="Bathrooms"
           value={filters.bathrooms}
           onChange={(bathrooms) => patch({ bathrooms })}
           options={BATHROOM_OPTIONS}
@@ -197,8 +207,8 @@ export function ExploreFilters({
           )}
         />
         <ComboSelect
-          label="Property type"
           compact
+          placeholder="Property type"
           value={filters.buildingType}
           onChange={(buildingType) => patch({ buildingType })}
           options={[...BUILDING_TYPE_OPTIONS]}
@@ -207,7 +217,6 @@ export function ExploreFilters({
             "col-span-2 min-w-0 self-start md:col-span-1 xl:col-span-1 [&_button]:bg-surface",
             filterLoading && "[&_button]:pointer-events-none [&_button]:opacity-60",
           )}
-          placeholder="Any type"
         />
       </div>
 
@@ -260,6 +269,23 @@ export function ExploreFilters({
               />
               Update as you filter
             </label>
+          ) : null}
+          {showMapAreaSearch && onSearchMapArea ? (
+            <button
+              type="button"
+              onClick={onSearchMapArea}
+              disabled={mapAreaSearching}
+              className="inline-flex min-h-9 items-center gap-1.5 rounded-sm border border-primary/30 bg-primary/5 px-3 py-1.5 text-sm font-medium text-primary hover:bg-primary/10 disabled:opacity-60"
+            >
+              {mapAreaSearching ? (
+                <>
+                  <Spinner className="size-3.5" label="Searching map area" />
+                  Searching…
+                </>
+              ) : (
+                "Search visible area"
+              )}
+            </button>
           ) : null}
           {activeCount > 0 ? (
             <span className="text-xs text-muted">

@@ -741,6 +741,27 @@ export function ExploreClient() {
     setUserMovedMap(false);
   }, []);
 
+  const showMapAreaSearch = useMemo(
+    () =>
+      isMobile &&
+      mapVisible &&
+      !loading &&
+      !searching &&
+      userMovedMap &&
+      canSearchMapViewport(mapZoom) &&
+      mapViewportDiffersFromSearch(viewportBounds, appliedSearchBounds),
+    [
+      appliedSearchBounds,
+      isMobile,
+      loading,
+      mapVisible,
+      mapZoom,
+      searching,
+      userMovedMap,
+      viewportBounds,
+    ],
+  );
+
   const showSearchAreaButton = useMemo(
     () =>
       !isMobile &&
@@ -793,7 +814,7 @@ export function ExploreClient() {
       <div className="sticky top-0 z-30 shrink-0 bg-background shadow-sm">
         <AppHeader variant="wide" />
 
-        <ContentBand width="wide" className="bg-[#eef2f6]" innerClassName="py-1 sm:py-1.5">
+        <ContentBand width="wide" className="bg-panel" innerClassName="py-1 sm:py-1.5">
           <ExploreFilters
             filters={filters}
             appliedFilters={appliedFilters}
@@ -809,6 +830,9 @@ export function ExploreClient() {
             onLiveSearchChange={handleLiveSearchChange}
             mapVisible={mapVisible}
             onToggleMap={handleToggleMap}
+            showMapAreaSearch={showMapAreaSearch}
+            onSearchMapArea={() => void runSearchMapArea()}
+            mapAreaSearching={searching}
             resultCount={allBuildings.length}
             userLocation={geo.location}
             inUganda={geo.inUganda}
@@ -844,8 +868,7 @@ export function ExploreClient() {
 
           <aside
             className={cn(
-              "flex flex-col bg-surface md:min-h-0 md:shrink-0 md:overflow-hidden md:border-r md:border-border",
-              mapVisible ? "w-full md:w-[22rem] md:max-w-md" : "w-full md:w-[26rem] md:max-w-lg",
+              "flex w-full flex-col bg-surface md:min-h-0 md:w-[26rem] md:max-w-lg md:shrink-0 md:overflow-hidden md:border-r md:border-border",
             )}
           >
             <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-border bg-background px-3 py-2.5 text-sm sm:px-4">
