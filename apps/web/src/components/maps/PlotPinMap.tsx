@@ -14,6 +14,7 @@ import {
   EXPLORE_MAP_MAX_ZOOM,
   EXPLORE_MAP_MIN_ZOOM,
 } from "@/lib/maps/config";
+import { PlotPinClusterRenderer } from "@/lib/maps/plotpin-cluster-renderer";
 import { cn } from "@/lib/utils/cn";
 
 const MAPS_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? "";
@@ -21,7 +22,8 @@ const MAP_ID = process.env.NEXT_PUBLIC_GOOGLE_MAP_ID ?? "";
 const KAMPALA_CENTER = { lat: 0.3476, lng: 32.5825 };
 
 type AdvancedMarkerWithMeta = google.maps.marker.AdvancedMarkerElement & {
-  plotpinEl?: HTMLDivElement;
+  plotpinPin?: HTMLDivElement;
+  plotpinBody?: HTMLDivElement;
   plotpinTooltip?: HTMLDivElement;
   plotpinLabel?: HTMLSpanElement;
   plotpinSpinner?: HTMLSpanElement;
@@ -31,7 +33,8 @@ type AdvancedMarkerWithMeta = google.maps.marker.AdvancedMarkerElement & {
 
 type MarkerUiEntry = {
   id: string;
-  el: HTMLDivElement;
+  pin: HTMLDivElement;
+  body: HTMLDivElement;
   tooltip: HTMLDivElement;
   label: HTMLSpanElement;
   spinner: HTMLSpanElement;
@@ -59,6 +62,8 @@ type Props = {
   gestureHandling?: "greedy" | "cooperative" | "none" | "auto";
   /** Increment after search to fit map to result markers. */
   fitBoundsToken?: number;
+  /** When results are empty, zoom map to the searched area. */
+  focusBounds?: { north: number; south: number; east: number; west: number } | null;
 };
 
 export function PlotPinMap({
@@ -73,6 +78,7 @@ export function PlotPinMap({
   onHover,
   gestureHandling = "greedy",
   fitBoundsToken = 0,
+  focusBounds = null,
 }: Props) {
   if (!MAPS_KEY || MAPS_KEY.startsWith("your-")) {
     return (
@@ -105,6 +111,7 @@ export function PlotPinMap({
           buildings={buildings}
           unlockedLocations={unlockedLocations}
           fitToken={fitBoundsToken}
+          focusBounds={focusBounds}
         />
         <ClusteredMarkers
           buildings={buildings}
@@ -153,19 +160,53 @@ function MapFitBounds({
   buildings,
   unlockedLocations,
   fitToken,
+  focusBounds,
 }: {
   buildings: BuildingSummary[];
   unlockedLocations?: ReadonlyMap<string, { lat: number; lng: number }>;
   fitToken: number;
+  focusBounds?: { north: number; south: number; east: number; west: number } | null;
 }) {
   const map = useMap();
 
   useEffect(() => {
     if (!map || fitToken === 0) return;
 
+    function applyZoomCap() {
+      google.maps.event.addListenerOnce(map!, "idle", () => {
+        const zoom = map!.getZoom();
+        if (zoom != null && zoom > EXPLORE_MAP_MAX_ZOOM) {
+          map!.setZoom(EXPLORE_MAP_MAX_ZOOM);
+        }
+        if (zoom != null && zoom < EXPLORE_MAP_MIN_ZOOM) {
+          map!.setZoom(EXPLORE_MAP_MIN_ZOOM);
+        }
+      });
+    }
+
     if (buildings.length === 0) {
+      if (focusBounds) {
+        const bounds = new google.maps.LatLngBounds(
+          { lat: focusBounds.south, lng: focusBounds.west },
+          { lat: focusBounds.north, lng: focusBounds.east },
+        );
+        map.fitBounds(bounds, 48);
+        applyZoomCap();
+        return;
+      }
       map.setCenter(KAMPALA_CENTER);
       map.setZoom(EXPLORE_MAP_DEFAULT_ZOOM);
+      return;
+    }
+
+    if (buildings.length === 1) {
+      const building = buildings[0];
+      const exact = unlockedLocations?.get(building.id);
+      map.setCenter({
+        lat: exact?.lat ?? building.approximateLat,
+        lng: exact?.lng ?? building.approximateLng,
+      });
+      map.setZoom(EXPLORE_MAP_MAX_ZOOM);
       return;
     }
 
@@ -179,17 +220,8 @@ function MapFitBounds({
     }
 
     map.fitBounds(bounds, 56);
-
-    google.maps.event.addListenerOnce(map, "idle", () => {
-      const zoom = map.getZoom();
-      if (zoom != null && zoom > EXPLORE_MAP_MAX_ZOOM) {
-        map.setZoom(EXPLORE_MAP_MAX_ZOOM);
-      }
-      if (zoom != null && zoom < EXPLORE_MAP_MIN_ZOOM) {
-        map.setZoom(EXPLORE_MAP_MIN_ZOOM);
-      }
-    });
-  }, [map, buildings, unlockedLocations, fitToken]);
+    applyZoomCap();
+  }, [map, buildings, unlockedLocations, fitToken, focusBounds]);
 
   return null;
 }
@@ -213,24 +245,52 @@ function isUnlockedBuilding(
     (building.myUnlockCount ?? 0) > 0
   );
 }
-function markerClasses(active: boolean, hovered: boolean, unlocked: boolean) {
+function markerVariantClasses(
+  active: boolean,
+  hovered: boolean,
+  unlocked: boolean,
+) {
+  const classes = ["plotpin-map-marker"];
+
   if (unlocked) {
-    return [
-      "flex h-8 w-8 items-center justify-center text-xs font-semibold text-white shadow",
-      active || hovered ? "ring-2 ring-lime-800 ring-offset-1" : "",
-      active ? "bg-lime-700" : "bg-lime-500",
-    ]
-      .filter(Boolean)
-      .join(" ");
+    classes.push(
+      active
+        ? "plotpin-map-marker--unlocked-active"
+        : "plotpin-map-marker--unlocked",
+    );
+  } else {
+    classes.push(
+      active ? "plotpin-map-marker--active" : "plotpin-map-marker--available",
+    );
   }
 
-  return [
-    "flex h-8 w-8 items-center justify-center text-xs font-semibold text-white shadow",
-    active || hovered ? "ring-2 ring-primary ring-offset-1" : "",
-    active ? "bg-primary" : "bg-accent-orange",
-  ]
-    .filter(Boolean)
-    .join(" ");
+  if (active || hovered) {
+    classes.push(
+      unlocked
+        ? "plotpin-map-marker--highlight-unlocked"
+        : "plotpin-map-marker--highlight",
+    );
+  }
+
+  return classes.join(" ");
+}
+
+function createMarkerPin(label: string, unlocked: boolean) {
+  const pin = document.createElement("div");
+  pin.className = markerVariantClasses(false, false, unlocked);
+
+  const body = document.createElement("div");
+  body.className = "plotpin-map-marker__body";
+  body.textContent = label;
+
+  const tail = document.createElement("div");
+  tail.className = "plotpin-map-marker__tail";
+  tail.setAttribute("aria-hidden", "true");
+
+  pin.appendChild(body);
+  pin.appendChild(tail);
+
+  return { pin, body };
 }
 
 function createMapTooltip() {
@@ -327,6 +387,7 @@ function ClusteredMarkers({
     clustererRef.current?.clearMarkers();
     clustererRef.current = new MarkerClusterer({
       map,
+      renderer: new PlotPinClusterRenderer(),
       onClusterClick: (_event, cluster) => {
         colocatedWindowRef.current?.close();
 
@@ -370,17 +431,14 @@ function ClusteredMarkers({
 
     for (const pos of positions) {
       const wrap = document.createElement("div");
-      wrap.className =
-        "relative flex h-10 w-10 cursor-pointer items-center justify-center overflow-visible";
+      wrap.className = "plotpin-map-marker-wrap";
 
       const { tooltip, label, spinner } = createMapTooltip();
+      const { pin, body } = createMarkerPin(pos.label, pos.unlocked);
 
-      const el = document.createElement("div");
-      el.className = markerClasses(false, false, pos.unlocked);
-      el.textContent = pos.label;
+      pin.insertBefore(tooltip, pin.firstChild);
 
-      wrap.appendChild(tooltip);
-      wrap.appendChild(el);
+      wrap.appendChild(pin);
 
       wrap.onmouseenter = () => onHoverRef.current?.(pos.id);
       wrap.onmouseleave = () => onHoverRef.current?.(null);
@@ -395,7 +453,8 @@ function ClusteredMarkers({
         position: { lat: pos.lat, lng: pos.lng },
         content: wrap,
       }) as AdvancedMarkerWithMeta;
-      marker.plotpinEl = el;
+      marker.plotpinPin = pin;
+      marker.plotpinBody = body;
       marker.plotpinTooltip = tooltip;
       marker.plotpinLabel = label;
       marker.plotpinSpinner = spinner;
@@ -405,7 +464,8 @@ function ClusteredMarkers({
       markersRef.current.push(marker);
       nextMarkerUi.push({
         id: pos.id,
-        el,
+        pin,
+        body,
         tooltip,
         label,
         spinner,
@@ -489,11 +549,11 @@ function ClusteredMarkers({
   useEffect(() => {
     const frame = window.requestAnimationFrame(() => {
       for (const entry of markerUiRef.current) {
-        const { id, el, tooltip, label, spinner, unlocked, marker } = entry;
+        const { id, pin, tooltip, label, spinner, unlocked, marker } = entry;
 
         const active = selectedId === id;
         const hovered = hoveredId === id;
-        el.className = markerClasses(active, hovered, unlocked);
+        pin.className = markerVariantClasses(active, hovered, unlocked);
         marker.zIndex = active || hovered ? 2 : 1;
 
         if (hovered) {
@@ -549,11 +609,14 @@ function MapFallback({
                 onSelect?.(b.id);
               }}
               className={cn(
-                "flex h-10 w-10 items-center justify-center text-sm font-semibold text-white shadow",
-                unlocked ? "bg-lime-500" : "bg-accent-orange",
+                "plotpin-map-marker",
+                unlocked
+                  ? "plotpin-map-marker--unlocked"
+                  : "plotpin-map-marker--available",
               )}
             >
-              {mapMarkerLabel(b)}
+              <span className="plotpin-map-marker__body">{mapMarkerLabel(b)}</span>
+              <span className="plotpin-map-marker__tail" aria-hidden />
             </button>
           );
         })}

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import { MapPin } from "lucide-react";
 import { PlotPinMap } from "@/components/maps/PlotPinMap";
 import { BuildingDetailExperience } from "@/components/buildings/BuildingDetailExperience";
 import { BuildingPreviewModal } from "@/components/explore/BuildingPreviewModal";
@@ -21,10 +22,21 @@ import { BuildingPreviewSkeleton } from "@/components/explore/BuildingPreviewSke
 import { Spinner } from "@/components/ui/spinner";
 import {
   fetchBuildingsInBounds,
-  KAMPALA_BOUNDS,
   type BuildingDetail,
+  type Bounds,
 } from "@/lib/api/buildings";
 import { parseRentRange, rentRangeLabel } from "@/lib/filters/rent-ranges";
+import {
+  getBoundsForSearch,
+  getMapFocusForSearch,
+  searchAreaLabel,
+} from "@/lib/filters/search-areas";
+import {
+  BUILDING_TYPE_FILTER_ENABLED,
+  buildingTypeLabel,
+} from "@/lib/filters/building-types";
+import { DEFAULT_EXPLORE_COUNTRY } from "@/lib/geo/uganda";
+import { useExploreGeolocation } from "@/lib/hooks/use-explore-geolocation";
 import { formatRentPerMonth } from "@/lib/intl/format";
 import { clearBuildingCache } from "@/lib/api/building-cache";
 import { fetchMyUnlocks, type TenantUnlock } from "@/lib/api/unlocks";
@@ -36,6 +48,8 @@ import { useIsMobile } from "@/lib/hooks/use-media-query";
 
 type DetailMode = "full" | "summary" | null;
 
+const EMPTY_UNLOCKS: TenantUnlock[] = [];
+
 function parseMinFilter(value: string) {
   if (!value) return undefined;
   const n = Number(value);
@@ -43,13 +57,15 @@ function parseMinFilter(value: string) {
 }
 
 async function loadBuildings(filters: ExploreSearchFilters) {
+  const bounds = getBoundsForSearch(filters.city);
   const { minRent, maxRent } = parseRentRange(filters.priceRange);
-  return fetchBuildingsInBounds(KAMPALA_BOUNDS, {
+  return fetchBuildingsInBounds(bounds, {
     city: filters.city || undefined,
     bedrooms: parseMinFilter(filters.bedrooms),
     bathrooms: parseMinFilter(filters.bathrooms),
     minRent,
     maxRent,
+    countryCode: DEFAULT_EXPLORE_COUNTRY,
   });
 }
 
@@ -101,6 +117,7 @@ export function ExploreClient() {
   const [appliedFilters, setAppliedFilters] =
     useState<ExploreSearchFilters>(EMPTY_EXPLORE_FILTERS);
   const [mapFitToken, setMapFitToken] = useState(0);
+  const [mapFocusBounds, setMapFocusBounds] = useState<Bounds | null>(null);
   const listRef = useRef<HTMLUListElement>(null);
   const { isAuthenticated } = useAuth();
   const [unlockedLocations, setUnlockedLocations] = useState<
@@ -109,22 +126,39 @@ export function ExploreClient() {
   const [myUnlocks, setMyUnlocks] = useState<TenantUnlock[]>([]);
   const { hoveredId, setHover, loadSelectedDetail } = useExplorePreview();
   const isMobile = useIsMobile();
+  const geo = useExploreGeolocation();
   const searchParams = useSearchParams();
   const deepLinkHandled = useRef(false);
+  const appliedFiltersRef = useRef(appliedFilters);
+  const userLocationForSearch = geo.inUganda ? geo.location : null;
+
+  useEffect(() => {
+    appliedFiltersRef.current = appliedFilters;
+  }, [appliedFilters]);
+
+  const emptyUnlockLocations = useMemo(
+    () => new Map<string, { lat: number; lng: number }>(),
+    [],
+  );
+
+  const visibleMyUnlocks = isAuthenticated ? myUnlocks : EMPTY_UNLOCKS;
+  const visibleUnlockLocations = isAuthenticated
+    ? unlockedLocations
+    : emptyUnlockLocations;
 
   const unlocksByBuilding = useMemo(() => {
     const map = new Map<string, TenantUnlock[]>();
-    for (const unlock of myUnlocks) {
+    for (const unlock of visibleMyUnlocks) {
       const existing = map.get(unlock.buildingId) ?? [];
       existing.push(unlock);
       map.set(unlock.buildingId, existing);
     }
     return map;
-  }, [myUnlocks]);
+  }, [visibleMyUnlocks]);
 
   const unlockedBuildingIds = useMemo(
-    () => new Set(unlockedLocations.keys()),
-    [unlockedLocations],
+    () => new Set(visibleUnlockLocations.keys()),
+    [visibleUnlockLocations],
   );
 
   const loadDetail = useCallback(
@@ -185,6 +219,23 @@ export function ExploreClient() {
     });
   }, []);
 
+  const consumeDeepLink = useCallback(
+    (buildings: BuildingSummary[]) => {
+      if (deepLinkHandled.current) return;
+
+      const buildingId = searchParams.get("building");
+      if (!buildingId) return;
+      if (!buildings.some((building) => building.id === buildingId)) return;
+
+      deepLinkHandled.current = true;
+      const hideMap = searchParams.get("map") === "0";
+      setDetailMode("full");
+      if (hideMap && !isMobile) setMapVisible(false);
+      void loadDetail(buildingId);
+    },
+    [isMobile, loadDetail, searchParams],
+  );
+
   const handleUnlockSuccess = useCallback(async () => {
     await refreshUnlockState();
     await refreshBuildings(appliedFilters);
@@ -204,13 +255,10 @@ export function ExploreClient() {
   ]);
 
   useEffect(() => {
-    if (!isAuthenticated) {
-      setUnlockedLocations(new Map());
-      setMyUnlocks([]);
-      return;
-    }
+    if (!isAuthenticated) return;
 
     let cancelled = false;
+
     fetchMyUnlocks()
       .then((unlocks) => {
         if (cancelled) return;
@@ -220,6 +268,17 @@ export function ExploreClient() {
           next.set(unlock.buildingId, unlock.location);
         }
         setUnlockedLocations(next);
+
+        if (unlocks.length === 0) return;
+
+        return loadBuildings(appliedFiltersRef.current).then((data) => {
+          if (cancelled) return;
+          setAllBuildings(data);
+          setSelectedId((prev) => {
+            if (prev && data.some((b) => b.id === prev)) return prev;
+            return data[0]?.id ?? null;
+          });
+        });
       })
       .catch(() => {
         if (!cancelled) {
@@ -234,22 +293,15 @@ export function ExploreClient() {
   }, [isAuthenticated]);
 
   useEffect(() => {
-    if (!isAuthenticated || unlockedLocations.size === 0) return;
-
-    refreshBuildings(appliedFilters).catch(() => {
-      /* keep current list if refresh fails */
-    });
-  }, [isAuthenticated, unlockedLocations, appliedFilters, refreshBuildings]);
-
-  useEffect(() => {
     let cancelled = false;
 
     loadBuildings(EMPTY_EXPLORE_FILTERS)
       .then(async (data) => {
-        if (!cancelled) {
-          await applySearchResults(data);
-          setMapFitToken((token) => token + 1);
-        }
+        if (cancelled) return;
+        await applySearchResults(data);
+        if (cancelled) return;
+        consumeDeepLink(data);
+        setMapFitToken((token) => token + 1);
       })
       .catch(() => {
         if (!cancelled) {
@@ -263,43 +315,33 @@ export function ExploreClient() {
     return () => {
       cancelled = true;
     };
-  }, [applySearchResults]);
-
-  useEffect(() => {
-    if (loading || deepLinkHandled.current) return;
-
-    const buildingId = searchParams.get("building");
-    if (!buildingId) return;
-
-    const hideMap = searchParams.get("map") === "0";
-    const exists = allBuildings.some((building) => building.id === buildingId);
-    if (!exists) return;
-
-    deepLinkHandled.current = true;
-    setDetailMode("full");
-    if (hideMap && !isMobile) setMapVisible(false);
-    void loadDetail(buildingId);
-  }, [allBuildings, isMobile, loadDetail, loading, searchParams]);
+  }, [applySearchResults, consumeDeepLink]);
 
   const runSearch = useCallback(async () => {
     setSearching(true);
     setError(null);
     try {
       const next = { ...filters };
-      await applySearchResults(await loadBuildings(next));
+      const focus = getMapFocusForSearch(next.city, userLocationForSearch);
+      setMapFocusBounds(focus?.bounds ?? null);
+      const data = await loadBuildings(next);
+      await applySearchResults(data);
       setAppliedFilters(next);
+      consumeDeepLink(data);
       setMapFitToken((token) => token + 1);
     } catch {
       setError("Could not load buildings. Is the API running?");
     } finally {
       setSearching(false);
     }
-  }, [applySearchResults, filters]);
+  }, [applySearchResults, consumeDeepLink, filters, userLocationForSearch]);
 
   const runReset = useCallback(async () => {
+    geo.clearLocation();
     setFilters(EMPTY_EXPLORE_FILTERS);
     setSearching(true);
     setError(null);
+    setMapFocusBounds(null);
     try {
       await applySearchResults(await loadBuildings(EMPTY_EXPLORE_FILTERS));
       setAppliedFilters(EMPTY_EXPLORE_FILTERS);
@@ -309,7 +351,7 @@ export function ExploreClient() {
     } finally {
       setSearching(false);
     }
-  }, [applySearchResults]);
+  }, [applySearchResults, consumeDeepLink, geo.clearLocation]);
 
   const openAccessModal = useCallback((buildingId: string) => {
     setAccessModalBuildingId(buildingId);
@@ -407,7 +449,8 @@ export function ExploreClient() {
 
   const activeFilterHint = useMemo(() => {
     const parts: string[] = [];
-    if (appliedFilters.city) parts.push(appliedFilters.city);
+    const area = searchAreaLabel(appliedFilters.city);
+    if (area) parts.push(area);
     const priceLabel = rentRangeLabel(appliedFilters.priceRange);
     if (priceLabel) parts.push(priceLabel);
     if (appliedFilters.bedrooms) {
@@ -415,6 +458,10 @@ export function ExploreClient() {
     }
     if (appliedFilters.bathrooms) {
       parts.push(`${appliedFilters.bathrooms}+ bathroom`);
+    }
+    if (BUILDING_TYPE_FILTER_ENABLED && appliedFilters.buildingType) {
+      const typeLabel = buildingTypeLabel(appliedFilters.buildingType);
+      if (typeLabel) parts.push(typeLabel);
     }
     return parts.length ? parts.join(" · ") : null;
   }, [appliedFilters]);
@@ -425,11 +472,12 @@ export function ExploreClient() {
     hoveredId,
     hoverPreview,
     unlockedBuildingIds,
-    unlockedLocations,
+    unlockedLocations: visibleUnlockLocations,
     onSelect: handleMapSelect,
     onHover: setHover,
     gestureHandling: isMobile ? ("none" as const) : ("greedy" as const),
     fitBoundsToken: mapFitToken,
+    focusBounds: mapFocusBounds,
   };
 
   const showMobileSheet = Boolean(selectedId) && isMobile && detailMode !== null;
@@ -443,7 +491,7 @@ export function ExploreClient() {
       <div className="sticky top-0 z-30 shrink-0 bg-background shadow-sm">
         <AppHeader variant="wide" />
 
-        <ContentBand width="wide" className="bg-[#eef2f6]" innerClassName="py-2">
+        <ContentBand width="wide" className="bg-[#eef2f6]" innerClassName="py-1 sm:py-1.5">
           <ExploreFilters
             filters={filters}
             onChange={setFilters}
@@ -452,6 +500,12 @@ export function ExploreClient() {
             searching={searching}
             mapVisible={mapVisible}
             onToggleMap={handleToggleMap}
+            resultCount={allBuildings.length}
+            userLocation={geo.location}
+            inUganda={geo.inUganda}
+            onRequestLocation={geo.requestLocation}
+            onClearLocation={geo.clearLocation}
+            locationLoading={geo.loading}
           />
         </ContentBand>
       </div>
@@ -488,7 +542,7 @@ export function ExploreClient() {
               mapVisible ? "w-full md:w-[22rem] md:max-w-md" : "w-full md:w-[26rem] md:max-w-lg",
             )}
           >
-            <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-border bg-background px-3 py-2 text-sm sm:px-4 sm:py-2.5">
+            <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-border bg-background px-3 py-2.5 text-sm sm:px-4">
               <span className="flex items-center gap-2">
                 <strong className="text-foreground">All</strong>
                 {listLoading ? (
@@ -545,7 +599,7 @@ export function ExploreClient() {
                       <button
                         type="button"
                         onClick={() => handleListSelect(building.id)}
-                        className="min-w-0 flex-1 px-3 py-3 text-left sm:px-4 sm:py-3"
+                        className="min-w-0 flex-1 px-3 py-3.5 text-left sm:px-4 sm:py-3.5"
                       >
                         <div className="flex items-start justify-between gap-2">
                           <p
@@ -563,12 +617,18 @@ export function ExploreClient() {
                             />
                           ) : null}
                         </div>
-                        <p className="mt-0.5 text-sm text-foreground/80">
-                          {[building.district, building.city]
-                            .filter(Boolean)
-                            .join(", ")}
+                        <p className="mt-1 flex items-center gap-1.5 text-sm text-foreground/80">
+                          <MapPin
+                            className="size-3.5 shrink-0 text-muted"
+                            aria-hidden
+                          />
+                          <span className="truncate">
+                            {[building.district, building.city]
+                              .filter(Boolean)
+                              .join(", ")}
+                          </span>
                         </p>
-                        <p className="mt-1 text-xs text-muted">
+                        <p className="mt-1.5 text-xs leading-relaxed text-muted">
                           {building.availableUnitCount > 0 ? (
                             <>
                               {building.availableUnitCount} available · from{" "}

@@ -45,6 +45,7 @@ export async function fetchBuildingsInBounds(
     maxRent?: number;
     bedrooms?: number;
     bathrooms?: number;
+    countryCode?: string;
   },
 ): Promise<BuildingSummary[]> {
   const params = new URLSearchParams({
@@ -58,6 +59,7 @@ export async function fetchBuildingsInBounds(
   if (filters?.maxRent != null) params.set("maxRent", String(filters.maxRent));
   if (filters?.bedrooms != null) params.set("bedrooms", String(filters.bedrooms));
   if (filters?.bathrooms != null) params.set("bathrooms", String(filters.bathrooms));
+  if (filters?.countryCode) params.set("countryCode", filters.countryCode);
 
   const token = await getAccessToken();
   const headers = new Headers();

@@ -91,6 +91,11 @@ export class BuildingsService {
       sql += ` AND (b.city ILIKE $${params.length} OR b.district ILIKE $${params.length})`;
     }
 
+    if (query.countryCode) {
+      params.push(query.countryCode.toUpperCase());
+      sql += ` AND b.country_code = $${params.length}`;
+    }
+
     sql += `
       GROUP BY b.id
       HAVING COUNT(u.id) FILTER (WHERE u.status = 'AVAILABLE') > 0
@@ -174,6 +179,11 @@ export class BuildingsService {
     if (query.city) {
       params.push(`%${query.city}%`);
       sql += ` AND (b.city ILIKE $${params.length} OR b.district ILIKE $${params.length})`;
+    }
+
+    if (query.countryCode) {
+      params.push(query.countryCode.toUpperCase());
+      sql += ` AND b.country_code = $${params.length}`;
     }
 
     sql += `

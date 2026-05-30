@@ -57,6 +57,10 @@ export class BuildingBoundsQueryDto {
   @Min(0)
   @Max(10)
   bathrooms?: number;
+
+  @IsOptional()
+  @IsString()
+  countryCode?: string;
 }
 
 export class CreateBuildingDto {
