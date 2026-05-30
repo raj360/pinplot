@@ -91,7 +91,13 @@ export function ExploreFilters({
 
   return (
     <form onSubmit={handleSubmit} className="px-3 py-2.5 sm:px-4 sm:py-3">
-      <div className="grid grid-cols-2 gap-x-2.5 gap-y-2 sm:grid-cols-3 sm:gap-x-3 lg:grid-cols-6">
+      {/*
+        Breakpoints:
+        - default/sm: 2 cols — area + rent full width each on small phones
+        - md–lg (768–1279): 4 cols, 2 rows — area full width; filters on one row (iPad, Nest Hub)
+        - xl (1280+): 6 cols, 1 row — full desktop strip
+      */}
+      <div className="grid grid-cols-2 gap-x-3 gap-y-3 sm:gap-x-4 md:grid-cols-4 xl:grid-cols-6">
         <AreaSearchCombobox
           compact
           value={filters.city}
@@ -101,7 +107,7 @@ export function ExploreFilters({
           onRequestLocation={onRequestLocation}
           onClearLocation={onClearLocation}
           locationLoading={locationLoading}
-          className="col-span-2 sm:col-span-2 lg:col-span-2"
+          className="col-span-2 min-w-0 md:col-span-4 xl:col-span-2"
         />
         <ComboSelect
           label="Monthly rent"
@@ -109,7 +115,7 @@ export function ExploreFilters({
           value={filters.priceRange}
           onChange={(priceRange) => patch({ priceRange })}
           options={RENT_RANGE_OPTIONS}
-          className="col-span-2 sm:col-span-1 [&_button]:bg-surface"
+          className="col-span-2 min-w-0 self-start md:col-span-1 xl:col-span-1 [&_button]:bg-surface"
         />
         <ComboSelect
           label="Bedrooms"
@@ -117,7 +123,7 @@ export function ExploreFilters({
           value={filters.bedrooms}
           onChange={(bedrooms) => patch({ bedrooms })}
           options={BEDROOM_OPTIONS}
-          className="[&_button]:bg-surface"
+          className="min-w-0 self-start md:col-span-1 [&_button]:bg-surface"
         />
         <ComboSelect
           label="Bathrooms"
@@ -125,7 +131,7 @@ export function ExploreFilters({
           value={filters.bathrooms}
           onChange={(bathrooms) => patch({ bathrooms })}
           options={BATHROOM_OPTIONS}
-          className="[&_button]:bg-surface"
+          className="min-w-0 self-start md:col-span-1 [&_button]:bg-surface"
         />
         <ComboSelect
           label="Property type"
@@ -133,7 +139,7 @@ export function ExploreFilters({
           value={filters.buildingType}
           onChange={(buildingType) => patch({ buildingType })}
           options={[...BUILDING_TYPE_OPTIONS]}
-          className="col-span-2 sm:col-span-1 lg:col-span-1 [&_button]:bg-surface"
+          className="col-span-2 min-w-0 self-start md:col-span-1 xl:col-span-1 [&_button]:bg-surface"
           placeholder="Any type"
         />
       </div>

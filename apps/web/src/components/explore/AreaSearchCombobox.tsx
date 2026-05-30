@@ -159,7 +159,7 @@ export function AreaSearchCombobox({
   }, [close, open, openPanel]);
 
   return (
-    <div ref={rootRef} className={cn("relative w-full", className)}>
+    <div ref={rootRef} className={cn("relative w-full min-w-0", className)}>
       {label ? (
         <label
           htmlFor={triggerId}

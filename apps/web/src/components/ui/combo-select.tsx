@@ -107,7 +107,7 @@ export function ComboSelect({
   }
 
   return (
-    <div ref={rootRef} className={cn("relative", className)}>
+    <div ref={rootRef} className={cn("relative min-w-0", className)}>
       {label ? (
         <label
           htmlFor={selectId}
@@ -129,9 +129,9 @@ export function ComboSelect({
         onClick={() => setOpen((v) => !v)}
         onKeyDown={onTriggerKeyDown}
         className={cn(
-          "flex w-full items-center justify-between gap-2 border border-border bg-surface text-left text-foreground transition-colors",
+          "flex w-full min-w-0 items-center justify-between gap-2 border border-border bg-surface text-left text-foreground transition-colors",
           "hover:border-primary/40 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary/25",
-          compact ? "px-2.5 py-1.5 text-sm" : "px-3 py-2 text-sm",
+          compact ? "min-h-9 px-2.5 py-1.5 text-sm" : "min-h-10 px-3 py-2 text-sm",
         )}
       >
         <span className={cn("min-w-0 truncate", !selected && placeholder && "text-muted")}>
@@ -153,7 +153,7 @@ export function ComboSelect({
           aria-labelledby={selectId}
           tabIndex={-1}
           onKeyDown={onListKeyDown}
-          className="absolute z-[60] mt-0.5 max-h-52 w-full overflow-y-auto border border-border bg-surface py-0.5 shadow-md"
+          className="absolute z-[60] mt-0.5 max-h-52 min-w-full w-max max-w-[min(100vw-2rem,20rem)] overflow-y-auto border border-border bg-surface py-0.5 shadow-md"
         >
           {options.map((opt, index) => {
             const isSelected = opt.value === value;
