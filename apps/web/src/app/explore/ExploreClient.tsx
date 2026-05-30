@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { MapPin } from "lucide-react";
 import { PlotPinMap } from "@/components/maps/PlotPinMap";
 import { BuildingDetailExperience } from "@/components/buildings/BuildingDetailExperience";
@@ -45,6 +45,11 @@ import { useAuth } from "@/lib/auth/use-auth";
 import type { BuildingSummary } from "@plotpin/shared-types";
 import { useExplorePreview } from "./useExplorePreview";
 import { useIsMobile } from "@/lib/hooks/use-media-query";
+import {
+  buildExploreHref,
+  exploreFiltersEqual,
+  parseExploreFiltersFromSearchParams,
+} from "@/lib/explore/explore-url-filters";
 
 type DetailMode = "full" | "summary" | null;
 
@@ -101,6 +106,14 @@ function ExploreDetailPane({
 }
 
 export function ExploreClient() {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const urlFilters = useMemo(
+    () => parseExploreFiltersFromSearchParams(searchParams),
+    [searchParams],
+  );
+
   const [mapVisible, setMapVisible] = useState(true);
   const [detailMode, setDetailMode] = useState<DetailMode>(null);
   const [accessModalBuildingId, setAccessModalBuildingId] = useState<
@@ -113,9 +126,9 @@ export function ExploreClient() {
   const [loading, setLoading] = useState(true);
   const [searching, setSearching] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [filters, setFilters] = useState<ExploreSearchFilters>(EMPTY_EXPLORE_FILTERS);
+  const [filters, setFilters] = useState<ExploreSearchFilters>(urlFilters);
   const [appliedFilters, setAppliedFilters] =
-    useState<ExploreSearchFilters>(EMPTY_EXPLORE_FILTERS);
+    useState<ExploreSearchFilters>(urlFilters);
   const [mapFitToken, setMapFitToken] = useState(0);
   const [mapFocusBounds, setMapFocusBounds] = useState<Bounds | null>(null);
   const listRef = useRef<HTMLUListElement>(null);
@@ -127,9 +140,19 @@ export function ExploreClient() {
   const { hoveredId, setHover, loadSelectedDetail } = useExplorePreview();
   const isMobile = useIsMobile();
   const geo = useExploreGeolocation();
-  const searchParams = useSearchParams();
   const deepLinkHandled = useRef(false);
+  const initialLoadDone = useRef(false);
+  const skipUrlSyncRef = useRef(false);
+  const initialUrlFiltersRef = useRef(urlFilters);
   const appliedFiltersRef = useRef(appliedFilters);
+  const executeSearchRef = useRef<
+    (
+      next: ExploreSearchFilters,
+      options?: { syncUrl?: boolean; history?: "push" | "replace" },
+    ) => Promise<void>
+  >(() => Promise.resolve());
+  const searchGenerationRef = useRef(0);
+  const initialLoadStartedRef = useRef(false);
   const userLocationForSearch = geo.inUganda ? geo.location : null;
 
   useEffect(() => {
@@ -236,6 +259,17 @@ export function ExploreClient() {
     [isMobile, loadDetail, searchParams],
   );
 
+  const applySearchResultsRef = useRef(applySearchResults);
+  const consumeDeepLinkRef = useRef(consumeDeepLink);
+
+  useEffect(() => {
+    applySearchResultsRef.current = applySearchResults;
+  }, [applySearchResults]);
+
+  useEffect(() => {
+    consumeDeepLinkRef.current = consumeDeepLink;
+  }, [consumeDeepLink]);
+
   const handleUnlockSuccess = useCallback(async () => {
     await refreshUnlockState();
     await refreshBuildings(appliedFilters);
@@ -271,8 +305,12 @@ export function ExploreClient() {
 
         if (unlocks.length === 0) return;
 
-        return loadBuildings(appliedFiltersRef.current).then((data) => {
+        const filtersSnapshot = appliedFiltersRef.current;
+        return loadBuildings(filtersSnapshot).then((data) => {
           if (cancelled) return;
+          if (!exploreFiltersEqual(filtersSnapshot, appliedFiltersRef.current)) {
+            return;
+          }
           setAllBuildings(data);
           setSelectedId((prev) => {
             if (prev && data.some((b) => b.id === prev)) return prev;
@@ -293,14 +331,18 @@ export function ExploreClient() {
   }, [isAuthenticated]);
 
   useEffect(() => {
-    let cancelled = false;
+    if (initialLoadStartedRef.current) return;
+    initialLoadStartedRef.current = true;
 
-    loadBuildings(EMPTY_EXPLORE_FILTERS)
+    let cancelled = false;
+    const initialFilters = initialUrlFiltersRef.current;
+
+    loadBuildings(initialFilters)
       .then(async (data) => {
         if (cancelled) return;
-        await applySearchResults(data);
+        await applySearchResultsRef.current(data);
         if (cancelled) return;
-        consumeDeepLink(data);
+        consumeDeepLinkRef.current(data);
         setMapFitToken((token) => token + 1);
       })
       .catch(() => {
@@ -309,34 +351,99 @@ export function ExploreClient() {
         }
       })
       .finally(() => {
-        if (!cancelled) setLoading(false);
+        if (!cancelled) {
+          setLoading(false);
+          initialLoadDone.current = true;
+        }
       });
 
     return () => {
       cancelled = true;
     };
-  }, [applySearchResults, consumeDeepLink]);
+  }, []);
+
+  const syncFiltersToUrl = useCallback(
+    (next: ExploreSearchFilters, history: "push" | "replace") => {
+      skipUrlSyncRef.current = true;
+      const preserve = new URLSearchParams();
+      const buildingId = searchParams.get("building");
+      if (buildingId) preserve.set("building", buildingId);
+      if (searchParams.get("map") === "0") preserve.set("map", "0");
+      const href = buildExploreHref(pathname, next, preserve);
+      if (history === "push") {
+        router.push(href, { scroll: false });
+      } else {
+        router.replace(href, { scroll: false });
+      }
+    },
+    [pathname, router, searchParams],
+  );
 
   const executeSearch = useCallback(
-    async (next: ExploreSearchFilters) => {
+    async (
+      next: ExploreSearchFilters,
+      options?: { syncUrl?: boolean; history?: "push" | "replace" },
+    ) => {
+      const syncUrl = options?.syncUrl ?? true;
+      const history = options?.history ?? "push";
+
+      if (syncUrl) {
+        skipUrlSyncRef.current = true;
+      }
+
+      const generation = ++searchGenerationRef.current;
+
       setSearching(true);
       setError(null);
       try {
         const focus = getMapFocusForSearch(next.city, userLocationForSearch);
         setMapFocusBounds(focus?.bounds ?? null);
         const data = await loadBuildings(next);
+        if (generation !== searchGenerationRef.current) return;
         await applySearchResults(data);
+        if (generation !== searchGenerationRef.current) return;
         setAppliedFilters(next);
+        appliedFiltersRef.current = next;
         consumeDeepLink(data);
         setMapFitToken((token) => token + 1);
+        if (syncUrl) {
+          syncFiltersToUrl(next, history);
+        }
       } catch {
+        if (generation !== searchGenerationRef.current) return;
+        if (syncUrl) {
+          skipUrlSyncRef.current = false;
+        }
         setError("Could not load buildings. Is the API running?");
       } finally {
-        setSearching(false);
+        if (generation === searchGenerationRef.current) {
+          setSearching(false);
+        }
       }
     },
-    [applySearchResults, consumeDeepLink, userLocationForSearch],
+    [applySearchResults, consumeDeepLink, syncFiltersToUrl, userLocationForSearch],
   );
+
+  useEffect(() => {
+    executeSearchRef.current = executeSearch;
+  }, [executeSearch]);
+
+  useEffect(() => {
+    if (!initialLoadDone.current) return;
+
+    if (skipUrlSyncRef.current) {
+      skipUrlSyncRef.current = false;
+      return;
+    }
+
+    if (exploreFiltersEqual(urlFilters, appliedFiltersRef.current)) {
+      setFilters(urlFilters);
+      return;
+    }
+
+    setFilters(urlFilters);
+    void executeSearchRef.current(urlFilters, { syncUrl: false });
+  }, [urlFilters]);
 
   const runSearch = useCallback(async () => {
     await executeSearch({ ...filters });
@@ -354,19 +461,8 @@ export function ExploreClient() {
   const runReset = useCallback(async () => {
     geo.clearLocation();
     setFilters(EMPTY_EXPLORE_FILTERS);
-    setSearching(true);
-    setError(null);
-    setMapFocusBounds(null);
-    try {
-      await applySearchResults(await loadBuildings(EMPTY_EXPLORE_FILTERS));
-      setAppliedFilters(EMPTY_EXPLORE_FILTERS);
-      setMapFitToken((token) => token + 1);
-    } catch {
-      setError("Could not load buildings. Is the API running?");
-    } finally {
-      setSearching(false);
-    }
-  }, [applySearchResults, geo.clearLocation]);
+    await executeSearch(EMPTY_EXPLORE_FILTERS, { history: "replace" });
+  }, [executeSearch, geo]);
 
   const openAccessModal = useCallback((buildingId: string) => {
     setAccessModalBuildingId(buildingId);
