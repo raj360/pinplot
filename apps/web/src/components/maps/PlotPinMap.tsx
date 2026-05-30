@@ -15,6 +15,7 @@ import {
   EXPLORE_MAP_MIN_ZOOM,
 } from "@/lib/maps/config";
 import { PlotPinClusterRenderer } from "@/lib/maps/plotpin-cluster-renderer";
+import { MapSearchAreaButton } from "@/components/maps/MapSearchAreaButton";
 import { cn } from "@/lib/utils/cn";
 
 const MAPS_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? "";
@@ -48,6 +49,11 @@ type HoverPreview = {
   loading: boolean;
 } | null;
 
+type MapViewport = {
+  bounds: { north: number; south: number; east: number; west: number };
+  zoom: number;
+};
+
 type Props = {
   buildings: BuildingSummary[];
   selectedId?: string | null;
@@ -64,6 +70,13 @@ type Props = {
   fitBoundsToken?: number;
   /** When results are empty, zoom map to the searched area. */
   focusBounds?: { north: number; south: number; east: number; west: number } | null;
+  onViewportChange?: (viewport: MapViewport) => void;
+  onUserMapInteraction?: () => void;
+  onProgrammaticMapMove?: () => void;
+  showSearchAreaButton?: boolean;
+  mapAreaSearching?: boolean;
+  onSearchMapArea?: () => void;
+  className?: string;
 };
 
 export function PlotPinMap({
@@ -79,6 +92,13 @@ export function PlotPinMap({
   gestureHandling = "greedy",
   fitBoundsToken = 0,
   focusBounds = null,
+  onViewportChange,
+  onUserMapInteraction,
+  onProgrammaticMapMove,
+  showSearchAreaButton = false,
+  mapAreaSearching = false,
+  onSearchMapArea,
+  className,
 }: Props) {
   if (!MAPS_KEY || MAPS_KEY.startsWith("your-")) {
     return (
@@ -93,39 +113,52 @@ export function PlotPinMap({
   }
 
   return (
-    <APIProvider apiKey={MAPS_KEY} libraries={["marker"]}>
-      <GoogleMap
-        defaultCenter={KAMPALA_CENTER}
-        defaultZoom={EXPLORE_MAP_DEFAULT_ZOOM}
-        minZoom={EXPLORE_MAP_MIN_ZOOM}
-        maxZoom={EXPLORE_MAP_MAX_ZOOM}
-        mapId={MAP_ID}
-        mapTypeId="roadmap"
-        mapTypeControl={false}
-        streetViewControl={false}
-        gestureHandling={gestureHandling}
-        className="h-full w-full"
-      >
-        <ExploreMapConstraints />
-        <MapFitBounds
-          buildings={buildings}
-          unlockedLocations={unlockedLocations}
-          fitToken={fitBoundsToken}
-          focusBounds={focusBounds}
-        />
-        <ClusteredMarkers
-          buildings={buildings}
-          selectedId={selectedId}
-          hoveredId={hoveredId}
-          hoverPreview={hoverPreview}
-          unlockedBuildingIds={unlockedBuildingIds}
-          unlockedLocations={unlockedLocations}
-          onSelect={onSelect}
-          onAccessOpen={onAccessOpen}
-          onHover={onHover}
-        />
-      </GoogleMap>
-    </APIProvider>
+    <div className={cn("relative h-full w-full", className)}>
+      <APIProvider apiKey={MAPS_KEY} libraries={["marker"]}>
+        <GoogleMap
+          defaultCenter={KAMPALA_CENTER}
+          defaultZoom={EXPLORE_MAP_DEFAULT_ZOOM}
+          minZoom={EXPLORE_MAP_MIN_ZOOM}
+          maxZoom={EXPLORE_MAP_MAX_ZOOM}
+          mapId={MAP_ID}
+          mapTypeId="roadmap"
+          mapTypeControl={false}
+          streetViewControl={false}
+          gestureHandling={gestureHandling}
+          className="h-full w-full"
+        >
+          <ExploreMapConstraints />
+          <MapViewportTracker
+            onViewportChange={onViewportChange}
+            onUserMapInteraction={onUserMapInteraction}
+          />
+          <MapFitBounds
+            buildings={buildings}
+            unlockedLocations={unlockedLocations}
+            fitToken={fitBoundsToken}
+            focusBounds={focusBounds}
+            onProgrammaticMapMove={onProgrammaticMapMove}
+          />
+          <ClusteredMarkers
+            buildings={buildings}
+            selectedId={selectedId}
+            hoveredId={hoveredId}
+            hoverPreview={hoverPreview}
+            unlockedBuildingIds={unlockedBuildingIds}
+            unlockedLocations={unlockedLocations}
+            onSelect={onSelect}
+            onAccessOpen={onAccessOpen}
+            onHover={onHover}
+          />
+        </GoogleMap>
+      </APIProvider>
+      <MapSearchAreaButton
+        visible={showSearchAreaButton}
+        searching={mapAreaSearching}
+        disabled={!onSearchMapArea}
+        onSearch={() => onSearchMapArea?.()}
+      />
+    </div>
   );
 }
 
@@ -156,21 +189,82 @@ function ExploreMapConstraints() {
   return null;
 }
 
+function MapViewportTracker({
+  onViewportChange,
+  onUserMapInteraction,
+}: {
+  onViewportChange?: (viewport: MapViewport) => void;
+  onUserMapInteraction?: () => void;
+}) {
+  const map = useMap();
+  const onViewportChangeRef = useRef(onViewportChange);
+  const onUserMapInteractionRef = useRef(onUserMapInteraction);
+
+  useEffect(() => {
+    onViewportChangeRef.current = onViewportChange;
+    onUserMapInteractionRef.current = onUserMapInteraction;
+  }, [onViewportChange, onUserMapInteraction]);
+
+  useEffect(() => {
+    if (!map) return;
+
+    function emitViewport() {
+      const bounds = map!.getBounds();
+      const zoom = map!.getZoom();
+      if (!bounds || zoom == null) return;
+
+      const ne = bounds.getNorthEast();
+      const sw = bounds.getSouthWest();
+      onViewportChangeRef.current?.({
+        bounds: {
+          north: ne.lat(),
+          south: sw.lat(),
+          east: ne.lng(),
+          west: sw.lng(),
+        },
+        zoom,
+      });
+    }
+
+    const idleListener = map.addListener("idle", emitViewport);
+    const dragListener = map.addListener("dragstart", () => {
+      onUserMapInteractionRef.current?.();
+    });
+    const zoomListener = map.addListener("zoom_changed", () => {
+      onUserMapInteractionRef.current?.();
+    });
+
+    emitViewport();
+
+    return () => {
+      idleListener.remove();
+      dragListener.remove();
+      zoomListener.remove();
+    };
+  }, [map]);
+
+  return null;
+}
+
 function MapFitBounds({
   buildings,
   unlockedLocations,
   fitToken,
   focusBounds,
+  onProgrammaticMapMove,
 }: {
   buildings: BuildingSummary[];
   unlockedLocations?: ReadonlyMap<string, { lat: number; lng: number }>;
   fitToken: number;
   focusBounds?: { north: number; south: number; east: number; west: number } | null;
+  onProgrammaticMapMove?: () => void;
 }) {
   const map = useMap();
 
   useEffect(() => {
     if (!map || fitToken === 0) return;
+
+    onProgrammaticMapMove?.();
 
     function applyZoomCap() {
       google.maps.event.addListenerOnce(map!, "idle", () => {
@@ -221,7 +315,7 @@ function MapFitBounds({
 
     map.fitBounds(bounds, 56);
     applyZoomCap();
-  }, [map, buildings, unlockedLocations, fitToken, focusBounds]);
+  }, [map, buildings, unlockedLocations, fitToken, focusBounds, onProgrammaticMapMove]);
 
   return null;
 }

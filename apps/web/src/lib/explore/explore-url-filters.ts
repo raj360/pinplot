@@ -1,6 +1,8 @@
 import type { ExploreSearchFilters } from "@/components/explore/ExploreFilters";
+import type { Bounds } from "@/lib/api/buildings";
 import { BUILDING_TYPE_OPTIONS } from "@/lib/filters/building-types";
 import { RENT_RANGE_OPTIONS } from "@/lib/filters/rent-ranges";
+import { serializeMapBoundsToParams } from "@/lib/explore/map-bounds";
 
 /** Query keys for explore search (filters only — `building` / `map` are separate). */
 export const EXPLORE_URL_KEYS = {
@@ -62,6 +64,7 @@ export function exploreFiltersEqual(
 export function buildExploreSearchParams(
   filters: ExploreSearchFilters,
   preserve?: URLSearchParams,
+  mapBounds?: Bounds | null,
 ): URLSearchParams {
   const params = new URLSearchParams();
 
@@ -69,7 +72,9 @@ export function buildExploreSearchParams(
   if (buildingId) params.set("building", buildingId);
   if (preserve?.get("map") === "0") params.set("map", "0");
 
-  if (filters.city.trim()) {
+  serializeMapBoundsToParams(params, mapBounds ?? null);
+
+  if (filters.city.trim() && !mapBounds) {
     params.set(EXPLORE_URL_KEYS.area, filters.city.trim());
   }
   if (filters.priceRange) {
@@ -92,8 +97,9 @@ export function buildExploreHref(
   pathname: string,
   filters: ExploreSearchFilters,
   preserve?: URLSearchParams,
+  mapBounds?: Bounds | null,
 ): string {
-  const params = buildExploreSearchParams(filters, preserve);
+  const params = buildExploreSearchParams(filters, preserve, mapBounds);
   const qs = params.toString();
   return qs ? `${pathname}?${qs}` : pathname;
 }

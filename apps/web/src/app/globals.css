@@ -229,15 +229,15 @@ footer * {
   }
 }
 
-/* Explore mobile — map is a fixed band; list scrolls with the page (no nested trap). */
+/* Explore mobile — map band is interactive; list scrolls with the page below. */
 .explore-mobile-map {
   isolation: isolate;
-  touch-action: none;
+  touch-action: pan-x pan-y pinch-zoom;
 }
 
 .explore-mobile-map > div,
 .explore-mobile-map iframe {
-  touch-action: none;
+  touch-action: pan-x pan-y pinch-zoom;
 }
 
 .explore-results-list {

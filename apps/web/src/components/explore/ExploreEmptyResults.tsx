@@ -1,6 +1,7 @@
 "use client";
 
 import type { ExploreSearchFilters } from "@/components/explore/ExploreFilters";
+import type { Bounds } from "@/lib/api/buildings";
 import {
   buildExploreEmptySuggestions,
   type EmptyResultSuggestion,
@@ -8,17 +9,24 @@ import {
 
 type ExploreEmptyResultsProps = {
   appliedFilters: ExploreSearchFilters;
+  appliedMapBounds?: Bounds | null;
   onRemoveFilter: (key: keyof ExploreSearchFilters) => void;
+  onRemoveMapBounds?: () => void;
   onReset: () => void;
 };
 
 function handleSuggestion(
   suggestion: EmptyResultSuggestion,
   onRemoveFilter: (key: keyof ExploreSearchFilters) => void,
+  onRemoveMapBounds: (() => void) | undefined,
   onReset: () => void,
 ) {
   if (suggestion.key === "reset") {
     onReset();
+    return;
+  }
+  if (suggestion.key === "mapArea") {
+    onRemoveMapBounds?.();
     return;
   }
   onRemoveFilter(suggestion.key);
@@ -26,10 +34,15 @@ function handleSuggestion(
 
 export function ExploreEmptyResults({
   appliedFilters,
+  appliedMapBounds = null,
   onRemoveFilter,
+  onRemoveMapBounds,
   onReset,
 }: ExploreEmptyResultsProps) {
-  const suggestions = buildExploreEmptySuggestions(appliedFilters);
+  const suggestions = buildExploreEmptySuggestions(
+    appliedFilters,
+    appliedMapBounds,
+  );
   const hasActiveFilters = suggestions.length > 0;
 
   return (
@@ -49,7 +62,12 @@ export function ExploreEmptyResults({
               <button
                 type="button"
                 onClick={() =>
-                  handleSuggestion(suggestion, onRemoveFilter, onReset)
+                  handleSuggestion(
+                    suggestion,
+                    onRemoveFilter,
+                    onRemoveMapBounds,
+                    onReset,
+                  )
                 }
                 className="text-sm font-medium text-primary hover:underline"
               >

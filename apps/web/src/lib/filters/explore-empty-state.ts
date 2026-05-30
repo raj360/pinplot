@@ -1,17 +1,27 @@
 import type { ExploreSearchFilters } from "@/components/explore/ExploreFilters";
+import type { Bounds } from "@/lib/api/buildings";
 import { buildingTypeLabel } from "@/lib/filters/building-types";
 import { rentRangeShortLabel } from "@/lib/filters/rent-ranges";
 import { searchAreaLabel } from "@/lib/filters/search-areas";
+import { mapAreaChipLabel } from "@/lib/explore/map-bounds";
 
 export type EmptyResultSuggestion = {
   label: string;
-  key: keyof ExploreSearchFilters | "reset";
+  key: keyof ExploreSearchFilters | "reset" | "mapArea";
 };
 
 export function buildExploreEmptySuggestions(
   filters: ExploreSearchFilters,
+  mapBounds?: Bounds | null,
 ): EmptyResultSuggestion[] {
   const suggestions: EmptyResultSuggestion[] = [];
+
+  if (mapBounds) {
+    suggestions.push({
+      key: "mapArea",
+      label: `Clear ${mapAreaChipLabel().toLowerCase()} filter`,
+    });
+  }
 
   if (filters.priceRange) {
     const price = rentRangeShortLabel(filters.priceRange);

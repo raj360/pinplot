@@ -28,9 +28,15 @@ import {
 } from "@/lib/api/buildings";
 import { parseRentRange } from "@/lib/filters/rent-ranges";
 import {
-  getBoundsForSearch,
   getMapFocusForSearch,
 } from "@/lib/filters/search-areas";
+import {
+  boundsForExploreSearch,
+  canSearchMapViewport,
+  mapBoundsEqual,
+  mapViewportDiffersFromSearch,
+  sanitizeMapBounds,
+} from "@/lib/explore/map-bounds";
 import { DEFAULT_EXPLORE_COUNTRY } from "@/lib/geo/uganda";
 import { useExploreGeolocation } from "@/lib/hooks/use-explore-geolocation";
 import { formatRentPerMonth } from "@/lib/intl/format";
@@ -59,11 +65,14 @@ function parseMinFilter(value: string) {
   return Number.isFinite(n) && n > 0 ? n : undefined;
 }
 
-async function loadBuildings(filters: ExploreSearchFilters) {
-  const bounds = getBoundsForSearch(filters.city);
+async function loadBuildings(
+  filters: ExploreSearchFilters,
+  mapBounds?: Bounds | null,
+) {
+  const bounds = boundsForExploreSearch(filters, mapBounds);
   const { minRent, maxRent } = parseRentRange(filters.priceRange);
   return fetchBuildingsInBounds(bounds, {
-    city: filters.city || undefined,
+    city: mapBounds ? undefined : filters.city || undefined,
     bedrooms: parseMinFilter(filters.bedrooms),
     bathrooms: parseMinFilter(filters.bathrooms),
     minRent,
@@ -112,6 +121,10 @@ export function ExploreClient() {
     () => parseExploreFiltersFromSearchParams(searchParams),
     [searchParams],
   );
+  const urlMapBounds = useMemo(
+    () => sanitizeMapBounds(searchParams),
+    [searchParams],
+  );
 
   const [mapVisible, setMapVisible] = useState(true);
   const [detailMode, setDetailMode] = useState<DetailMode>(null);
@@ -130,6 +143,13 @@ export function ExploreClient() {
     useState<ExploreSearchFilters>(urlFilters);
   const [mapFitToken, setMapFitToken] = useState(0);
   const [mapFocusBounds, setMapFocusBounds] = useState<Bounds | null>(null);
+  const [appliedMapBounds, setAppliedMapBounds] = useState<Bounds | null>(urlMapBounds);
+  const [appliedSearchBounds, setAppliedSearchBounds] = useState<Bounds>(
+    boundsForExploreSearch(urlFilters, urlMapBounds),
+  );
+  const [viewportBounds, setViewportBounds] = useState<Bounds | null>(null);
+  const [mapZoom, setMapZoom] = useState<number | null>(null);
+  const [userMovedMap, setUserMovedMap] = useState(false);
   const listRef = useRef<HTMLUListElement>(null);
   const { isAuthenticated } = useAuth();
   const [unlockedLocations, setUnlockedLocations] = useState<
@@ -143,11 +163,21 @@ export function ExploreClient() {
   const initialLoadDone = useRef(false);
   const skipUrlSyncRef = useRef(false);
   const initialUrlFiltersRef = useRef(urlFilters);
+  const initialUrlMapBoundsRef = useRef(urlMapBounds);
   const appliedFiltersRef = useRef(appliedFilters);
+  const appliedMapBoundsRef = useRef(appliedMapBounds);
+  const appliedSearchBoundsRef = useRef(appliedSearchBounds);
+  const viewportBoundsRef = useRef<Bounds | null>(null);
+  const mapZoomRef = useRef<number | null>(null);
+  const suppressMapInteractionUntilRef = useRef(0);
   const executeSearchRef = useRef<
     (
       next: ExploreSearchFilters,
-      options?: { syncUrl?: boolean; history?: "push" | "replace" },
+      options?: {
+        syncUrl?: boolean;
+        history?: "push" | "replace";
+        mapBounds?: Bounds | null;
+      },
     ) => Promise<void>
   >(() => Promise.resolve());
   const searchGenerationRef = useRef(0);
@@ -181,6 +211,14 @@ export function ExploreClient() {
   useEffect(() => {
     appliedFiltersRef.current = appliedFilters;
   }, [appliedFilters]);
+
+  useEffect(() => {
+    appliedMapBoundsRef.current = appliedMapBounds;
+  }, [appliedMapBounds]);
+
+  useEffect(() => {
+    appliedSearchBoundsRef.current = appliedSearchBounds;
+  }, [appliedSearchBounds]);
 
   const emptyUnlockLocations = useMemo(
     () => new Map<string, { lat: number; lng: number }>(),
@@ -256,14 +294,17 @@ export function ExploreClient() {
     }
   }, [isAuthenticated]);
 
-  const refreshBuildings = useCallback(async (searchFilters: ExploreSearchFilters) => {
-    const data = await loadBuildings(searchFilters);
-    setAllBuildings(data);
-    setSelectedId((prev) => {
-      if (prev && data.some((b) => b.id === prev)) return prev;
-      return data[0]?.id ?? null;
-    });
-  }, []);
+  const refreshBuildings = useCallback(
+    async (searchFilters: ExploreSearchFilters, mapBounds?: Bounds | null) => {
+      const data = await loadBuildings(searchFilters, mapBounds);
+      setAllBuildings(data);
+      setSelectedId((prev) => {
+        if (prev && data.some((b) => b.id === prev)) return prev;
+        return data[0]?.id ?? null;
+      });
+    },
+    [],
+  );
 
   const consumeDeepLink = useCallback(
     (buildings: BuildingSummary[]) => {
@@ -295,7 +336,7 @@ export function ExploreClient() {
 
   const handleUnlockSuccess = useCallback(async () => {
     await refreshUnlockState();
-    await refreshBuildings(appliedFilters);
+    await refreshBuildings(appliedFilters, appliedMapBounds);
     if (selectedId) {
       clearBuildingCache(selectedId);
       setSelectedLoading(true);
@@ -329,9 +370,13 @@ export function ExploreClient() {
         if (unlocks.length === 0) return;
 
         const filtersSnapshot = appliedFiltersRef.current;
-        return loadBuildings(filtersSnapshot).then((data) => {
+        const mapBoundsSnapshot = appliedMapBoundsRef.current;
+        return loadBuildings(filtersSnapshot, mapBoundsSnapshot).then((data) => {
           if (cancelled) return;
-          if (!exploreFiltersEqual(filtersSnapshot, appliedFiltersRef.current)) {
+          if (
+            !exploreFiltersEqual(filtersSnapshot, appliedFiltersRef.current) ||
+            !mapBoundsEqual(mapBoundsSnapshot, appliedMapBoundsRef.current)
+          ) {
             return;
           }
           setAllBuildings(data);
@@ -359,13 +404,22 @@ export function ExploreClient() {
 
     let cancelled = false;
     const initialFilters = initialUrlFiltersRef.current;
+    const initialMapBounds = initialUrlMapBoundsRef.current;
+    const initialSearchBounds = boundsForExploreSearch(
+      initialFilters,
+      initialMapBounds,
+    );
 
-    loadBuildings(initialFilters)
+    loadBuildings(initialFilters, initialMapBounds)
       .then(async (data) => {
         if (cancelled) return;
         await applySearchResultsRef.current(data);
         if (cancelled) return;
         consumeDeepLinkRef.current(data);
+        setAppliedSearchBounds(initialSearchBounds);
+        appliedSearchBoundsRef.current = initialSearchBounds;
+        setAppliedMapBounds(initialMapBounds);
+        appliedMapBoundsRef.current = initialMapBounds;
         setMapFitToken((token) => token + 1);
       })
       .catch(() => {
@@ -385,14 +439,18 @@ export function ExploreClient() {
     };
   }, []);
 
-  const syncFiltersToUrl = useCallback(
-    (next: ExploreSearchFilters, history: "push" | "replace") => {
+  const syncSearchToUrl = useCallback(
+    (
+      next: ExploreSearchFilters,
+      mapBounds: Bounds | null,
+      history: "push" | "replace",
+    ) => {
       skipUrlSyncRef.current = true;
       const preserve = new URLSearchParams();
       const buildingId = searchParams.get("building");
       if (buildingId) preserve.set("building", buildingId);
       if (searchParams.get("map") === "0") preserve.set("map", "0");
-      const href = buildExploreHref(pathname, next, preserve);
+      const href = buildExploreHref(pathname, next, preserve, mapBounds);
       if (history === "push") {
         router.push(href, { scroll: false });
       } else {
@@ -405,32 +463,54 @@ export function ExploreClient() {
   const executeSearch = useCallback(
     async (
       next: ExploreSearchFilters,
-      options?: { syncUrl?: boolean; history?: "push" | "replace" },
+      options?: {
+        syncUrl?: boolean;
+        history?: "push" | "replace";
+        mapBounds?: Bounds | null;
+      },
     ) => {
       const syncUrl = options?.syncUrl ?? true;
       const history = options?.history ?? "push";
+      const mapBounds =
+        options?.mapBounds !== undefined
+          ? options.mapBounds
+          : appliedMapBoundsRef.current;
+      const useMapBounds = mapBounds != null;
 
       if (syncUrl) {
         skipUrlSyncRef.current = true;
       }
 
       const generation = ++searchGenerationRef.current;
+      const searchBounds = boundsForExploreSearch(next, mapBounds);
 
       setSearching(true);
       setError(null);
       try {
-        const focus = getMapFocusForSearch(next.city, userLocationForSearch);
-        setMapFocusBounds(focus?.bounds ?? null);
-        const data = await loadBuildings(next);
+        const focus = useMapBounds
+          ? mapBounds
+          : getMapFocusForSearch(next.city, userLocationForSearch)?.bounds ?? null;
+        setMapFocusBounds(focus);
+        const data = await loadBuildings(next, mapBounds);
         if (generation !== searchGenerationRef.current) return;
         await applySearchResults(data);
         if (generation !== searchGenerationRef.current) return;
+
         setAppliedFilters(next);
         appliedFiltersRef.current = next;
+        setAppliedMapBounds(useMapBounds ? mapBounds : null);
+        appliedMapBoundsRef.current = useMapBounds ? mapBounds : null;
+        setAppliedSearchBounds(searchBounds);
+        appliedSearchBoundsRef.current = searchBounds;
+        setUserMovedMap(false);
         consumeDeepLink(data);
-        setMapFitToken((token) => token + 1);
+
+        if (!useMapBounds) {
+          setMapFitToken((token) => token + 1);
+        }
+
         if (syncUrl) {
-          syncFiltersToUrl(next, history);
+          syncSearchToUrl(next, useMapBounds ? mapBounds : null, history);
         }
       } catch {
         if (generation !== searchGenerationRef.current) return;
@@ -444,7 +524,7 @@ export function ExploreClient() {
         }
       }
     },
-    [applySearchResults, consumeDeepLink, syncFiltersToUrl, userLocationForSearch],
+    [applySearchResults, consumeDeepLink, syncSearchToUrl, userLocationForSearch],
   );
 
   useEffect(() => {
@@ -459,24 +539,46 @@ export function ExploreClient() {
       return;
     }
 
-    if (exploreFiltersEqual(urlFilters, appliedFiltersRef.current)) {
+    if (
+      exploreFiltersEqual(urlFilters, appliedFiltersRef.current) &&
+      mapBoundsEqual(urlMapBounds, appliedMapBoundsRef.current)
+    ) {
       setFilters(urlFilters);
       return;
     }
 
     setFilters(urlFilters);
-    void executeSearchRef.current(urlFilters, { syncUrl: false });
-  }, [urlFilters]);
+    void executeSearchRef.current(urlFilters, {
+      syncUrl: false,
+      mapBounds: urlMapBounds,
+    });
+  }, [urlFilters, urlMapBounds]);
 
   const runSearch = useCallback(async () => {
-    await executeSearch({ ...filters });
+    await executeSearch({ ...filters }, { mapBounds: null });
   }, [executeSearch, filters]);
+
+  const runSearchMapArea = useCallback(async () => {
+    const bounds = viewportBoundsRef.current;
+    const zoom = mapZoomRef.current;
+    if (!bounds || !canSearchMapViewport(zoom)) return;
+
+    const next = { ...filtersRef.current, city: "" };
+    setFilters(next);
+    await executeSearch(next, { mapBounds: bounds });
+  }, [executeSearch]);
+
+  const removeMapBounds = useCallback(async () => {
+    const next = { ...appliedFilters };
+    setFilters(next);
+    await executeSearch(next, { mapBounds: null });
+  }, [appliedFilters, executeSearch]);
 
   const removeAppliedFilter = useCallback(
     async (key: keyof ExploreSearchFilters) => {
       const next = { ...appliedFilters, [key]: "" };
       setFilters(next);
-      await executeSearch(next);
+      await executeSearch(next, { mapBounds: appliedMapBoundsRef.current });
     },
     [appliedFilters, executeSearch],
   );
@@ -484,7 +586,11 @@ export function ExploreClient() {
   const runReset = useCallback(async () => {
     geo.clearLocation();
     setFilters(EMPTY_EXPLORE_FILTERS);
-    await executeSearch(EMPTY_EXPLORE_FILTERS, { history: "replace" });
+    setUserMovedMap(false);
+    await executeSearch(EMPTY_EXPLORE_FILTERS, {
+      history: "replace",
+      mapBounds: null,
+    });
   }, [executeSearch, geo]);
 
   const handleFiltersChange = useCallback(
@@ -494,7 +600,9 @@ export function ExploreClient() {
 
       window.clearTimeout(liveSearchTimerRef.current);
       liveSearchTimerRef.current = window.setTimeout(() => {
-        void executeSearchRef.current(next);
+        void executeSearchRef.current(next, {
+          mapBounds: appliedMapBoundsRef.current,
+        });
       }, LIVE_SEARCH_DEBOUNCE_MS);
     },
     [liveSearchEnabled],
@@ -511,7 +619,10 @@ export function ExploreClient() {
 
       if (enabled) {
         window.clearTimeout(liveSearchTimerRef.current);
-        void executeSearch({ ...filtersRef.current });
+        void executeSearch(
+          { ...filtersRef.current },
+          { mapBounds: appliedMapBoundsRef.current },
+        );
       }
     },
     [executeSearch],
@@ -610,6 +721,47 @@ export function ExploreClient() {
 
   const listLoading = loading || searching;
 
+  const handleViewportChange = useCallback(
+    (viewport: { bounds: Bounds; zoom: number }) => {
+      viewportBoundsRef.current = viewport.bounds;
+      mapZoomRef.current = viewport.zoom;
+      setViewportBounds(viewport.bounds);
+      setMapZoom(viewport.zoom);
+    },
+    [],
+  );
+
+  const handleUserMapInteraction = useCallback(() => {
+    if (Date.now() < suppressMapInteractionUntilRef.current) return;
+    setUserMovedMap(true);
+  }, []);
+
+  const handleProgrammaticMapMove = useCallback(() => {
+    suppressMapInteractionUntilRef.current = Date.now() + 900;
+    setUserMovedMap(false);
+  }, []);
+
+  const showSearchAreaButton = useMemo(
+    () =>
+      !isMobile &&
+      mapVisible &&
+      !loading &&
+      !searching &&
+      userMovedMap &&
+      canSearchMapViewport(mapZoom) &&
+      mapViewportDiffersFromSearch(viewportBounds, appliedSearchBounds),
+    [
+      appliedSearchBounds,
+      isMobile,
+      loading,
+      mapVisible,
+      mapZoom,
+      searching,
+      userMovedMap,
+      viewportBounds,
+    ],
+  );
+
   const mapProps = {
     buildings: allBuildings,
     selectedId,
@@ -618,10 +770,16 @@ export function ExploreClient() {
     unlockedBuildingIds,
     unlockedLocations: visibleUnlockLocations,
     onSelect: handleMapSelect,
-    onHover: setHover,
-    gestureHandling: isMobile ? ("none" as const) : ("greedy" as const),
+    onHover: isMobile ? undefined : setHover,
+    gestureHandling: "greedy" as const,
     fitBoundsToken: mapFitToken,
     focusBounds: mapFocusBounds,
+    onViewportChange: handleViewportChange,
+    onUserMapInteraction: handleUserMapInteraction,
+    onProgrammaticMapMove: handleProgrammaticMapMove,
+    showSearchAreaButton,
+    mapAreaSearching: searching,
+    onSearchMapArea: () => void runSearchMapArea(),
   };
 
   const showMobileSheet = Boolean(selectedId) && isMobile && detailMode !== null;
@@ -639,10 +797,12 @@ export function ExploreClient() {
           <ExploreFilters
             filters={filters}
             appliedFilters={appliedFilters}
+            appliedMapBounds={appliedMapBounds}
             onChange={handleFiltersChange}
             onSearch={() => void runSearch()}
             onReset={() => void runReset()}
             onRemoveAppliedFilter={(key) => void removeAppliedFilter(key)}
+            onRemoveMapBounds={() => void removeMapBounds()}
             searching={searching}
             filterLoading={searching && !loading}
             liveSearch={liveSearchEnabled}
@@ -803,7 +963,9 @@ export function ExploreClient() {
                 <li>
                   <ExploreEmptyResults
                     appliedFilters={appliedFilters}
+                    appliedMapBounds={appliedMapBounds}
                     onRemoveFilter={(key) => void removeAppliedFilter(key)}
+                    onRemoveMapBounds={() => void removeMapBounds()}
                     onReset={() => void runReset()}
                   />
                 </li>

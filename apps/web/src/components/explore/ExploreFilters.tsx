@@ -8,6 +8,8 @@ import { Spinner } from "@/components/ui/spinner";
 import { BUILDING_TYPE_OPTIONS } from "@/lib/filters/building-types";
 import { buildExploreFilterChips } from "@/lib/filters/explore-filter-chips";
 import { RENT_RANGE_OPTIONS } from "@/lib/filters/rent-ranges";
+import type { Bounds } from "@/lib/api/buildings";
+import type { ExploreFilterChipKey } from "@/lib/filters/explore-filter-chips";
 import type { GeoPoint } from "@/lib/geo/uganda";
 import { cn } from "@/lib/utils/cn";
 
@@ -46,10 +48,12 @@ const BATHROOM_OPTIONS = [
 type ExploreFiltersProps = {
   filters: ExploreSearchFilters;
   appliedFilters: ExploreSearchFilters;
+  appliedMapBounds?: Bounds | null;
   onChange: (filters: ExploreSearchFilters) => void;
   onSearch: () => void;
   onReset: () => void;
   onRemoveAppliedFilter: (key: keyof ExploreSearchFilters) => void;
+  onRemoveMapBounds?: () => void;
   searching: boolean;
   /** True while refetching results — dims filter controls without full-page overlay. */
   filterLoading?: boolean;
@@ -68,10 +72,12 @@ type ExploreFiltersProps = {
 export function ExploreFilters({
   filters,
   appliedFilters,
+  appliedMapBounds = null,
   onChange,
   onSearch,
   onReset,
   onRemoveAppliedFilter,
+  onRemoveMapBounds,
   searching,
   filterLoading = false,
   liveSearch = false,
@@ -95,6 +101,7 @@ export function ExploreFilters({
   }
 
   const activeCount = [
+    appliedMapBounds ? "map" : "",
     appliedFilters.city,
     appliedFilters.priceRange,
     appliedFilters.bedrooms,
@@ -103,9 +110,17 @@ export function ExploreFilters({
   ].filter(Boolean).length;
 
   const appliedChips = useMemo(
-    () => buildExploreFilterChips(appliedFilters),
-    [appliedFilters],
+    () => buildExploreFilterChips(appliedFilters, appliedMapBounds),
+    [appliedFilters, appliedMapBounds],
   );
+
+  function handleRemoveChip(key: ExploreFilterChipKey) {
+    if (key === "mapArea") {
+      onRemoveMapBounds?.();
+      return;
+    }
+    onRemoveAppliedFilter(key);
+  }
 
   const rentOptions = useMemo(
     () =>
@@ -198,7 +213,7 @@ export function ExploreFilters({
 
       <ExploreActiveFilterChips
         chips={appliedChips}
-        onRemove={onRemoveAppliedFilter}
+        onRemove={handleRemoveChip}
         disabled={searching}
         className="mt-2.5"
       />
