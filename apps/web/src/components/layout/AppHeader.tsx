@@ -16,6 +16,7 @@ import {
   type HeaderVariant,
 } from "@/lib/layout/shell";
 import { UserMenu } from "@/components/layout/UserMenu";
+import { HeaderNavSkeleton } from "@/components/layout/HeaderNavSkeleton";
 
 type AppHeaderProps = {
   /** standard = max-w-5xl, wide = explore map, sidebar = admin grid */
@@ -32,7 +33,8 @@ export function AppHeader({
   backLabel,
 }: AppHeaderProps) {
   const router = useRouter();
-  const { user, profile, loading, signOut, isAuthenticated } = useAuth();
+  const { user, profile, loading, profileLoading, signOut, isAuthenticated } =
+    useAuth();
 
   const initials = getUserInitials(user?.email, profile);
   const displayName = getUserDisplayLabel(user?.email, profile);
@@ -40,6 +42,8 @@ export function AppHeader({
     profile?.role === "ADMIN" || profile?.role === "SUPERADMIN";
   const showLandlord =
     profile?.role === "LANDLORD" || isAdmin;
+  const navPending =
+    loading || (isAuthenticated && profileLoading && profile === null);
 
   async function handleSignOut() {
     await signOut();
@@ -61,12 +65,17 @@ export function AppHeader({
   );
 
   const nav = (
-    <nav className="flex shrink-0 items-center gap-3 text-sm">
+    <nav
+      className="flex shrink-0 items-center gap-3 text-sm"
+      aria-busy={navPending}
+    >
       <Link href="/explore" className="hover:underline">
         Explore
       </Link>
 
-      {loading ? null : isAuthenticated ? (
+      {navPending ? (
+        <HeaderNavSkeleton showNavLink={variant !== "sidebar"} />
+      ) : isAuthenticated ? (
         <>
           {variant !== "sidebar" && showLandlord ? (
             <Link href="/landlord/dashboard" className="hidden hover:underline sm:inline">
@@ -84,14 +93,14 @@ export function AppHeader({
             onSignOut={handleSignOut}
           />
         </>
-      ) : !loading ? (
+      ) : (
         <Link
           href="/auth/login"
           className="border border-primary-foreground/30 bg-primary-foreground/10 px-2.5 py-1 text-sm"
         >
           Sign in
         </Link>
-      ) : null}
+      )}
     </nav>
   );
 

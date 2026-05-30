@@ -1,17 +1,38 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import type { User } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/client";
 import { fetchMyProfile, type UserProfile } from "@/lib/api/profiles";
 
-export function useAuth() {
+type AuthContextValue = {
+  user: User | null;
+  profile: UserProfile | null;
+  /** Session bootstrap only — never blocked on profile/API fetch. */
+  loading: boolean;
+  /** True while /profiles/me is in flight for the signed-in user. */
+  profileLoading: boolean;
+  signOut: () => Promise<void>;
+  refreshProfile: () => Promise<void>;
+  isAuthenticated: boolean;
+};
+
+const AuthContext = createContext<AuthContextValue | null>(null);
+
+export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
-  /** Session bootstrap only — never blocked on profile/API fetch. */
   const [loading, setLoading] = useState(true);
-  /** True while /profiles/me is in flight for the signed-in user. */
   const [profileLoading, setProfileLoading] = useState(false);
+  const lastAppliedUserIdRef = useRef<string | null | undefined>(undefined);
 
   const loadProfile = useCallback(async () => {
     setProfileLoading(true);
@@ -29,6 +50,15 @@ export function useAuth() {
     let cancelled = false;
 
     function applySession(sessionUser: User | null) {
+      const nextId = sessionUser?.id ?? null;
+      if (
+        lastAppliedUserIdRef.current !== undefined &&
+        lastAppliedUserIdRef.current === nextId
+      ) {
+        return;
+      }
+      lastAppliedUserIdRef.current = nextId;
+
       setUser(sessionUser);
       setLoading(false);
 
@@ -69,13 +99,14 @@ export function useAuth() {
   const signOut = useCallback(async () => {
     const supabase = createClient();
     await supabase.auth.signOut();
+    lastAppliedUserIdRef.current = null;
     setUser(null);
     setProfile(null);
     setProfileLoading(false);
     setLoading(false);
   }, []);
 
-  return {
+  const value: AuthContextValue = {
     user,
     profile,
     loading,
@@ -84,4 +115,14 @@ export function useAuth() {
     refreshProfile: loadProfile,
     isAuthenticated: Boolean(user),
   };
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+}
+
+export function useAuth(): AuthContextValue {
+  const context = useContext(AuthContext);
+  if (!context) {
+    throw new Error("useAuth must be used within AuthProvider");
+  }
+  return context;
 }
