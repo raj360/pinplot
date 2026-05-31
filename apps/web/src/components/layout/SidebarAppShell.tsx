@@ -26,18 +26,18 @@ export function SidebarAppShell({
   sidebarFooter,
 }: SidebarAppShellProps) {
   return (
-    <div className="flex min-h-screen flex-col bg-background">
+    <div className="flex h-dvh flex-col overflow-hidden bg-background">
       <AppHeader variant="sidebar" />
 
-      <div className="border-b border-border bg-surface px-4 md:hidden">
+      <div className="shrink-0 border-b border-border bg-surface px-4 md:hidden">
         <SidebarNav items={navItems} variant="tabs" />
       </div>
 
-      <div className="flex flex-1 flex-col md:flex-row">
+      <div className="flex min-h-0 flex-1 flex-col md:flex-row">
         <aside
           className={cn(
             sidebarColumnClass(
-              "hidden flex-col border-r border-border bg-surface py-6 md:flex",
+              "hidden shrink-0 flex-col border-r border-border bg-surface py-6 md:flex",
             ),
           )}
         >
@@ -50,9 +50,14 @@ export function SidebarAppShell({
           ) : null}
         </aside>
 
-        <div className={pageMainBesideSidebarClass("bg-panel py-5 md:py-8")}>
+        <main
+          className={cn(
+            pageMainBesideSidebarClass("bg-panel py-5 md:py-8"),
+            "min-h-0 flex-1 overflow-y-auto overscroll-contain",
+          )}
+        >
           {children}
-        </div>
+        </main>
       </div>
     </div>
   );

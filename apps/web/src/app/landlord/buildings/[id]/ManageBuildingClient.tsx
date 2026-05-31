@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { DashboardSection } from "@/components/layout/DashboardSection";
+import { ManageBuildingSkeleton } from "@/components/landlord/LandlordPageSkeletons";
 import { Button } from "@/components/ui/button";
 import {
   fetchMyBuilding,
@@ -37,6 +38,7 @@ export default function ManageBuildingClient({
 }) {
   const router = useRouter();
   const [building, setBuilding] = useState<LandlordBuildingDetail | null>(null);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [pendingUnitId, setPendingUnitId] = useState<string | null>(null);
   const [listingQuote, setListingQuote] = useState<PriceQuote | null>(null);
@@ -47,17 +49,28 @@ export default function ManageBuildingClient({
       setError(null);
     } catch {
       setError("Could not load this building.");
+    } finally {
+      setLoading(false);
     }
   }, [buildingId]);
 
   useEffect(() => {
+    let cancelled = false;
+
     getAccessToken().then(async (token) => {
+      if (cancelled) return;
+
       if (!token) {
         router.replace(`/auth/login?next=/landlord/buildings/${buildingId}`);
         return;
       }
+
       await load();
     });
+
+    return () => {
+      cancelled = true;
+    };
   }, [buildingId, load, router]);
 
   async function setStatus(
@@ -92,8 +105,8 @@ export default function ManageBuildingClient({
     }
   }
 
-  if (!building && !error) {
-    return <p className="text-sm text-muted">Loading…</p>;
+  if (loading) {
+    return <ManageBuildingSkeleton />;
   }
 
   if (!building) {
