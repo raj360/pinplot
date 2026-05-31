@@ -5,11 +5,11 @@
 **Goal:** Give landlords real tools to manage listings **before** payment rails are wired. Design a flexible pricing model (property type, bedrooms, credits/coupons) so tenants can stay hooked while revenue mechanics mature.
 
 **Why payments are deferred:** Stripe, Flutterwave, and **USSD** each need merchant setup, webhooks, and compliance. Sprint 5 will unify checkout once pricing rules and landlord workflows exist.
-****
+
 **Prerequisites:**
 
 ```bash
-yarn db:migrate   # through 011 (explore performance indexes)
+yarn db:migrate   # through 012 (pricing_rules)
 ```
 
 Keep `ALLOW_DEV_UNLOCK=1` in dev/staging for tenant unlocks until Sprint 5.
@@ -36,12 +36,12 @@ Flat **20k unlock / 30k listing** was the MVP. Market feedback suggests **variab
 
 | ID    | Task                               | Status  | Notes                                                                                                                                         |
 | ----- | ---------------------------------- | ------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
-| S4-01 | **Pricing rules schema**           | Pending | Migration: `pricing_rules` (country, building_type, bedrooms_min/max, unlock_fee, listing_fee) + seed UG defaults mirroring current flat fees |
-| S4-02 | **Quote API**                      | Pending | `GET /pricing/quote?buildingType&bedrooms&purpose=UNLOCK\|LISTING` — used by unlock panel + landlord dashboard                                |
+| S4-01 | **Pricing rules schema**           | Done    | Migration `012_pricing_rules` — tiered by building_type + bedrooms; UG seed                                                                   |
+| S4-02 | **Quote API**                      | Done    | `GET /pricing/quote?buildingType&bedrooms&purpose=UNLOCK\|LISTING`                                                                            |
 | S4-03 | **Wallet / credits foundation**    | Pending | `account_credits` or ledger table; types: WELCOME_BONUS, ADMIN_GRANT, COUPON; no payment provider yet                                         |
 | S4-04 | **Coupon codes (admin)**           | Pending | Admin creates codes; tenant redeem → credit; unlock/listing consumes credit first in dev flow                                                 |
-| S4-05 | **Landlord unit status toggle UI** | Pending | Dashboard per building: mark unit AVAILABLE / UNAVAILABLE / RENTED; replaces “payments in Sprint 3” copy                                      |
-| S4-06 | **Landlord unit status API**       | Pending | `PATCH /buildings/:id/units/:unitId/status` with landlord auth; optional “listing fee quoted” banner (no charge yet)                          |
+| S4-05 | **Landlord unit status toggle UI** | Done    | `/landlord/buildings/[id]` — mark AVAILABLE / UNAVAILABLE / RENTED; dashboard links                                                           |
+| S4-06 | **Landlord unit status API**       | Done    | `PATCH /buildings/:id/units/:unitId/status`, `GET /buildings/mine/:id`; listing fee quote on AVAILABLE (no charge yet)                      |
 | S4-07 | **Dynamic fee in unlock UX**       | Pending | Replace hardcoded `PRICING.tenantUnlockFeeUgx` with quote API; show breakdown (type + beds)                                                   |
 | S4-08 | **Welcome bonus (tenant hook)**    | Pending | On first profile sync: grant 1× unlock credit or partial discount; visible in unlock CTA                                                      |
 | S4-09 | **Landlord multi-photo upload UI** | Pending | API ready via `unit_images`; cover + gallery on create/edit                                                                                   |

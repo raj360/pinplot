@@ -1,4 +1,4 @@
-import type { BuildingSummary } from "@plotpin/shared-types";
+import type { BuildingSummary, PriceQuote } from "@plotpin/shared-types";
 import { apiFetch, getAccessToken } from "./client";
 
 const API_URL =
@@ -128,6 +128,51 @@ export type CreateBuildingPayload = {
 
 export async function fetchMyBuildings() {
   return apiFetch<LandlordBuilding[]>("/buildings/mine/list");
+}
+
+export type LandlordBuildingDetail = {
+  id: string;
+  name: string;
+  description?: string;
+  city: string;
+  district: string | null;
+  countryCode: string;
+  buildingType: string;
+  totalUnits: number;
+  isVerified: boolean;
+  availableUnitCount: number;
+  units: Array<{
+    id: string;
+    unitNumber: string;
+    bedrooms: number;
+    bathrooms: number;
+    rentAmount: number;
+    currency: string;
+    status: string;
+  }>;
+};
+
+export async function fetchMyBuilding(id: string) {
+  return apiFetch<LandlordBuildingDetail>(`/buildings/mine/${id}`);
+}
+
+export type UpdateUnitStatusResult = {
+  unit: LandlordBuildingDetail["units"][number];
+  listingQuote?: PriceQuote;
+};
+
+export async function updateUnitStatus(
+  buildingId: string,
+  unitId: string,
+  status: "AVAILABLE" | "UNAVAILABLE" | "RENTED",
+) {
+  return apiFetch<UpdateUnitStatusResult>(
+    `/buildings/${buildingId}/units/${unitId}/status`,
+    {
+      method: "PATCH",
+      body: JSON.stringify({ status }),
+    },
+  );
 }
 
 export async function createBuilding(payload: CreateBuildingPayload) {

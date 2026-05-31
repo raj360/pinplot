@@ -13,6 +13,19 @@ export const PRICING = {
   unlockExclusiveHours: 72,
 } as const;
 
+export type PriceQuote = {
+  purpose: PaymentPurpose;
+  amountUgx: number;
+  unlockFeeUgx: number;
+  listingFeeUgx: number;
+  currency: string;
+  countryCode: string;
+  buildingType: BuildingType | null;
+  bedrooms: number;
+  label?: string;
+  note?: string;
+};
+
 export enum UserRole {
   SUPERADMIN = "SUPERADMIN",
   ADMIN = "ADMIN",

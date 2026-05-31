@@ -1,5 +1,6 @@
 import { Module } from "@nestjs/common";
 import { AuthModule } from "../auth/auth.module";
+import { PricingModule } from "../pricing/pricing.module";
 import {
   AdminBuildingsController,
   BuildingsController,
@@ -8,7 +9,7 @@ import { BuildingsService } from "./buildings.service";
 import { ExploreSearchCacheService } from "./explore-search-cache.service";
 
 @Module({
-  imports: [AuthModule],
+  imports: [AuthModule, PricingModule],
   controllers: [BuildingsController, AdminBuildingsController],
   providers: [BuildingsService, ExploreSearchCacheService],
 })

@@ -9,8 +9,6 @@ import {
 } from "@/components/layout/DashboardSection";
 import { fetchMyBuildings, type LandlordBuilding } from "@/lib/api/buildings";
 import { getAccessToken } from "@/lib/api/client";
-import { PRICING } from "@plotpin/shared-types";
-import { formatCurrency } from "@/lib/intl/format";
 
 export default function LandlordDashboardClient() {
   const router = useRouter();
@@ -44,7 +42,7 @@ export default function LandlordDashboardClient() {
 
       <DashboardSection
         title="Your buildings"
-        description={`Mark units available — ${formatCurrency(PRICING.landlordListingFeeUgx)} per change (payments in Sprint 3).`}
+        description="Manage units and mark them available when ready. Listing fees are quoted per unit — payment collection starts in a future update."
         action={
           <Link
             href="/landlord/new"
@@ -94,6 +92,12 @@ export default function LandlordDashboardClient() {
               >
                 {b.isVerified ? "Live on map" : "Pending verification"}
               </span>
+              <Link
+                href={`/landlord/buildings/${b.id}`}
+                className="inline-flex shrink-0 border border-border bg-surface px-3 py-1.5 text-xs font-medium text-foreground hover:bg-background"
+              >
+                Manage units
+              </Link>
             </li>
           ))}
           {buildings.length === 0 && !error && (

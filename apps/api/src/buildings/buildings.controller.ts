@@ -17,6 +17,7 @@ import {
   RegisterImageDto,
   VerifyBuildingDto,
 } from "./dto/building.dto";
+import { UpdateUnitStatusDto } from "./dto/unit-status.dto";
 import { SupabaseAuthGuard } from "../auth/supabase-auth.guard";
 import { OptionalSupabaseAuthGuard } from "../auth/optional-supabase-auth.guard";
 import { RolesGuard } from "../auth/roles.guard";
@@ -42,6 +43,23 @@ export class BuildingsController {
   @UseGuards(SupabaseAuthGuard)
   findMine(@CurrentUser() user: AuthUser) {
     return this.buildings.findByLandlord(user.id);
+  }
+
+  @Get("mine/:id")
+  @UseGuards(SupabaseAuthGuard)
+  findMineOne(@Param("id") id: string, @CurrentUser() user: AuthUser) {
+    return this.buildings.findMineById(id, user.id);
+  }
+
+  @Patch(":id/units/:unitId/status")
+  @UseGuards(SupabaseAuthGuard)
+  updateUnitStatus(
+    @Param("id") id: string,
+    @Param("unitId") unitId: string,
+    @CurrentUser() user: AuthUser,
+    @Body() dto: UpdateUnitStatusDto,
+  ) {
+    return this.buildings.updateUnitStatus(id, unitId, user.id, dto.status);
   }
 
   @Get(":id")

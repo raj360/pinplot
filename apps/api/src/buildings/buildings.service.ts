@@ -1,4 +1,6 @@
 import {
+  BadRequestException,
+  ConflictException,
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
@@ -13,9 +15,11 @@ import {
   CreateUnitDto,
   RegisterImageDto,
 } from "./dto/building.dto";
-import type { BuildingSummary } from "@plotpin/shared-types";
+import type { BuildingSummary, BuildingType, UnitStatus } from "@plotpin/shared-types";
+import { PaymentPurpose } from "@plotpin/shared-types";
 import { EXPLORE_BOUNDS_SQL } from "./explore-query";
 import { ExploreSearchCacheService } from "./explore-search-cache.service";
+import { PricingService } from "../pricing/pricing.service";
 
 type BuildingRow = {
   id: string;
@@ -41,6 +45,7 @@ export class BuildingsService {
   constructor(
     private readonly db: DatabaseService,
     private readonly exploreCache: ExploreSearchCacheService,
+    private readonly pricing: PricingService,
   ) {}
 
   async findInBounds(query: BuildingBoundsQueryDto, tenantId?: string) {
@@ -275,6 +280,114 @@ export class BuildingsService {
       availableUnitCount: Number(b.available_unit_count ?? 0),
       createdAt: b.created_at,
     }));
+  }
+
+  async findMineById(buildingId: string, landlordId: string) {
+    await this.assertLandlord(buildingId, landlordId);
+
+    const { rows } = await this.db.query(
+      `SELECT b.*,
+        COUNT(u.id) FILTER (WHERE u.status = 'AVAILABLE') AS available_unit_count
+       FROM buildings b
+       LEFT JOIN units u ON u.building_id = b.id
+       WHERE b.id = $1
+       GROUP BY b.id`,
+      [buildingId],
+    );
+
+    if (!rows[0]) throw new NotFoundException("Building not found");
+
+    const building = rows[0] as Record<string, unknown>;
+    const units = await this.fetchUnits(buildingId);
+
+    return {
+      id: building.id,
+      name: building.name,
+      description: building.description,
+      city: building.city,
+      district: building.district,
+      countryCode: building.country_code,
+      buildingType: building.building_type,
+      totalUnits: building.total_units,
+      isVerified: building.is_verified,
+      availableUnitCount: Number(building.available_unit_count ?? 0),
+      units,
+    };
+  }
+
+  async updateUnitStatus(
+    buildingId: string,
+    unitId: string,
+    landlordId: string,
+    status: UnitStatus,
+  ) {
+    await this.assertLandlord(buildingId, landlordId);
+
+    const { rows: buildingRows } = await this.db.query<{
+      is_verified: boolean;
+      building_type: string;
+      country_code: string;
+    }>(
+      "SELECT is_verified, building_type, country_code FROM buildings WHERE id = $1",
+      [buildingId],
+    );
+    const building = buildingRows[0];
+    if (!building) throw new NotFoundException("Building not found");
+
+    const { rows: unitRows } = await this.db.query<{
+      id: string;
+      status: string;
+      bedrooms: number;
+    }>(
+      "SELECT id, status, bedrooms FROM units WHERE id = $1 AND building_id = $2",
+      [unitId, buildingId],
+    );
+    const unit = unitRows[0];
+    if (!unit) throw new NotFoundException("Unit not found");
+
+    if (unit.status === "LOCKED") {
+      throw new ConflictException(
+        "This unit is locked by an active tenant unlock and cannot be changed.",
+      );
+    }
+
+    if (status === "AVAILABLE" && !building.is_verified) {
+      throw new BadRequestException(
+        "Building must be verified before units can go live on the map.",
+      );
+    }
+
+    const { rows: updatedRows } = await this.db.query(
+      `UPDATE units SET status = $3, updated_at = NOW()
+       WHERE id = $1 AND building_id = $2
+       RETURNING id, unit_number, bedrooms, bathrooms, rent_amount, currency, status`,
+      [unitId, buildingId, status],
+    );
+
+    this.exploreCache.clear();
+
+    const updated = updatedRows[0] as Record<string, unknown>;
+    const unitPayload = {
+      id: updated.id,
+      unitNumber: updated.unit_number,
+      bedrooms: updated.bedrooms,
+      bathrooms: updated.bathrooms,
+      rentAmount: updated.rent_amount,
+      currency: updated.currency,
+      status: updated.status,
+    };
+
+    if (status === "AVAILABLE") {
+      const listingQuote = await this.pricing.quote({
+        buildingType: building.building_type as BuildingType,
+        bedrooms: unit.bedrooms,
+        purpose: PaymentPurpose.LISTING,
+        countryCode: building.country_code,
+      });
+      return { unit: unitPayload, listingQuote };
+    }
+
+    return { unit: unitPayload };
   }
 
   async findPendingVerification() {
