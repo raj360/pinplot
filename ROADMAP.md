@@ -6,15 +6,15 @@
 
 ## Where we stand (product snapshot)
 
-**Phase:** Sprint 3 — monetization & trust UX (~**70% of unlock journey complete**)
+**Phase:** Sprint 4 — landlord supply & pricing foundation
 
-| Persona | Can do today | Not yet |
-|---------|----------------|---------|
-| **Tenant** | Browse map, filter, unlock unit (dev payment), see exact address + directions, call/WhatsApp landlord, view gated photos/video, manage unlocks | Real card/mobile-money payment |
-| **Landlord** | Submit building, upload cover + YouTube, complete profile (intl phone), get verified | Pay listing fee, toggle unit status in UI |
-| **Admin** | Approve buildings, review media + landlord email | Reject flow, pricing config |
+| Persona | Can do today | Sprint 4 focus | Sprint 5 (deferred) |
+|---------|----------------|----------------|---------------------|
+| **Tenant** | Browse, filter, unlock (dev), contact, directions, media | Welcome bonus / coupons; **quoted** fees by type + beds | MoMo, card, **USSD** checkout |
+| **Landlord** | Submit, verify, profile + phone | **Unit status toggle**, multi-photo, listing workflow | Pay listing fee at status change |
+| **Admin** | Approve buildings | Reject flow, coupon grants, pricing rules seed | Payment reconciliation |
 
-**Core loop status:** Discover → unlock (simulated) → contact + visit **works end-to-end**. Revenue collection and landlord listing fees are the main gaps before soft launch.
+**Core loop status:** Discover → unlock (simulated) → contact + visit **works**. Revenue rails and USSD **intentionally deferred** until pricing + wallet model land in Sprint 4.
 
 ---
 
@@ -34,73 +34,65 @@
 
 ---
 
-## Phase 3 — Payments & trust 🔄 Current (Sprint 3)
+## Phase 3 — Unlock journey ✅ Complete (Sprint 3)
 
-**Goal:** 30k UGX listing + 20k UGX unlock live; trustworthy contact handoff.
+**Goal:** First-unlock-wins; trustworthy contact handoff; explore + building UX.
 
-**Recommended build order:**
-
-1. ~~Unlock transaction + contact reveal~~ ✅
-2. ~~Unlock + building page UX polish~~ ✅
-3. ~~Profile + contact quality (phone, Call/WhatsApp)~~ ✅
-4. Payment providers (S3-01 Stripe, S3-02 Flutterwave)
-5. Landlord listing fee + unit toggle (S3-03, S3-07)
-6. Webhooks + idempotency (S3-05)
-7. Phone SMS verification (S3-21 — post-payment slice)
-
-### Unlock core ✅
-
-- [x] `FOR UPDATE` first-unlock-wins transaction
-- [x] Reveal exact address + landlord contact after unlock
-- [x] Dev unlock simulation (`ALLOW_DEV_UNLOCK`)
-- [x] My unlocks page + directions + satellite mini map
-- [x] Unlock list APIs (`/unlocks/mine`, `/unlocks/building/:id`)
-- [x] Live exclusive-access countdown on unlock cards
-
-### Explore + privacy UX ✅
-
-- [x] Unlocked buildings stay on explore map when tenant has active access
-- [x] Optional auth on `GET /buildings` → `myUnlockCount`
-- [x] Location jitter for public pins; exact coords after unlock
-- [x] Explore map: roadmap only, max zoom 14, cluster drill-down
-- [x] Lime pins + access modal (no sidebar flicker)
-- [x] Unit availability summary on building detail / explore panel
-- [x] SchoolSpring-style map tooltips + list/map hover sync
-
-### Building page + media ✅
-
-- [x] Gated cover photo + building tour until unlock (`S3-20`)
-- [x] Unlocked layout: media once → Step 1 Visit → Step 2 Unlock more → collapsed overview
-- [x] Photo gallery lightbox + compact preview strip
-- [x] Multi-image support via `unit_images` + `imageUrls` API
-- [x] Visitor layout: unit grid + sticky unlock sidebar
-
-### Profiles + contact ✅
-
-- [x] Profile completion modal + post-sign-in step (`/auth/complete-profile`)
-- [x] Settings profile editor (`PATCH /profiles/me`)
-- [x] International phone input (Uganda default) + optional secondary phone (`008`)
-- [x] Call + WhatsApp actions on unlock contact
-- [x] Live landlord phone fallback when profile updated after unlock
-- [x] Email-only fallback messaging when landlord has no phone
-- [ ] SMS phone verification (`phone_verified_at`) — UI stub only; provider TBD
-
-### Payments (remaining)
-
-- [ ] Stripe Checkout (cards / diaspora)
-- [ ] Flutterwave mobile money (MTN/Airtel UG)
-- [ ] Landlord: pay before unit status change
-- [ ] Landlord unit status toggle UI
-- [ ] Payment webhooks + idempotency
-
-### Stability (pre-launch)
-
-- [ ] Auth guard DB resilience (graceful fallback on transient `EHOSTUNREACH`) — `S3-18`
-- [x] Postgres pool tuning (Supabase pooler `:6543`, session `:5432` for migrations)
+- [x] Unlock transaction, contact reveal, dev simulation
+- [x] Explore privacy, filters, performance (PostGIS, cache, rate limit)
+- [x] Profiles, Call/WhatsApp, gated media
+- [ ] ~~Stripe / Flutterwave~~ → moved to **Phase 5**
 
 ---
 
-## Phase 4 — Launch
+## Phase 4 — Landlord supply & pricing foundation 🔄 Current (Sprint 4)
+
+**Goal:** Landlords manage units without payment blockers; design tiered pricing + credits so tenants stay hooked before USSD/MoMo go live.
+
+**Build order:**
+
+1. Pricing rules schema + quote API (type + bedrooms)
+2. Landlord unit status toggle (API + dashboard UI)
+3. Wallet / credits + welcome bonus + admin coupons
+4. Dynamic fees in unlock + landlord UI (display only; dev unlock / credits settle)
+5. Landlord multi-photo upload; admin reject listing
+6. Stability: 429 UX, auth guard resilience
+
+### Business model (Sprint 4 → 5)
+
+- [ ] Tiered unlock/listing fees by `building_type` + bedrooms
+- [ ] Tenant welcome credit (e.g. first unlock discounted)
+- [ ] Coupon / promo codes (admin)
+- [ ] Landlord listing credits for early supply
+- [ ] Enforce payment at checkout — **Sprint 5**
+
+### Landlord tools
+
+- [ ] Unit status toggle UI + API
+- [ ] Multi-photo upload UI
+- [ ] Admin reject listing + notification
+
+### Explore (done in Sprint 4 slice)
+
+- [x] URL filters, map area search, panel UX
+- [x] PostGIS bounds, indexes `011`, anonymous cache, rate limit
+
+---
+
+## Phase 5 — Payments & USSD (Sprint 5)
+
+**Goal:** Monetize using Sprint 4 pricing + wallet model.
+
+- [ ] Flutterwave mobile money (MTN/Airtel)
+- [ ] **USSD payments** (provider TBD)
+- [ ] Stripe Checkout (cards / diaspora)
+- [ ] Webhooks + idempotency + wallet settlement
+- [ ] Enforce landlord listing fee + tenant unlock fee
+- [ ] SMS phone verification
+
+---
+
+## Phase 6 — Launch
 
 - [ ] Superadmin pricing config
 - [ ] Full RBAC guards on all admin routes
@@ -111,7 +103,7 @@
 
 ---
 
-## Phase 5 — Growth
+## Phase 7 — Growth
 
 - [ ] React Native app
 - [ ] Featured listings
