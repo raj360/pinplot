@@ -46,7 +46,6 @@ export function UnlockedAccessCard({
           lat={lat}
           lng={lng}
           label={unlock.buildingName ?? "Property"}
-          className="h-36"
         />
 
         <div className="grid gap-2 sm:grid-cols-2">

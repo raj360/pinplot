@@ -37,6 +37,7 @@ export const EXPLORE_MAP_MARKER_COLORS = {
 } as const;
 
 /** Unlocked / paid maps — exact location with satellite allowed. */
+export const UNLOCKED_MAP_MIN_ZOOM = 10;
 export const UNLOCKED_MAP_MAX_ZOOM = 20;
 export const UNLOCKED_MAP_DEFAULT_ZOOM = 17;
 

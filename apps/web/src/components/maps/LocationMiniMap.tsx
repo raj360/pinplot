@@ -10,6 +10,7 @@ import { useEffect } from "react";
 import {
   UNLOCKED_MAP_DEFAULT_ZOOM,
   UNLOCKED_MAP_MAX_ZOOM,
+  UNLOCKED_MAP_MIN_ZOOM,
 } from "@/lib/maps/config";
 
 const MAPS_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? "";
@@ -22,13 +23,17 @@ type LocationMiniMapProps = {
   className?: string;
 };
 
+/** Full interactive controls for paid / unlocked exact-location maps. */
 function UnlockedMapOptions() {
   const map = useMap();
 
   useEffect(() => {
     if (!map) return;
     map.setOptions({
+      minZoom: UNLOCKED_MAP_MIN_ZOOM,
       maxZoom: UNLOCKED_MAP_MAX_ZOOM,
+      gestureHandling: "greedy",
+      zoomControl: true,
       mapTypeControl: true,
       mapTypeControlOptions: {
         mapTypeIds: ["roadmap", "satellite"],
@@ -45,7 +50,7 @@ export function LocationMiniMap({
   lat,
   lng,
   label,
-  className = "h-44",
+  className = "h-56",
 }: LocationMiniMapProps) {
   if (!MAPS_KEY || MAPS_KEY.startsWith("your-")) {
     return (
@@ -63,8 +68,10 @@ export function LocationMiniMap({
         <GoogleMap
           defaultCenter={{ lat, lng }}
           defaultZoom={UNLOCKED_MAP_DEFAULT_ZOOM}
+          minZoom={UNLOCKED_MAP_MIN_ZOOM}
+          maxZoom={UNLOCKED_MAP_MAX_ZOOM}
           mapId={MAP_ID}
-          gestureHandling="cooperative"
+          gestureHandling="greedy"
           disableDefaultUI
           clickableIcons={false}
           className="h-full w-full"
