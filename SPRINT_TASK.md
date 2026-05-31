@@ -1,18 +1,94 @@
 # PlotPin — Sprint Tasks
 
-## Sprint 3 — Payments (current)
+## Sprint 4 — Landlord supply & pricing foundation (current)
 
-**Goal:** 20k unlock + 30k listing fees live; first-unlock-wins; trustworthy contact reveal.
+**Goal:** Give landlords real tools to manage listings **before** payment rails are wired. Design a flexible pricing model (property type, bedrooms, credits/coupons) so tenants can stay hooked while revenue mechanics mature.
 
+**Why payments are deferred:** Stripe, Flutterwave, and **USSD** each need merchant setup, webhooks, and compliance. Sprint 5 will unify checkout once pricing rules and landlord workflows exist.
+****
 **Prerequisites:**
 
 ```bash
-yarn db:migrate   # includes 007 (video), 008 (profile phones)
+yarn db:migrate   # through 011 (explore performance indexes)
 ```
 
-Set `ALLOW_DEV_UNLOCK=1` in API env for simulated tenant unlocks.
+Keep `ALLOW_DEV_UNLOCK=1` in dev/staging for tenant unlocks until Sprint 5.
 
 ---
+
+### Business model rethink (Sprint 4 design → Sprint 5 enforcement)
+
+Flat **20k unlock / 30k listing** was the MVP. Market feedback suggests **variable contact pricing** (studios vs houses, 1-bed vs 4-bed) and **onboarding incentives** to reduce friction.
+
+| Concept                      | Intent                                                         | Sprint                                     |
+| ---------------------------- | -------------------------------------------------------------- | ------------------------------------------ |
+| **Tiered unlock fees**       | Price by `building_type` + `bedrooms` (e.g. studio &lt; house) | S4 design + quote API; S5 charge           |
+| **Landlord listing credits** | Free or discounted first listings to seed supply               | S4 schema + admin grant; S5 deduct on pay  |
+| **Tenant welcome bonus**     | e.g. one free unlock or partial credit for new sign-ups        | S4 wallet + promo rules; S5 settlement     |
+| **Coupons / promo codes**    | Campaigns, referrals, diaspora launch                          | S4 admin create + redeem; S5 payment apply |
+| **USSD + mobile money**      | Primary UG collection path (no smartphone checkout required)   | Sprint 5                                   |
+
+**Principle:** Build **pricing + wallet + promo data model** and **show quoted fees in UI** now; gate money movement in Sprint 5.
+
+---
+
+### Sprint 4 — Landlord-first (build order)
+
+| ID    | Task                               | Status  | Notes                                                                                                                                         |
+| ----- | ---------------------------------- | ------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| S4-01 | **Pricing rules schema**           | Pending | Migration: `pricing_rules` (country, building_type, bedrooms_min/max, unlock_fee, listing_fee) + seed UG defaults mirroring current flat fees |
+| S4-02 | **Quote API**                      | Pending | `GET /pricing/quote?buildingType&bedrooms&purpose=UNLOCK\|LISTING` — used by unlock panel + landlord dashboard                                |
+| S4-03 | **Wallet / credits foundation**    | Pending | `account_credits` or ledger table; types: WELCOME_BONUS, ADMIN_GRANT, COUPON; no payment provider yet                                         |
+| S4-04 | **Coupon codes (admin)**           | Pending | Admin creates codes; tenant redeem → credit; unlock/listing consumes credit first in dev flow                                                 |
+| S4-05 | **Landlord unit status toggle UI** | Pending | Dashboard per building: mark unit AVAILABLE / UNAVAILABLE / RENTED; replaces “payments in Sprint 3” copy                                      |
+| S4-06 | **Landlord unit status API**       | Pending | `PATCH /buildings/:id/units/:unitId/status` with landlord auth; optional “listing fee quoted” banner (no charge yet)                          |
+| S4-07 | **Dynamic fee in unlock UX**       | Pending | Replace hardcoded `PRICING.tenantUnlockFeeUgx` with quote API; show breakdown (type + beds)                                                   |
+| S4-08 | **Welcome bonus (tenant hook)**    | Pending | On first profile sync: grant 1× unlock credit or partial discount; visible in unlock CTA                                                      |
+| S4-09 | **Landlord multi-photo upload UI** | Pending | API ready via `unit_images`; cover + gallery on create/edit                                                                                   |
+| S4-10 | **Admin reject listing**           | Pending | Reject with reason; notify landlord (email stub ok)                                                                                           |
+| S4-11 | **Explore 429 UX**                 | Pending | Friendly message when rate limit hit (not generic API error)                                                                                  |
+| S4-12 | **Auth guard DB resilience**       | Pending | S3-18 — catch transient pg errors in guards                                                                                                   |
+
+**Recommended slice (week 1):** S4-01 → S4-02 → S4-05 → S4-06 (landlord can manage supply).  
+**Week 2:** S4-03 → S4-04 → S4-07 → S4-08 (pricing visible + tenant hook).
+
+---
+
+### Sprint 4 — Explore & stability ✅ (recent)
+
+| ID    | Task                                         | Status | Notes                                                                            |
+| ----- | -------------------------------------------- | ------ | -------------------------------------------------------------------------------- |
+| S4-E1 | URL-synced explore filters + map area search | Done   | `explore-url-filters`, mobile “Search visible area”                              |
+| S4-E2 | Filter UX + panel chrome                     | Done   | Placeholder labels, `bg-panel`, consistent sidebar width                         |
+| S4-E3 | Explore performance Phase 1                  | Done   | PostGIS `ST_Intersects`, migration `011`, 30s anonymous cache, 60/min rate limit |
+| S4-E4 | Auth provider + header skeleton              | Done   | Single session bootstrap; no nav flicker on refresh                              |
+| S4-E5 | Property type filter                         | Done   | Migration `010`, API + explore UI                                                |
+
+---
+
+## Sprint 5 — Payments & USSD (deferred)
+
+**Goal:** Collect money using pricing rules + wallets from Sprint 4. Support **mobile money, cards, and USSD**.
+
+| ID    | Task                                    | Status  | Notes                                                                 |
+| ----- | --------------------------------------- | ------- | --------------------------------------------------------------------- |
+| S5-01 | Flutterwave mobile money (MTN / Airtel) | Pending | Primary UG path                                                       |
+| S5-02 | **USSD payment flow**                   | Pending | Provider TBD (Flutterwave USSD, Pegasus, etc.); session ref → webhook |
+| S5-03 | Stripe Checkout                         | Pending | Cards / diaspora                                                      |
+| S5-04 | Payment webhooks + idempotency          | Pending | All providers; credit/wallet settlement                               |
+| S5-05 | Enforce landlord listing fee            | Pending | Deduct wallet or charge before `AVAILABLE`                            |
+| S5-06 | Enforce tenant unlock fee               | Pending | Replace dev unlock; apply coupons/credits at checkout                 |
+| S5-07 | SMS phone verification                  | Pending | S3-21 — Africa's Talking / Twilio                                     |
+
+**Do not start until:** S4-01–S4-03 pricing + wallet schema merged.
+
+---
+
+## Sprint 3 — Unlock journey ✅
+
+**Completed:** 2026-05-29 (payments moved to Sprint 5)
+
+**Goal:** First-unlock-wins; trustworthy contact reveal; explore + building UX.
 
 ### Core unlock API ✅
 
@@ -57,30 +133,18 @@ Set `ALLOW_DEV_UNLOCK=1` in API env for simulated tenant unlocks.
 | S3-31 | Profile phones migration | Done | `008_profile_phones.sql` |
 | S3-32 | Live landlord phone on unlock list | Done | `resolveContact()` prefers profile phone over email snapshot |
 
-### Profiles — next slice
+### Moved to Sprint 4 / 5
 
-| ID | Task | Status | Notes |
-|----|------|--------|-------|
-| S3-21 | SMS phone verification | Pending | `phone_verified_at` columns exist; UI stub in Settings; needs Twilio / Africa's Talking |
-
-### Payments (next)
-
-| ID | Task | Status | Notes |
-|----|------|--------|-------|
-| S3-07 | Unit status toggle UI for landlords | Pending | Caretaker marks units taken after visit; pairs with S3-03 |
-| S3-03 | Landlord pay-before-status-change (30k UGX) | Pending | Required before map listing |
-| S3-01 | Stripe Checkout for tenant unlock (20k UGX) | Pending | Cards / diaspora |
-| S3-02 | Flutterwave mobile money (UG) | Pending | MTN / Airtel |
-| S3-05 | Payment webhooks + idempotency | Pending | After S3-01 / S3-02 |
-
-### Stability (parallel / pre-launch)
-
-| ID | Task | Status | Notes |
-|----|------|--------|-------|
-| S3-18 | Auth guard DB resilience | Pending | Catch transient pg errors in optional/required guards |
-| S3-19 | Postgres pool hardening | Done | Pooler URL `:6543`, direct `:5432` for migrations |
-
-**Recommended next slice:** S3-01 + S3-02 (payments) **or** S3-07 + S3-03 (landlord listing gate) — then S3-05 webhooks.
+| ID    | Task                              | New home                         |
+| ----- | --------------------------------- | -------------------------------- |
+| S3-07 | Unit status toggle UI             | **S4-05**                        |
+| S3-03 | Landlord pay-before-status-change | **S5-05** (after pricing + USSD) |
+| S3-01 | Stripe Checkout                   | **S5-03**                        |
+| S3-02 | Flutterwave mobile money          | **S5-01**                        |
+| S3-05 | Payment webhooks                  | **S5-04**                        |
+| S3-21 | SMS phone verification            | **S5-07**                        |
+| S3-18 | Auth guard DB resilience          | **S4-12**                        |
+| S3-19 | Postgres pool hardening           | Done                             |
 
 ---
 
@@ -116,19 +180,22 @@ Completed 2026-05-28.
 | Milestone | Status |
 |-----------|--------|
 | Tenant can find building on map | ✅ |
-| Tenant can unlock unit (dev) | ✅ |
+| Tenant can unlock unit (dev / credits when S4-08) | ✅ dev |
 | Tenant gets address + directions | ✅ |
 | Tenant gets landlord contact (phone or email) | ✅ |
 | Tenant sees photos/video after unlock | ✅ |
 | Landlord can submit + get verified | ✅ |
-| Landlord profile with phone | ✅ (prompted; not verified by SMS) |
-| Real payment collection | ❌ |
-| Landlord listing fee + unit toggle | ❌ |
-| Production-hardened auth/DB guards | ⚠️ partial (pooler done; S3-18 pending) |
+| Landlord profile with phone | ✅ (prompted; SMS in S5-07) |
+| Landlord can toggle unit status on dashboard | ❌ **S4-05** |
+| Tiered pricing by type + bedrooms (quoted in UI) | ❌ **S4-01, S4-02, S4-07** |
+| Credits / coupons / welcome bonus | ❌ **S4-03, S4-04, S4-08** |
+| Real payment collection (MoMo, card, **USSD**) | ❌ **Sprint 5** |
+| Explore scale (PostGIS, cache, rate limit) | ✅ |
+| Production-hardened auth/DB guards | ⚠️ **S4-12** |
 
 ---
 
-## Admin setup (manual until Sprint 4)
+## Admin setup (manual)
 
 ```sql
 UPDATE profiles SET role = 'ADMIN' WHERE id = 'your-auth-user-uuid';
@@ -146,19 +213,21 @@ Landlords should complete **Settings → Profile** with a phone so tenants get C
 yarn workspace @plotpin/shared-types build
 yarn dev:api
 yarn dev:web
-yarn db:migrate   # required on each env after merge (through 008)
+yarn db:migrate   # required on each env after merge (through 011)
 ```
 
 ---
 
-## Backlog (post–Sprint 3)
+## Backlog (post–Sprint 4)
 
-- Admin reject listing + landlord notification
-- Places autocomplete (optional)
-- Approximate pin radius circle on explore map (~200 m)
-- Landlord multi-photo upload UI (API ready via `unit_images`)
+- Explore sidebar pagination + virtual list (S4 stretch / Sprint 6)
+- Saved / recent searches (auth)
+- Custom min/max rent filters
+- SEO district pages
+- Zero-result analytics
 - Notification preferences in Settings
+- Approximate pin radius circle on explore map (~200 m)
 
 ---
 
-*Last updated: 2026-05-29 — Sprint 3 unlock UX + profiles done; payments + SMS verification next*
+*Last updated: 2026-05-30 — Sprint 4 landlord-first + pricing foundation; payments + USSD deferred to Sprint 5*

@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { BuildingDetail } from "@/lib/api/buildings";
 import { fetchBuildingCached } from "@/lib/api/building-cache";
 
 const HOVER_LEAVE_MS = 120;

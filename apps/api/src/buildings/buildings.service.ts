@@ -13,6 +13,9 @@ import {
   CreateUnitDto,
   RegisterImageDto,
 } from "./dto/building.dto";
+import type { BuildingSummary } from "@plotpin/shared-types";
+import { EXPLORE_BOUNDS_SQL } from "./explore-query";
+import { ExploreSearchCacheService } from "./explore-search-cache.service";
 
 type BuildingRow = {
   id: string;
@@ -35,26 +38,40 @@ type BuildingRow = {
 
 @Injectable()
 export class BuildingsService {
-  constructor(private readonly db: DatabaseService) {}
+  constructor(
+    private readonly db: DatabaseService,
+    private readonly exploreCache: ExploreSearchCacheService,
+  ) {}
 
   async findInBounds(query: BuildingBoundsQueryDto, tenantId?: string) {
+    if (!tenantId) {
+      const cached = this.exploreCache.get<BuildingSummary[]>(query);
+      if (cached) return cached;
+    }
+
     const available = await this.queryAvailableInBounds(query);
     const withUnlocks = tenantId
       ? await this.attachMyUnlockCounts(available, tenantId)
       : available;
 
+    let result;
     if (!tenantId) {
-      return withUnlocks.map((row) => this.toSummary(row));
+      result = withUnlocks.map((row) => this.toSummary(row));
+    } else {
+      const unlockedOnly = await this.queryUnlockedOnlyInBounds(query, tenantId);
+      const seen = new Set(withUnlocks.map((row) => row.id));
+      const merged = [
+        ...withUnlocks,
+        ...unlockedOnly.filter((row) => !seen.has(row.id)),
+      ];
+      result = merged.map((row) => this.toSummary(row));
     }
 
-    const unlockedOnly = await this.queryUnlockedOnlyInBounds(query, tenantId);
-    const seen = new Set(withUnlocks.map((row) => row.id));
-    const merged = [
-      ...withUnlocks,
-      ...unlockedOnly.filter((row) => !seen.has(row.id)),
-    ];
+    if (!tenantId) {
+      this.exploreCache.set(query, result);
+    }
 
-    return merged.map((row) => this.toSummary(row));
+    return result;
   }
 
   private async queryAvailableInBounds(query: BuildingBoundsQueryDto) {
@@ -84,8 +101,7 @@ export class BuildingsService {
       FROM buildings b
       LEFT JOIN units u ON u.building_id = b.id
       WHERE b.is_verified = TRUE
-        AND b.approximate_lat BETWEEN $1 AND $3
-        AND b.approximate_lng BETWEEN $2 AND $4
+        ${EXPLORE_BOUNDS_SQL}
     `;
 
     if (query.city) {
@@ -177,8 +193,7 @@ export class BuildingsService {
       JOIN units u ON u.building_id = b.id
       JOIN unit_unlocks uu ON uu.unit_id = u.id
       WHERE b.is_verified = TRUE
-        AND b.approximate_lat BETWEEN $1 AND $3
-        AND b.approximate_lng BETWEEN $2 AND $4
+        ${EXPLORE_BOUNDS_SQL}
         AND uu.tenant_id = $5
         AND uu.is_winner = TRUE
         AND (uu.expires_at IS NULL OR uu.expires_at > NOW())
@@ -481,6 +496,7 @@ export class BuildingsService {
       [buildingId, verified],
     );
     if (!rows[0]) throw new NotFoundException("Building not found");
+    this.exploreCache.clear();
     return rows[0];
   }
 

@@ -5,10 +5,11 @@ import {
   BuildingsController,
 } from "./buildings.controller";
 import { BuildingsService } from "./buildings.service";
+import { ExploreSearchCacheService } from "./explore-search-cache.service";
 
 @Module({
   imports: [AuthModule],
   controllers: [BuildingsController, AdminBuildingsController],
-  providers: [BuildingsService],
+  providers: [BuildingsService, ExploreSearchCacheService],
 })
 export class BuildingsModule {}

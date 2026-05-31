@@ -1,5 +1,6 @@
 import { Module } from "@nestjs/common";
 import { ConfigModule } from "@nestjs/config";
+import { ThrottlerModule } from "@nestjs/throttler";
 import { HealthModule } from "./health/health.module";
 import { DatabaseModule } from "./database/database.module";
 import { AuthModule } from "./auth/auth.module";
@@ -13,6 +14,13 @@ import { UnlocksModule } from "./unlocks/unlocks.module";
       isGlobal: true,
       envFilePath: ["../../.env", "../../.env.local", ".env"],
     }),
+    ThrottlerModule.forRoot([
+      {
+        name: "default",
+        ttl: 60_000,
+        limit: 120,
+      },
+    ]),
     DatabaseModule,
     AuthModule,
     HealthModule,

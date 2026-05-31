@@ -8,6 +8,7 @@ import {
   Query,
   UseGuards,
 } from "@nestjs/common";
+import { Throttle, ThrottlerGuard } from "@nestjs/throttler";
 import { BuildingsService } from "./buildings.service";
 import {
   BuildingBoundsQueryDto,
@@ -28,7 +29,8 @@ export class BuildingsController {
   constructor(private readonly buildings: BuildingsService) {}
 
   @Get()
-  @UseGuards(OptionalSupabaseAuthGuard)
+  @UseGuards(OptionalSupabaseAuthGuard, ThrottlerGuard)
+  @Throttle({ default: { limit: 60, ttl: 60_000 } })
   findInBounds(
     @Query() query: BuildingBoundsQueryDto,
     @CurrentUser() user?: AuthUser,
