@@ -2,12 +2,11 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { MapPin } from "lucide-react";
 import { PlotPinMap } from "@/components/maps/PlotPinMap";
-import { BuildingDetailExperience } from "@/components/buildings/BuildingDetailExperience";
 import { BuildingPreviewModal } from "@/components/explore/BuildingPreviewModal";
 import { UnlockedAccessModal } from "@/components/buildings/UnlockedAccessModal";
-import { ExploreEmptyResults } from "@/components/explore/ExploreEmptyResults";
+import { ExploreDetailPane } from "@/components/explore/ExploreDetailPane";
+import { ExploreResultsList } from "@/components/explore/ExploreResultsList";
 import {
   ExploreFilters,
   EMPTY_EXPLORE_FILTERS,
@@ -18,15 +17,11 @@ import { ContentBand } from "@/components/layout/PageShell";
 import { layoutMaxClass, LAYOUT, contentBandInnerClass } from "@/lib/layout/shell";
 import { cn } from "@/lib/utils/cn";
 import { AppLoadingOverlay } from "@/components/ui/app-loading-overlay";
-import { LoadingState } from "@/components/ui/loading-state";
-import { BuildingPreviewSkeleton } from "@/components/explore/BuildingPreviewSkeleton";
 import { Spinner } from "@/components/ui/spinner";
 import {
-  fetchBuildingsInBounds,
   type BuildingDetail,
   type Bounds,
 } from "@/lib/api/buildings";
-import { parseRentRange } from "@/lib/filters/rent-ranges";
 import {
   getMapFocusForSearch,
 } from "@/lib/filters/search-areas";
@@ -37,12 +32,15 @@ import {
   mapViewportDiffersFromSearch,
   sanitizeMapBounds,
 } from "@/lib/explore/map-bounds";
-import { DEFAULT_EXPLORE_COUNTRY } from "@/lib/geo/uganda";
+import {
+  LIVE_SEARCH_DEBOUNCE_MS,
+  LIVE_SEARCH_STORAGE_KEY,
+  readLiveSearchPreference,
+} from "@/lib/explore/live-search-preference";
+import { loadExploreBuildings } from "@/lib/explore/load-buildings";
 import { useExploreGeolocation } from "@/lib/hooks/use-explore-geolocation";
-import { formatRentPerMonth } from "@/lib/intl/format";
 import { clearBuildingCache } from "@/lib/api/building-cache";
 import { fetchMyUnlocks, type TenantUnlock } from "@/lib/api/unlocks";
-import { hasAccessOnly } from "@/lib/unlocks/display";
 import { useAuth } from "@/lib/auth/use-auth";
 import type { BuildingSummary } from "@plotpin/shared-types";
 import { useExplorePreview } from "./useExplorePreview";
@@ -56,71 +54,6 @@ import {
 type DetailMode = "full" | "summary" | null;
 
 const EMPTY_UNLOCKS: TenantUnlock[] = [];
-const LIVE_SEARCH_STORAGE_KEY = "plotpin-explore-live-search";
-const LIVE_SEARCH_DEBOUNCE_MS = 450;
-
-function readLiveSearchPreference(): boolean {
-  if (typeof window === "undefined") return false;
-  try {
-    return window.localStorage.getItem(LIVE_SEARCH_STORAGE_KEY) === "1";
-  } catch {
-    return false;
-  }
-}
-
-function parseMinFilter(value: string) {
-  if (!value) return undefined;
-  const n = Number(value);
-  return Number.isFinite(n) && n > 0 ? n : undefined;
-}
-
-async function loadBuildings(
-  filters: ExploreSearchFilters,
-  mapBounds?: Bounds | null,
-) {
-  const bounds = boundsForExploreSearch(filters, mapBounds);
-  const { minRent, maxRent } = parseRentRange(filters.priceRange);
-  return fetchBuildingsInBounds(bounds, {
-    city: mapBounds ? undefined : filters.city || undefined,
-    bedrooms: parseMinFilter(filters.bedrooms),
-    bathrooms: parseMinFilter(filters.bathrooms),
-    minRent,
-    maxRent,
-    buildingType: filters.buildingType || undefined,
-    countryCode: DEFAULT_EXPLORE_COUNTRY,
-  });
-}
-
-function ExploreDetailPane({
-  loading,
-  detail,
-  variant,
-  onUnlockSuccess,
-  onExpandToFull,
-}: {
-  loading: boolean;
-  detail: BuildingDetail | null;
-  variant: "compact" | "full";
-  onUnlockSuccess?: () => void;
-  onExpandToFull?: () => void;
-}) {
-  if (loading || !detail) {
-    return (
-      <BuildingPreviewSkeleton mode={variant === "compact" ? "summary" : "full"} />
-    );
-  }
-
-  return (
-    <BuildingDetailExperience
-      building={detail}
-      variant={variant}
-      layout="stack"
-      hideHeader
-      onUnlockSuccess={onUnlockSuccess}
-      onExpandToFull={onExpandToFull}
-    />
-  );
-}
 
 export function ExploreClient() {
   const router = useRouter();
@@ -297,7 +230,7 @@ export function ExploreClient() {
 
   const refreshBuildings = useCallback(
     async (searchFilters: ExploreSearchFilters, mapBounds?: Bounds | null) => {
-      const data = await loadBuildings(searchFilters, mapBounds);
+      const data = await loadExploreBuildings(searchFilters, mapBounds);
       setAllBuildings(data);
       setSelectedId((prev) => {
         if (prev && data.some((b) => b.id === prev)) return prev;
@@ -372,7 +305,7 @@ export function ExploreClient() {
 
         const filtersSnapshot = appliedFiltersRef.current;
         const mapBoundsSnapshot = appliedMapBoundsRef.current;
-        return loadBuildings(filtersSnapshot, mapBoundsSnapshot).then((data) => {
+        return loadExploreBuildings(filtersSnapshot, mapBoundsSnapshot).then((data) => {
           if (cancelled) return;
           if (
             !exploreFiltersEqual(filtersSnapshot, appliedFiltersRef.current) ||
@@ -410,7 +343,7 @@ export function ExploreClient() {
       initialMapBounds,
     );
 
-    loadBuildings(initialFilters, initialMapBounds)
+    loadExploreBuildings(initialFilters, initialMapBounds)
       .then((data) => {
         if (cancelled || generation !== initialLoadGenerationRef.current) return;
 
@@ -491,7 +424,7 @@ export function ExploreClient() {
           ? mapBounds
           : getMapFocusForSearch(next.city, userLocationForSearch)?.bounds ?? null;
         setMapFocusBounds(focus);
-        const data = await loadBuildings(next, mapBounds);
+        const data = await loadExploreBuildings(next, mapBounds);
         if (generation !== searchGenerationRef.current) return;
         applySearchResults(data);
         if (generation !== searchGenerationRef.current) return;
@@ -884,116 +817,22 @@ export function ExploreClient() {
               </span>
             </div>
 
-            <ul
-              ref={listRef}
-              className={cn(
-                "explore-results-list touch-pan-y",
-                "md:min-h-0 md:flex-1 md:overflow-y-auto md:overscroll-contain",
-              )}
-            >
-              {loading && allBuildings.length === 0 ? (
-                <li className="px-4 py-8">
-                  <LoadingState label="Loading buildings" compact />
-                </li>
-              ) : null}
-              {allBuildings.map((building) => {
-                const active = selectedId === building.id;
-                const hovered = hoveredId === building.id;
-                const unlocked = (building.myUnlockCount ?? 0) > 0;
-                const accessOnly = hasAccessOnly(building);
-
-                return (
-                  <li key={building.id}>
-                    <div
-                      data-building-id={building.id}
-                      className={cn(
-                        "flex items-stretch border-b border-border transition-colors",
-                        active &&
-                          (unlocked
-                            ? "border-l-[3px] border-l-lime-600 bg-lime-50/70"
-                            : "border-l-[3px] border-l-primary bg-primary/5"),
-                        !active &&
-                          hovered &&
-                          (unlocked
-                            ? "border-l-[3px] border-l-lime-600/50 bg-lime-50/40"
-                            : "border-l-[3px] border-l-primary/40 bg-primary/5"),
-                        !active && !hovered && "hover:bg-background/70",
-                      )}
-                    >
-                      <button
-                        type="button"
-                        onClick={() => handleListSelect(building.id)}
-                        className="min-w-0 flex-1 px-3 py-3.5 text-left sm:px-4 sm:py-3.5"
-                      >
-                        <div className="flex items-start justify-between gap-2">
-                          <p
-                            className={cn(
-                              "text-[15px] font-semibold leading-snug sm:text-base",
-                              unlocked ? "text-lime-800" : "text-primary",
-                            )}
-                          >
-                            {building.name}
-                          </p>
-                          {active && selectedLoading ? (
-                            <Spinner
-                              className="mt-1 size-3 shrink-0"
-                              label="Loading building"
-                            />
-                          ) : null}
-                        </div>
-                        <p className="mt-1 flex items-center gap-1.5 text-sm text-foreground/80">
-                          <MapPin
-                            className="size-3.5 shrink-0 text-muted"
-                            aria-hidden
-                          />
-                          <span className="truncate">
-                            {[building.district, building.city]
-                              .filter(Boolean)
-                              .join(", ")}
-                          </span>
-                        </p>
-                        <p className="mt-1.5 text-xs leading-relaxed text-muted">
-                          {building.availableUnitCount > 0 ? (
-                            <>
-                              {building.availableUnitCount} available · from{" "}
-                              <span className="font-medium text-foreground/90">
-                                {formatRentPerMonth(building.rentFrom)}
-                              </span>
-                            </>
-                          ) : unlocked ? (
-                            <span className="font-medium text-lime-700">
-                              Your access · tap to open
-                            </span>
-                          ) : (
-                            <>No units available</>
-                          )}
-                        </p>
-                      </button>
-                      {unlocked && !accessOnly ? (
-                        <button
-                          type="button"
-                          onClick={() => openAccessModal(building.id)}
-                          className="shrink-0 self-center border-l border-border/70 px-3 py-2 text-[11px] font-medium text-lime-700 underline decoration-lime-600/40 underline-offset-2 hover:bg-lime-50/80 hover:text-lime-800"
-                        >
-                          Your access
-                        </button>
-                      ) : null}
-                    </div>
-                  </li>
-                );
-              })}
-              {!listLoading && allBuildings.length === 0 ? (
-                <li>
-                  <ExploreEmptyResults
-                    appliedFilters={appliedFilters}
-                    appliedMapBounds={appliedMapBounds}
-                    onRemoveFilter={(key) => void removeAppliedFilter(key)}
-                    onRemoveMapBounds={() => void removeMapBounds()}
-                    onReset={() => void runReset()}
-                  />
-                </li>
-              ) : null}
-            </ul>
+            <ExploreResultsList
+              listRef={listRef}
+              loading={loading}
+              listLoading={listLoading}
+              buildings={allBuildings}
+              selectedId={selectedId}
+              selectedLoading={selectedLoading}
+              hoveredId={hoveredId}
+              appliedFilters={appliedFilters}
+              appliedMapBounds={appliedMapBounds}
+              onSelect={handleListSelect}
+              onOpenAccess={openAccessModal}
+              onRemoveFilter={(key) => void removeAppliedFilter(key)}
+              onRemoveMapBounds={() => void removeMapBounds()}
+              onReset={() => void runReset()}
+            />
 
             {showMapSummary ? (
               <div className="explore-desktop-summary relative z-10 hidden h-[min(58vh,30rem)] shrink-0 flex-col overflow-hidden border-t-2 border-border bg-surface shadow-[0_-14px_36px_-14px_rgba(15,23,42,0.22)] ring-1 ring-black/5 md:flex">
