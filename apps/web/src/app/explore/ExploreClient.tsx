@@ -59,6 +59,15 @@ const EMPTY_UNLOCKS: TenantUnlock[] = [];
 const LIVE_SEARCH_STORAGE_KEY = "plotpin-explore-live-search";
 const LIVE_SEARCH_DEBOUNCE_MS = 450;
 
+function readLiveSearchPreference(): boolean {
+  if (typeof window === "undefined") return false;
+  try {
+    return window.localStorage.getItem(LIVE_SEARCH_STORAGE_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
 function parseMinFilter(value: string) {
   if (!value) return undefined;
   const n = Number(value);
@@ -181,25 +190,17 @@ export function ExploreClient() {
     ) => Promise<void>
   >(() => Promise.resolve());
   const searchGenerationRef = useRef(0);
-  const initialLoadStartedRef = useRef(false);
+  const initialLoadGenerationRef = useRef(0);
   const liveSearchTimerRef = useRef<number | undefined>(undefined);
   const filtersRef = useRef(filters);
-  const [liveSearchEnabled, setLiveSearchEnabled] = useState(false);
+  const [liveSearchEnabled, setLiveSearchEnabled] = useState(
+    readLiveSearchPreference,
+  );
   const userLocationForSearch = geo.inUganda ? geo.location : null;
 
   useEffect(() => {
     filtersRef.current = filters;
   }, [filters]);
-
-  useEffect(() => {
-    try {
-      setLiveSearchEnabled(
-        window.localStorage.getItem(LIVE_SEARCH_STORAGE_KEY) === "1",
-      );
-    } catch {
-      setLiveSearchEnabled(false);
-    }
-  }, []);
 
   useEffect(
     () => () => {
@@ -259,7 +260,7 @@ export function ExploreClient() {
   );
 
   const applySearchResults = useCallback(
-    async (data: BuildingSummary[]) => {
+    (data: BuildingSummary[]) => {
       setAllBuildings(data);
       setHover(null);
       setDetailMode(null);
@@ -272,7 +273,7 @@ export function ExploreClient() {
         return;
       }
 
-      await loadDetail(data[0].id);
+      void loadDetail(data[0].id);
     },
     [loadDetail, setHover],
   );
@@ -399,10 +400,9 @@ export function ExploreClient() {
   }, [isAuthenticated]);
 
   useEffect(() => {
-    if (initialLoadStartedRef.current) return;
-    initialLoadStartedRef.current = true;
-
+    const generation = ++initialLoadGenerationRef.current;
     let cancelled = false;
+
     const initialFilters = initialUrlFiltersRef.current;
     const initialMapBounds = initialUrlMapBoundsRef.current;
     const initialSearchBounds = boundsForExploreSearch(
@@ -411,27 +411,27 @@ export function ExploreClient() {
     );
 
     loadBuildings(initialFilters, initialMapBounds)
-      .then(async (data) => {
-        if (cancelled) return;
-        await applySearchResultsRef.current(data);
-        if (cancelled) return;
-        consumeDeepLinkRef.current(data);
+      .then((data) => {
+        if (cancelled || generation !== initialLoadGenerationRef.current) return;
+
+        applySearchResultsRef.current(data);
+        setAppliedFilters(initialFilters);
+        appliedFiltersRef.current = initialFilters;
         setAppliedSearchBounds(initialSearchBounds);
         appliedSearchBoundsRef.current = initialSearchBounds;
         setAppliedMapBounds(initialMapBounds);
         appliedMapBoundsRef.current = initialMapBounds;
         setMapFitToken((token) => token + 1);
+        consumeDeepLinkRef.current(data);
       })
       .catch(() => {
-        if (!cancelled) {
-          setError("Could not load buildings. Is the API running?");
-        }
+        if (cancelled || generation !== initialLoadGenerationRef.current) return;
+        setError("Could not load buildings. Is the API running?");
       })
       .finally(() => {
-        if (!cancelled) {
-          setLoading(false);
-          initialLoadDone.current = true;
-        }
+        if (cancelled || generation !== initialLoadGenerationRef.current) return;
+        setLoading(false);
+        initialLoadDone.current = true;
       });
 
     return () => {
@@ -493,7 +493,7 @@ export function ExploreClient() {
         setMapFocusBounds(focus);
         const data = await loadBuildings(next, mapBounds);
         if (generation !== searchGenerationRef.current) return;
-        await applySearchResults(data);
+        applySearchResults(data);
         if (generation !== searchGenerationRef.current) return;
 
         setAppliedFilters(next);
