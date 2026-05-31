@@ -7,12 +7,13 @@ import {
   useMap,
   useMapsLibrary,
 } from "@vis.gl/react-google-maps";
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   parseGeocoderResult,
   type AddressHints,
 } from "@/lib/maps/address-hints";
+import { requestBrowserLocation } from "@/lib/geo/browser-geolocation";
 
 const MAPS_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? "";
 const MAP_ID = process.env.NEXT_PUBLIC_GOOGLE_MAP_ID ?? "";
@@ -35,6 +36,24 @@ export function LocationPinPicker({
   readOnly = false,
   className = "h-56",
 }: LocationPinPickerProps) {
+  const [geoLoading, setGeoLoading] = useState(false);
+  const [geoError, setGeoError] = useState<string | null>(null);
+
+  const handleUseMyLocation = useCallback(async () => {
+    setGeoError(null);
+    setGeoLoading(true);
+    try {
+      const location = await requestBrowserLocation();
+      onChange(location);
+    } catch (err) {
+      setGeoError(
+        err instanceof Error ? err.message : "Could not get your location.",
+      );
+    } finally {
+      setGeoLoading(false);
+    }
+  }, [onChange]);
+
   if (!MAPS_KEY || MAPS_KEY.startsWith("your-")) {
     return (
       <FallbackPicker value={value} onChange={onChange} readOnly={readOnly} />
@@ -80,30 +99,27 @@ export function LocationPinPicker({
         </div>
 
         {!readOnly ? (
-          <div className="flex flex-wrap items-center gap-3">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                if (!navigator.geolocation) return;
-                navigator.geolocation.getCurrentPosition(
-                  (pos) => {
-                    onChange({
-                      lat: pos.coords.latitude,
-                      lng: pos.coords.longitude,
-                    });
-                  },
-                  () => {},
-                  { enableHighAccuracy: true, timeout: 10000 },
-                );
-              }}
-            >
-              Use my location
-            </Button>
-            <p className="text-xs text-muted">
-              Tap or drag the pin to set the map marker.
-            </p>
+          <div className="space-y-2">
+            <div className="flex flex-wrap items-center gap-3">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                loading={geoLoading}
+                loadingLabel="Finding your location"
+                onClick={() => void handleUseMyLocation()}
+              >
+                Use my location
+              </Button>
+              <p className="text-xs text-muted">
+                Tap or drag the pin to set the map marker.
+              </p>
+            </div>
+            {geoError ? (
+              <p className="text-xs text-red-600" role="alert">
+                {geoError}
+              </p>
+            ) : null}
           </div>
         ) : null}
 
