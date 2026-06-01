@@ -52,7 +52,7 @@ const FORM_STEPS = [
     label: "Photos",
     title: "Cover photo",
     description:
-      "Optional but recommended. Helps admins verify your listing faster.",
+      "Required — a clear cover photo helps admins verify your listing faster.",
   },
   {
     label: "Units",
@@ -72,6 +72,7 @@ export default function NewBuildingPage() {
   const [buildingName, setBuildingName] = useState("");
   const [units, setUnits] = useState<UnitRow[]>(DEFAULT_UNITS);
   const [coverFile, setCoverFile] = useState<File | null>(null);
+  const [coverError, setCoverError] = useState<string | null>(null);
   const [location, setLocation] = useState<LatLng>(KAMPALA_CENTER);
   const [city, setCity] = useState("Kampala");
   const [district, setDistrict] = useState("");
@@ -141,10 +142,24 @@ export default function NewBuildingPage() {
       }
     }
 
+    if (current === 3) {
+      if (!coverFile) {
+        setError("Add a cover photo to continue.");
+        return false;
+      }
+    }
+
     if (current === STEP_COUNT) {
       if (!buildingName.trim()) {
         setError("Enter a building name.");
         setStep(2);
+        stepRef.current = 2;
+        return false;
+      }
+      if (!coverFile) {
+        setError("Add a cover photo.");
+        setStep(3);
+        stepRef.current = 3;
         return false;
       }
       if (units.some((unit) => !unit.unitNumber.trim())) {
@@ -219,10 +234,12 @@ export default function NewBuildingPage() {
         units,
       });
 
-      if (coverFile && building.id) {
-        const publicUrl = await uploadBuildingImage(building.id, coverFile);
-        await registerBuildingImage(building.id, publicUrl, true);
+      if (!coverFile) {
+        throw new Error("Cover photo is required.");
       }
+
+      const publicUrl = await uploadBuildingImage(building.id, coverFile);
+      await registerBuildingImage(building.id, publicUrl, true);
 
       router.push("/landlord/dashboard?created=1");
     } catch (err) {
@@ -276,7 +293,6 @@ export default function NewBuildingPage() {
             step={step}
             label={currentStep.label}
             title={currentStep.title}
-            optional={step === 3}
           />
 
           {step === 1 ? (
@@ -382,7 +398,13 @@ export default function NewBuildingPage() {
 
           {step === 3 ? (
             <div className="space-y-3">
-              <ImageUpload value={coverFile} onChange={setCoverFile} />
+              <ImageUpload
+                value={coverFile}
+                onChange={setCoverFile}
+                required
+                error={coverError}
+                onValidationError={setCoverError}
+              />
               <ControlledField
                 label="YouTube link"
                 name="videoUrl"
