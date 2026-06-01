@@ -1,4 +1,4 @@
-import type { BuildingSummary } from "@plotpin/shared-types";
+import type { BuildingSummary, PriceQuote } from "@plotpin/shared-types";
 import { apiFetch, getAccessToken } from "./client";
 
 const API_URL =
@@ -114,6 +114,8 @@ export type CreateBuildingPayload = {
   district?: string;
   approximateLat: number;
   approximateLng: number;
+  exactLat?: number;
+  exactLng?: number;
   exactAddress?: string;
   videoUrl?: string;
   buildingType?: string;
@@ -128,6 +130,51 @@ export type CreateBuildingPayload = {
 
 export async function fetchMyBuildings() {
   return apiFetch<LandlordBuilding[]>("/buildings/mine/list");
+}
+
+export type LandlordBuildingDetail = {
+  id: string;
+  name: string;
+  description?: string;
+  city: string;
+  district: string | null;
+  countryCode: string;
+  buildingType: string;
+  totalUnits: number;
+  isVerified: boolean;
+  availableUnitCount: number;
+  units: Array<{
+    id: string;
+    unitNumber: string;
+    bedrooms: number;
+    bathrooms: number;
+    rentAmount: number;
+    currency: string;
+    status: string;
+  }>;
+};
+
+export async function fetchMyBuilding(id: string) {
+  return apiFetch<LandlordBuildingDetail>(`/buildings/mine/${id}`);
+}
+
+export type UpdateUnitStatusResult = {
+  unit: LandlordBuildingDetail["units"][number];
+  listingQuote?: PriceQuote;
+};
+
+export async function updateUnitStatus(
+  buildingId: string,
+  unitId: string,
+  status: "AVAILABLE" | "UNAVAILABLE" | "RENTED",
+) {
+  return apiFetch<UpdateUnitStatusResult>(
+    `/buildings/${buildingId}/units/${unitId}/status`,
+    {
+      method: "PATCH",
+      body: JSON.stringify({ status }),
+    },
+  );
 }
 
 export async function createBuilding(payload: CreateBuildingPayload) {
@@ -152,6 +199,11 @@ export type PendingBuilding = {
   created_at: string;
   approximate_lat: number;
   approximate_lng: number;
+  /** Landlord-placed pin — use for admin review maps. */
+  pin_lat: number;
+  pin_lng: number;
+  total_units: number;
+  unit_count: number;
   cover_image_path: string | null;
   video_url: string | null;
   landlord_id: string | null;
@@ -180,6 +232,120 @@ export async function verifyBuilding(id: string, verified: boolean) {
     method: "PATCH",
     body: JSON.stringify({ verified }),
   });
+}
+
+export type AdminPendingUnit = {
+  id: string;
+  unitNumber: string;
+  bedrooms: number;
+  bathrooms: number;
+  rentAmount: number;
+  currency: string;
+  status: string;
+};
+
+export type AdminPendingBuildingDetail = {
+  id: string;
+  name: string;
+  description: string | null;
+  city: string;
+  district: string | null;
+  buildingType: string;
+  exactAddress: string | null;
+  coverImagePath: string | null;
+  videoUrl: string | null;
+  totalUnits: number;
+  pinLat: number;
+  pinLng: number;
+  isVerified: boolean;
+  units: AdminPendingUnit[];
+  landlord: {
+    id: string | null;
+    firstName: string | null;
+    lastName: string | null;
+    phone: string | null;
+    email: string | null;
+  };
+};
+
+export type AdminUpdateBuildingPayload = {
+  name?: string;
+  city?: string;
+  district?: string;
+  exactAddress?: string;
+  coverImagePath?: string;
+  videoUrl?: string;
+  buildingType?: string;
+  exactLat?: number;
+  exactLng?: number;
+  totalUnits?: number;
+};
+
+export function getAdminLandlordDisplayName(
+  building: AdminPendingBuildingDetail,
+): string {
+  const name = [building.landlord.firstName, building.landlord.lastName]
+    .filter(Boolean)
+    .join(" ")
+    .trim();
+  if (name) return name;
+  if (building.landlord.email) return building.landlord.email;
+  return "—";
+}
+
+export async function fetchAdminPendingBuilding(id: string) {
+  return apiFetch<AdminPendingBuildingDetail>(`/admin/buildings/${id}`);
+}
+
+export async function updateAdminPendingBuilding(
+  id: string,
+  payload: AdminUpdateBuildingPayload,
+) {
+  return apiFetch<AdminPendingBuildingDetail>(`/admin/buildings/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function adminAddPendingUnit(
+  buildingId: string,
+  unit: {
+    unitNumber: string;
+    bedrooms: number;
+    bathrooms: number;
+    rentAmount: number;
+  },
+) {
+  return apiFetch<AdminPendingUnit>(`/admin/buildings/${buildingId}/units`, {
+    method: "POST",
+    body: JSON.stringify(unit),
+  });
+}
+
+export async function adminUpdatePendingUnit(
+  buildingId: string,
+  unitId: string,
+  unit: {
+    unitNumber?: string;
+    bedrooms?: number;
+    bathrooms?: number;
+    rentAmount?: number;
+  },
+) {
+  return apiFetch<AdminPendingUnit>(
+    `/admin/buildings/${buildingId}/units/${unitId}`,
+    {
+      method: "PATCH",
+      body: JSON.stringify(unit),
+    },
+  );
+}
+
+export async function adminDeletePendingUnit(buildingId: string, unitId: string) {
+  return apiFetch<{ deleted: boolean }>(
+    `/admin/buildings/${buildingId}/units/${unitId}`,
+    { method: "DELETE" },
+  );
 }
 
 export async function registerBuildingImage(

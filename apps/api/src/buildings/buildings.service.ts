@@ -1,4 +1,6 @@
 import {
+  BadRequestException,
+  ConflictException,
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
@@ -8,14 +10,18 @@ import {
   publicMapCoords,
 } from "../common/location-jitter";
 import {
+  AdminUpdateBuildingDto,
   BuildingBoundsQueryDto,
   CreateBuildingDto,
   CreateUnitDto,
   RegisterImageDto,
+  UpdateUnitDto,
 } from "./dto/building.dto";
-import type { BuildingSummary } from "@plotpin/shared-types";
+import type { BuildingSummary, BuildingType, UnitStatus } from "@plotpin/shared-types";
+import { PaymentPurpose } from "@plotpin/shared-types";
 import { EXPLORE_BOUNDS_SQL } from "./explore-query";
 import { ExploreSearchCacheService } from "./explore-search-cache.service";
+import { PricingService } from "../pricing/pricing.service";
 
 type BuildingRow = {
   id: string;
@@ -41,6 +47,7 @@ export class BuildingsService {
   constructor(
     private readonly db: DatabaseService,
     private readonly exploreCache: ExploreSearchCacheService,
+    private readonly pricing: PricingService,
   ) {}
 
   async findInBounds(query: BuildingBoundsQueryDto, tenantId?: string) {
@@ -277,34 +284,157 @@ export class BuildingsService {
     }));
   }
 
+  async findMineById(buildingId: string, landlordId: string) {
+    await this.assertLandlord(buildingId, landlordId);
+
+    const { rows } = await this.db.query(
+      `SELECT b.*,
+        COUNT(u.id) FILTER (WHERE u.status = 'AVAILABLE') AS available_unit_count
+       FROM buildings b
+       LEFT JOIN units u ON u.building_id = b.id
+       WHERE b.id = $1
+       GROUP BY b.id`,
+      [buildingId],
+    );
+
+    if (!rows[0]) throw new NotFoundException("Building not found");
+
+    const building = rows[0] as Record<string, unknown>;
+    const units = await this.fetchUnits(buildingId);
+
+    return {
+      id: building.id,
+      name: building.name,
+      description: building.description,
+      city: building.city,
+      district: building.district,
+      countryCode: building.country_code,
+      buildingType: building.building_type,
+      totalUnits: building.total_units,
+      isVerified: building.is_verified,
+      availableUnitCount: Number(building.available_unit_count ?? 0),
+      units,
+    };
+  }
+
+  async updateUnitStatus(
+    buildingId: string,
+    unitId: string,
+    landlordId: string,
+    status: UnitStatus,
+  ) {
+    await this.assertLandlord(buildingId, landlordId);
+
+    const { rows: buildingRows } = await this.db.query<{
+      is_verified: boolean;
+      building_type: string;
+      country_code: string;
+    }>(
+      "SELECT is_verified, building_type, country_code FROM buildings WHERE id = $1",
+      [buildingId],
+    );
+    const building = buildingRows[0];
+    if (!building) throw new NotFoundException("Building not found");
+
+    const { rows: unitRows } = await this.db.query<{
+      id: string;
+      status: string;
+      bedrooms: number;
+    }>(
+      "SELECT id, status, bedrooms FROM units WHERE id = $1 AND building_id = $2",
+      [unitId, buildingId],
+    );
+    const unit = unitRows[0];
+    if (!unit) throw new NotFoundException("Unit not found");
+
+    if (unit.status === "LOCKED") {
+      throw new ConflictException(
+        "This unit is locked by an active tenant unlock and cannot be changed.",
+      );
+    }
+
+    if (status === "AVAILABLE" && !building.is_verified) {
+      throw new BadRequestException(
+        "Building must be verified before units can go live on the map.",
+      );
+    }
+
+    const { rows: updatedRows } = await this.db.query(
+      `UPDATE units SET status = $3, updated_at = NOW()
+       WHERE id = $1 AND building_id = $2
+       RETURNING id, unit_number, bedrooms, bathrooms, rent_amount, currency, status`,
+      [unitId, buildingId, status],
+    );
+
+    this.exploreCache.clear();
+
+    const updated = updatedRows[0] as Record<string, unknown>;
+    const unitPayload = {
+      id: updated.id,
+      unitNumber: updated.unit_number,
+      bedrooms: updated.bedrooms,
+      bathrooms: updated.bathrooms,
+      rentAmount: updated.rent_amount,
+      currency: updated.currency,
+      status: updated.status,
+    };
+
+    if (status === "AVAILABLE") {
+      const listingQuote = await this.pricing.quote({
+        buildingType: building.building_type as BuildingType,
+        bedrooms: unit.bedrooms,
+        purpose: PaymentPurpose.LISTING,
+        countryCode: building.country_code,
+      });
+      return { unit: unitPayload, listingQuote };
+    }
+
+    return { unit: unitPayload };
+  }
+
   async findPendingVerification() {
     const { rows } = await this.db.query(
       `SELECT b.id, b.name, b.city, b.district, b.created_at, b.landlord_id,
-              b.approximate_lat, b.approximate_lng, b.cover_image_path, b.video_url,
+              b.approximate_lat, b.approximate_lng,
+              b.exact_lat, b.exact_lng,
+              b.total_units,
+              b.cover_image_path, b.video_url,
               p.first_name, p.last_name, p.phone,
-              u.email AS landlord_email
+              u.email AS landlord_email,
+              (SELECT COUNT(*)::int FROM units u2 WHERE u2.building_id = b.id) AS unit_count
        FROM buildings b
        LEFT JOIN profiles p ON p.id = b.landlord_id
        LEFT JOIN auth.users u ON u.id = b.landlord_id
        WHERE b.is_verified = FALSE
        ORDER BY b.created_at ASC`,
     );
-    return rows.map((row: Record<string, unknown>) => ({
-      id: row.id,
-      name: row.name,
-      city: row.city,
-      district: row.district,
-      created_at: row.created_at,
-      approximate_lat: row.approximate_lat,
-      approximate_lng: row.approximate_lng,
-      cover_image_path: row.cover_image_path,
-      video_url: row.video_url,
-      landlord_id: row.landlord_id,
-      first_name: row.first_name,
-      last_name: row.last_name,
-      phone: row.phone,
-      email: row.landlord_email,
-    }));
+    return rows.map((row: Record<string, unknown>) => {
+      const exactLat = row.exact_lat as number | null;
+      const exactLng = row.exact_lng as number | null;
+      const pinLat = exactLat ?? (row.approximate_lat as number);
+      const pinLng = exactLng ?? (row.approximate_lng as number);
+
+      return {
+        id: row.id,
+        name: row.name,
+        city: row.city,
+        district: row.district,
+        created_at: row.created_at,
+        approximate_lat: row.approximate_lat,
+        approximate_lng: row.approximate_lng,
+        pin_lat: pinLat,
+        pin_lng: pinLng,
+        total_units: row.total_units,
+        unit_count: row.unit_count,
+        cover_image_path: row.cover_image_path,
+        video_url: row.video_url,
+        landlord_id: row.landlord_id,
+        first_name: row.first_name,
+        last_name: row.last_name,
+        phone: row.phone,
+        email: row.landlord_email,
+      };
+    });
   }
 
   async findById(id: string, includeExact = false, tenantId?: string) {
@@ -327,8 +457,8 @@ export class BuildingsService {
     const buildingId = building.id as string;
     const coords = includeExact
       ? {
-          lat: building.approximate_lat as number,
-          lng: building.approximate_lng as number,
+          lat: (building.exact_lat ?? building.approximate_lat) as number,
+          lng: (building.exact_lng ?? building.approximate_lng) as number,
         }
       : publicMapCoords(
           buildingId,
@@ -500,6 +630,249 @@ export class BuildingsService {
     return rows[0];
   }
 
+  async findPendingById(buildingId: string) {
+    await this.assertPendingBuilding(buildingId);
+
+    const { rows } = await this.db.query(
+      `SELECT b.*,
+              p.first_name, p.last_name, p.phone,
+              u.email AS landlord_email
+       FROM buildings b
+       LEFT JOIN profiles p ON p.id = b.landlord_id
+       LEFT JOIN auth.users u ON u.id = b.landlord_id
+       WHERE b.id = $1`,
+      [buildingId],
+    );
+    if (!rows[0]) throw new NotFoundException("Building not found");
+
+    const row = rows[0] as Record<string, unknown>;
+    const exactLat = row.exact_lat as number | null;
+    const exactLng = row.exact_lng as number | null;
+    const units = await this.fetchUnits(buildingId);
+
+    return {
+      id: row.id,
+      name: row.name,
+      description: row.description,
+      city: row.city,
+      district: row.district,
+      buildingType: row.building_type,
+      exactAddress: row.exact_address,
+      coverImagePath: row.cover_image_path,
+      videoUrl: row.video_url,
+      totalUnits: row.total_units,
+      pinLat: exactLat ?? (row.approximate_lat as number),
+      pinLng: exactLng ?? (row.approximate_lng as number),
+      isVerified: row.is_verified,
+      units,
+      landlord: {
+        id: row.landlord_id,
+        firstName: row.first_name,
+        lastName: row.last_name,
+        phone: row.phone,
+        email: row.landlord_email,
+      },
+    };
+  }
+
+  async adminUpdatePendingBuilding(
+    buildingId: string,
+    adminId: string,
+    dto: AdminUpdateBuildingDto,
+  ) {
+    await this.assertPendingBuilding(buildingId);
+
+    if (
+      (dto.exactLat != null && dto.exactLng == null) ||
+      (dto.exactLat == null && dto.exactLng != null)
+    ) {
+      throw new BadRequestException("exactLat and exactLng must be sent together.");
+    }
+
+    const sets: string[] = [];
+    const params: unknown[] = [buildingId];
+    let paramIndex = 2;
+
+    const push = (column: string, value: unknown) => {
+      sets.push(`${column} = $${paramIndex}`);
+      params.push(value);
+      paramIndex += 1;
+    };
+
+    if (dto.name !== undefined) push("name", dto.name);
+    if (dto.description !== undefined) push("description", dto.description);
+    if (dto.city !== undefined) push("city", dto.city);
+    if (dto.district !== undefined) push("district", dto.district);
+    if (dto.exactAddress !== undefined) push("exact_address", dto.exactAddress);
+    if (dto.coverImagePath !== undefined) {
+      push("cover_image_path", dto.coverImagePath || null);
+    }
+    if (dto.videoUrl !== undefined) push("video_url", dto.videoUrl || null);
+    if (dto.totalUnits !== undefined) push("total_units", dto.totalUnits);
+    if (dto.buildingType !== undefined) push("building_type", dto.buildingType);
+
+    if (dto.exactLat != null && dto.exactLng != null) {
+      push("exact_lat", dto.exactLat);
+      push("exact_lng", dto.exactLng);
+      const jittered = jitterPublicMapCoords(
+        buildingId,
+        dto.exactLat,
+        dto.exactLng,
+      );
+      push("approximate_lat", jittered.lat);
+      push("approximate_lng", jittered.lng);
+    }
+
+    push("managed_by_admin_id", adminId);
+
+    if (sets.length === 1) {
+      return this.findPendingById(buildingId);
+    }
+
+    sets.push("updated_at = NOW()");
+    await this.db.query(
+      `UPDATE buildings SET ${sets.join(", ")} WHERE id = $1`,
+      params,
+    );
+
+    return this.findPendingById(buildingId);
+  }
+
+  async adminAddUnit(buildingId: string, adminId: string, dto: CreateUnitDto) {
+    await this.assertPendingBuilding(buildingId);
+
+    try {
+      const row = await this.insertUnit(buildingId, dto);
+      await this.syncPendingTotalUnits(buildingId, adminId);
+      return {
+        id: row.id,
+        unitNumber: row.unit_number,
+        bedrooms: row.bedrooms,
+        bathrooms: row.bathrooms,
+        rentAmount: row.rent_amount,
+        currency: row.currency,
+        status: row.status,
+      };
+    } catch (err) {
+      if (
+        err &&
+        typeof err === "object" &&
+        "code" in err &&
+        (err as { code: string }).code === "23505"
+      ) {
+        throw new ConflictException(
+          `Unit number "${dto.unitNumber}" already exists for this building.`,
+        );
+      }
+      throw err;
+    }
+  }
+
+  async adminUpdateUnit(
+    buildingId: string,
+    unitId: string,
+    adminId: string,
+    dto: UpdateUnitDto,
+  ) {
+    await this.assertPendingBuilding(buildingId);
+
+    const { rows: unitRows } = await this.db.query<{ status: string }>(
+      "SELECT status FROM units WHERE id = $1 AND building_id = $2",
+      [unitId, buildingId],
+    );
+    if (!unitRows[0]) throw new NotFoundException("Unit not found");
+    if (unitRows[0].status !== "UNAVAILABLE") {
+      throw new BadRequestException(
+        "Only pending units can be edited before the building goes live.",
+      );
+    }
+
+    const sets: string[] = [];
+    const params: unknown[] = [unitId, buildingId];
+    let paramIndex = 3;
+
+    const push = (column: string, value: unknown) => {
+      sets.push(`${column} = $${paramIndex}`);
+      params.push(value);
+      paramIndex += 1;
+    };
+
+    if (dto.unitNumber !== undefined) push("unit_number", dto.unitNumber);
+    if (dto.bedrooms !== undefined) push("bedrooms", dto.bedrooms);
+    if (dto.bathrooms !== undefined) push("bathrooms", dto.bathrooms);
+    if (dto.rentAmount !== undefined) push("rent_amount", dto.rentAmount);
+
+    if (sets.length === 0) {
+      const units = await this.fetchUnits(buildingId);
+      return units.find((u) => u.id === unitId);
+    }
+
+    sets.push("updated_at = NOW()");
+
+    try {
+      const { rows } = await this.db.query(
+        `UPDATE units SET ${sets.join(", ")}
+         WHERE id = $1 AND building_id = $2
+         RETURNING id, unit_number, bedrooms, bathrooms, rent_amount, currency, status`,
+        params,
+      );
+      await this.db.query(
+        "UPDATE buildings SET managed_by_admin_id = $2, updated_at = NOW() WHERE id = $1",
+        [buildingId, adminId],
+      );
+      const updated = rows[0] as Record<string, unknown>;
+      return {
+        id: updated.id,
+        unitNumber: updated.unit_number,
+        bedrooms: updated.bedrooms,
+        bathrooms: updated.bathrooms,
+        rentAmount: updated.rent_amount,
+        currency: updated.currency,
+        status: updated.status,
+      };
+    } catch (err) {
+      if (
+        err &&
+        typeof err === "object" &&
+        "code" in err &&
+        (err as { code: string }).code === "23505"
+      ) {
+        throw new ConflictException("That unit number is already in use.");
+      }
+      throw err;
+    }
+  }
+
+  async adminDeleteUnit(buildingId: string, unitId: string, adminId: string) {
+    await this.assertPendingBuilding(buildingId);
+
+    const { rows: unitRows } = await this.db.query<{ status: string }>(
+      "SELECT status FROM units WHERE id = $1 AND building_id = $2",
+      [unitId, buildingId],
+    );
+    if (!unitRows[0]) throw new NotFoundException("Unit not found");
+    if (unitRows[0].status !== "UNAVAILABLE") {
+      throw new BadRequestException(
+        "Only pending units can be removed before the building goes live.",
+      );
+    }
+
+    const { rows: countRows } = await this.db.query<{ count: string }>(
+      "SELECT COUNT(*)::text AS count FROM units WHERE building_id = $1",
+      [buildingId],
+    );
+    if (Number(countRows[0]?.count ?? 0) <= 1) {
+      throw new BadRequestException("A building must have at least one unit.");
+    }
+
+    await this.db.query(
+      "DELETE FROM units WHERE id = $1 AND building_id = $2",
+      [unitId, buildingId],
+    );
+    await this.syncPendingTotalUnits(buildingId, adminId);
+    return { deleted: true };
+  }
+
   async registerImage(
     buildingId: string,
     landlordId: string,
@@ -587,5 +960,32 @@ export class BuildingsService {
       [buildingId, landlordId],
     );
     if (!rows[0]) throw new NotFoundException("Building not found");
+  }
+
+  private async assertPendingBuilding(buildingId: string) {
+    const { rows } = await this.db.query<{ is_verified: boolean }>(
+      "SELECT is_verified FROM buildings WHERE id = $1",
+      [buildingId],
+    );
+    if (!rows[0]) throw new NotFoundException("Building not found");
+    if (rows[0].is_verified) {
+      throw new BadRequestException(
+        "This building is already live. Pending edits are only allowed before approval.",
+      );
+    }
+  }
+
+  private async syncPendingTotalUnits(buildingId: string, adminId: string) {
+    await this.db.query(
+      `UPDATE buildings b
+       SET total_units = GREATEST(
+             b.total_units,
+             (SELECT COUNT(*)::int FROM units u WHERE u.building_id = b.id)
+           ),
+           managed_by_admin_id = $2,
+           updated_at = NOW()
+       WHERE b.id = $1`,
+      [buildingId, adminId],
+    );
   }
 }

@@ -1,45 +1,90 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { cn } from "@/lib/utils/cn";
+
+export const BUILDING_COVER_MAX_BYTES = 5 * 1024 * 1024;
+
+const BUILDING_COVER_MIME_TYPES = new Set(["image/jpeg", "image/png"]);
+
+export function validateBuildingCoverFile(file: File): string | null {
+  if (!BUILDING_COVER_MIME_TYPES.has(file.type)) {
+    return "Use a JPEG or PNG image.";
+  }
+  if (file.size > BUILDING_COVER_MAX_BYTES) {
+    return "Image must be 5 MB or smaller.";
+  }
+  return null;
+}
 
 type ImageUploadProps = {
   value: File | null;
   onChange: (file: File | null) => void;
+  /** Saved cover URL when no new file is selected yet. */
+  existingUrl?: string | null;
+  onClearExisting?: () => void;
   label?: string;
   hint?: string;
+  required?: boolean;
+  error?: string | null;
+  onValidationError?: (message: string | null) => void;
 };
 
 export function ImageUpload({
   value,
   onChange,
+  existingUrl = null,
+  onClearExisting,
   label = "Cover photo",
-  hint = "JPEG or PNG, up to 5 MB. Drag and drop or click to choose.",
+  hint = "Required — JPEG or PNG, up to 5 MB.",
+  required = false,
+  error,
+  onValidationError,
 }: ImageUploadProps) {
   const inputRef = useRef<HTMLInputElement>(null);
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [dragOver, setDragOver] = useState(false);
+  const [localError, setLocalError] = useState<string | null>(null);
+
+  const displayError = error ?? localError;
+
+  const previewUrl = useMemo(() => {
+    if (value) return URL.createObjectURL(value);
+    if (existingUrl) return existingUrl;
+    return null;
+  }, [existingUrl, value]);
+
+  const showingExisting = !value && Boolean(existingUrl);
 
   useEffect(() => {
-    if (!value) {
-      setPreviewUrl(null);
-      return;
-    }
-    const url = URL.createObjectURL(value);
-    setPreviewUrl(url);
-    return () => URL.revokeObjectURL(url);
-  }, [value]);
+    if (!value || !previewUrl || previewUrl === existingUrl) return;
+    return () => {
+      URL.revokeObjectURL(previewUrl);
+    };
+  }, [existingUrl, previewUrl, value]);
 
   const pickFile = useCallback(
     (file: File | null) => {
       if (!file) {
+        setLocalError(null);
+        onValidationError?.(null);
         onChange(null);
         return;
       }
-      if (!file.type.startsWith("image/")) return;
+
+      const validationError = validateBuildingCoverFile(file);
+      if (validationError) {
+        setLocalError(validationError);
+        onValidationError?.(validationError);
+        onChange(null);
+        if (inputRef.current) inputRef.current.value = "";
+        return;
+      }
+
+      setLocalError(null);
+      onValidationError?.(null);
       onChange(file);
     },
-    [onChange],
+    [onChange, onValidationError],
   );
 
   function onDrop(e: React.DragEvent) {
@@ -50,7 +95,10 @@ export function ImageUpload({
 
   return (
     <div className="space-y-2">
-      <span className="block text-sm">{label}</span>
+      <span className="block text-sm">
+        {label}
+        {required ? <span className="text-red-600"> *</span> : null}
+      </span>
 
       {previewUrl ? (
         <div className="relative overflow-hidden border border-border bg-surface">
@@ -71,7 +119,13 @@ export function ImageUpload({
             <button
               type="button"
               className="text-sm text-muted hover:text-red-600"
-              onClick={() => pickFile(null)}
+              onClick={() => {
+                if (showingExisting) {
+                  onClearExisting?.();
+                  return;
+                }
+                pickFile(null);
+              }}
             >
               Remove
             </button>
@@ -102,10 +156,16 @@ export function ImageUpload({
       <input
         ref={inputRef}
         type="file"
-        accept="image/*"
+        accept="image/jpeg,image/png"
         className="sr-only"
         onChange={(e) => pickFile(e.target.files?.[0] ?? null)}
       />
+
+      {displayError ? (
+        <p className="text-xs text-red-600" role="alert">
+          {displayError}
+        </p>
+      ) : null}
     </div>
   );
 }

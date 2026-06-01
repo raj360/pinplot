@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   Patch,
@@ -11,12 +12,15 @@ import {
 import { Throttle, ThrottlerGuard } from "@nestjs/throttler";
 import { BuildingsService } from "./buildings.service";
 import {
+  AdminUpdateBuildingDto,
   BuildingBoundsQueryDto,
   CreateBuildingDto,
   CreateUnitDto,
   RegisterImageDto,
+  UpdateUnitDto,
   VerifyBuildingDto,
 } from "./dto/building.dto";
+import { UpdateUnitStatusDto } from "./dto/unit-status.dto";
 import { SupabaseAuthGuard } from "../auth/supabase-auth.guard";
 import { OptionalSupabaseAuthGuard } from "../auth/optional-supabase-auth.guard";
 import { RolesGuard } from "../auth/roles.guard";
@@ -42,6 +46,23 @@ export class BuildingsController {
   @UseGuards(SupabaseAuthGuard)
   findMine(@CurrentUser() user: AuthUser) {
     return this.buildings.findByLandlord(user.id);
+  }
+
+  @Get("mine/:id")
+  @UseGuards(SupabaseAuthGuard)
+  findMineOne(@Param("id") id: string, @CurrentUser() user: AuthUser) {
+    return this.buildings.findMineById(id, user.id);
+  }
+
+  @Patch(":id/units/:unitId/status")
+  @UseGuards(SupabaseAuthGuard)
+  updateUnitStatus(
+    @Param("id") id: string,
+    @Param("unitId") unitId: string,
+    @CurrentUser() user: AuthUser,
+    @Body() dto: UpdateUnitStatusDto,
+  ) {
+    return this.buildings.updateUnitStatus(id, unitId, user.id, dto.status);
   }
 
   @Get(":id")
@@ -86,6 +107,48 @@ export class AdminBuildingsController {
   @Get("pending")
   findPending() {
     return this.buildings.findPendingVerification();
+  }
+
+  @Get(":id")
+  findPendingOne(@Param("id") id: string) {
+    return this.buildings.findPendingById(id);
+  }
+
+  @Patch(":id")
+  updatePending(
+    @Param("id") id: string,
+    @CurrentUser() user: AuthUser,
+    @Body() dto: AdminUpdateBuildingDto,
+  ) {
+    return this.buildings.adminUpdatePendingBuilding(id, user.id, dto);
+  }
+
+  @Post(":id/units")
+  addUnit(
+    @Param("id") id: string,
+    @CurrentUser() user: AuthUser,
+    @Body() dto: CreateUnitDto,
+  ) {
+    return this.buildings.adminAddUnit(id, user.id, dto);
+  }
+
+  @Patch(":id/units/:unitId")
+  updateUnit(
+    @Param("id") id: string,
+    @Param("unitId") unitId: string,
+    @CurrentUser() user: AuthUser,
+    @Body() dto: UpdateUnitDto,
+  ) {
+    return this.buildings.adminUpdateUnit(id, unitId, user.id, dto);
+  }
+
+  @Delete(":id/units/:unitId")
+  deleteUnit(
+    @Param("id") id: string,
+    @Param("unitId") unitId: string,
+    @CurrentUser() user: AuthUser,
+  ) {
+    return this.buildings.adminDeleteUnit(id, unitId, user.id);
   }
 
   @Patch(":id/verify")
