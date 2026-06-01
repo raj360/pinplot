@@ -40,7 +40,7 @@ const FORM_STEPS = [
     label: "Location",
     title: "Pin your building",
     description:
-      "Drag the pin or use your location. Tenants see an approximate area until they unlock.",
+      "Drag the pin onto your building. We store this exact spot; tenants see a nearby pin on the map until they unlock.",
   },
   {
     label: "Details",
@@ -227,6 +227,8 @@ export default function NewBuildingPage() {
         district: district.trim(),
         approximateLat: location.lat,
         approximateLng: location.lng,
+        exactLat: location.lat,
+        exactLng: location.lng,
         exactAddress: exactAddress.trim(),
         videoUrl,
         buildingType,

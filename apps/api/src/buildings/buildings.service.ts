@@ -393,31 +393,46 @@ export class BuildingsService {
   async findPendingVerification() {
     const { rows } = await this.db.query(
       `SELECT b.id, b.name, b.city, b.district, b.created_at, b.landlord_id,
-              b.approximate_lat, b.approximate_lng, b.cover_image_path, b.video_url,
+              b.approximate_lat, b.approximate_lng,
+              b.exact_lat, b.exact_lng,
+              b.total_units,
+              b.cover_image_path, b.video_url,
               p.first_name, p.last_name, p.phone,
-              u.email AS landlord_email
+              u.email AS landlord_email,
+              (SELECT COUNT(*)::int FROM units u2 WHERE u2.building_id = b.id) AS unit_count
        FROM buildings b
        LEFT JOIN profiles p ON p.id = b.landlord_id
        LEFT JOIN auth.users u ON u.id = b.landlord_id
        WHERE b.is_verified = FALSE
        ORDER BY b.created_at ASC`,
     );
-    return rows.map((row: Record<string, unknown>) => ({
-      id: row.id,
-      name: row.name,
-      city: row.city,
-      district: row.district,
-      created_at: row.created_at,
-      approximate_lat: row.approximate_lat,
-      approximate_lng: row.approximate_lng,
-      cover_image_path: row.cover_image_path,
-      video_url: row.video_url,
-      landlord_id: row.landlord_id,
-      first_name: row.first_name,
-      last_name: row.last_name,
-      phone: row.phone,
-      email: row.landlord_email,
-    }));
+    return rows.map((row: Record<string, unknown>) => {
+      const exactLat = row.exact_lat as number | null;
+      const exactLng = row.exact_lng as number | null;
+      const pinLat = exactLat ?? (row.approximate_lat as number);
+      const pinLng = exactLng ?? (row.approximate_lng as number);
+
+      return {
+        id: row.id,
+        name: row.name,
+        city: row.city,
+        district: row.district,
+        created_at: row.created_at,
+        approximate_lat: row.approximate_lat,
+        approximate_lng: row.approximate_lng,
+        pin_lat: pinLat,
+        pin_lng: pinLng,
+        total_units: row.total_units,
+        unit_count: row.unit_count,
+        cover_image_path: row.cover_image_path,
+        video_url: row.video_url,
+        landlord_id: row.landlord_id,
+        first_name: row.first_name,
+        last_name: row.last_name,
+        phone: row.phone,
+        email: row.landlord_email,
+      };
+    });
   }
 
   async findById(id: string, includeExact = false, tenantId?: string) {
@@ -440,8 +455,8 @@ export class BuildingsService {
     const buildingId = building.id as string;
     const coords = includeExact
       ? {
-          lat: building.approximate_lat as number,
-          lng: building.approximate_lng as number,
+          lat: (building.exact_lat ?? building.approximate_lat) as number,
+          lng: (building.exact_lng ?? building.approximate_lng) as number,
         }
       : publicMapCoords(
           buildingId,

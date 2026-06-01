@@ -114,6 +114,8 @@ export type CreateBuildingPayload = {
   district?: string;
   approximateLat: number;
   approximateLng: number;
+  exactLat?: number;
+  exactLng?: number;
   exactAddress?: string;
   videoUrl?: string;
   buildingType?: string;
@@ -197,6 +199,11 @@ export type PendingBuilding = {
   created_at: string;
   approximate_lat: number;
   approximate_lng: number;
+  /** Landlord-placed pin — use for admin review maps. */
+  pin_lat: number;
+  pin_lng: number;
+  total_units: number;
+  unit_count: number;
   cover_image_path: string | null;
   video_url: string | null;
   landlord_id: string | null;

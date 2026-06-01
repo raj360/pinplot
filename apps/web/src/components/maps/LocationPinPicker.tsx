@@ -26,6 +26,7 @@ type LocationPinPickerProps = {
   onChange: (value: LatLng) => void;
   onAddressHints?: (hints: AddressHints) => void;
   readOnly?: boolean;
+  showCoordinates?: boolean;
   className?: string;
 };
 
@@ -34,6 +35,7 @@ export function LocationPinPicker({
   onChange,
   onAddressHints,
   readOnly = false,
+  showCoordinates = true,
   className = "h-56",
 }: LocationPinPickerProps) {
   const [geoLoading, setGeoLoading] = useState(false);
@@ -123,9 +125,11 @@ export function LocationPinPicker({
           </div>
         ) : null}
 
-        <p className="font-mono text-xs text-muted">
-          {value.lat.toFixed(5)}, {value.lng.toFixed(5)}
-        </p>
+        {showCoordinates ? (
+          <p className="font-mono text-xs text-muted">
+            {value.lat.toFixed(5)}, {value.lng.toFixed(5)}
+          </p>
+        ) : null}
       </div>
     </APIProvider>
   );

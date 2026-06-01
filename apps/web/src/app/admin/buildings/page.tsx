@@ -78,6 +78,13 @@ export default function AdminBuildingsPage() {
                   Landlord: {getLandlordDisplayName(b)}
                   {b.phone ? ` · ${b.phone}` : ""}
                 </p>
+                <p className="mt-1 text-xs text-muted">
+                  {b.unit_count}{" "}
+                  {b.unit_count === 1 ? "unit" : "units"} listed
+                  {b.unit_count !== b.total_units
+                    ? ` (${b.total_units} declared)`
+                    : ""}
+                </p>
               </div>
               <Button
                 type="button"
@@ -92,19 +99,27 @@ export default function AdminBuildingsPage() {
             <div className="mt-4 grid gap-4 lg:grid-cols-2">
               <div>
                 <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted">
-                  Map pin
+                  Landlord pin (exact)
+                </p>
+                <p className="mb-2 text-xs text-muted">
+                  Tenants see a blurred map pin nearby until they unlock — this is
+                  where the landlord placed the building.
                 </p>
                 <LocationPinPicker
                   value={{
-                    lat: b.approximate_lat,
-                    lng: b.approximate_lng,
+                    lat: b.pin_lat,
+                    lng: b.pin_lng,
                   }}
                   onChange={() => {}}
                   readOnly
+                  showCoordinates={false}
                   className="h-44"
                 />
+                <p className="mt-2 font-mono text-xs text-muted">
+                  {b.pin_lat.toFixed(5)}, {b.pin_lng.toFixed(5)}
+                </p>
                 <a
-                  href={mapsLink(b.approximate_lat, b.approximate_lng)}
+                  href={mapsLink(b.pin_lat, b.pin_lng)}
                   target="_blank"
                   rel="noreferrer"
                   className="mt-2 inline-block text-sm text-primary hover:underline"
