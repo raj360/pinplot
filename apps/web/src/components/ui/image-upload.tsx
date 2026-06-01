@@ -20,6 +20,9 @@ export function validateBuildingCoverFile(file: File): string | null {
 type ImageUploadProps = {
   value: File | null;
   onChange: (file: File | null) => void;
+  /** Saved cover URL when no new file is selected yet. */
+  existingUrl?: string | null;
+  onClearExisting?: () => void;
   label?: string;
   hint?: string;
   required?: boolean;
@@ -30,6 +33,8 @@ type ImageUploadProps = {
 export function ImageUpload({
   value,
   onChange,
+  existingUrl = null,
+  onClearExisting,
   label = "Cover photo",
   hint = "Required — JPEG or PNG, up to 5 MB.",
   required = false,
@@ -43,15 +48,19 @@ export function ImageUpload({
   const displayError = error ?? localError;
 
   const previewUrl = useMemo(() => {
-    if (!value) return null;
-    return URL.createObjectURL(value);
-  }, [value]);
+    if (value) return URL.createObjectURL(value);
+    if (existingUrl) return existingUrl;
+    return null;
+  }, [existingUrl, value]);
+
+  const showingExisting = !value && Boolean(existingUrl);
 
   useEffect(() => {
+    if (!value || !previewUrl || previewUrl === existingUrl) return;
     return () => {
-      if (previewUrl) URL.revokeObjectURL(previewUrl);
+      URL.revokeObjectURL(previewUrl);
     };
-  }, [previewUrl]);
+  }, [existingUrl, previewUrl, value]);
 
   const pickFile = useCallback(
     (file: File | null) => {
@@ -110,7 +119,13 @@ export function ImageUpload({
             <button
               type="button"
               className="text-sm text-muted hover:text-red-600"
-              onClick={() => pickFile(null)}
+              onClick={() => {
+                if (showingExisting) {
+                  onClearExisting?.();
+                  return;
+                }
+                pickFile(null);
+              }}
             >
               Remove
             </button>

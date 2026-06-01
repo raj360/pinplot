@@ -154,6 +154,83 @@ export class VerifyBuildingDto {
   verified!: boolean;
 }
 
+export class AdminUpdateBuildingDto {
+  @IsOptional()
+  @IsString()
+  name?: string;
+
+  @IsOptional()
+  @IsString()
+  description?: string;
+
+  @IsOptional()
+  @IsString()
+  city?: string;
+
+  @IsOptional()
+  @IsString()
+  district?: string;
+
+  @IsOptional()
+  @IsString()
+  exactAddress?: string;
+
+  @IsOptional()
+  @IsString()
+  coverImagePath?: string;
+
+  @IsOptional()
+  @IsString()
+  @Matches(/^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.be)\//i, {
+    message: "videoUrl must be a YouTube link",
+  })
+  videoUrl?: string;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  exactLat?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  exactLng?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  totalUnits?: number;
+
+  @IsOptional()
+  @IsIn([...BUILDING_TYPES])
+  buildingType?: string;
+}
+
+export class UpdateUnitDto {
+  @IsOptional()
+  @IsString()
+  unitNumber?: string;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  bedrooms?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  bathrooms?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  rentAmount?: number;
+}
+
 export class RegisterImageDto {
   @IsString()
   storagePath!: string;
