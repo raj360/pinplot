@@ -4,8 +4,9 @@ import {
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
-import { PRICING } from "@plotpin/shared-types";
+import { PRICING, PaymentPurpose } from "@plotpin/shared-types";
 import { DatabaseService } from "../database/database.service";
+import { WalletService } from "../wallet/wallet.service";
 
 type UnitRow = {
   id: string;
@@ -45,7 +46,10 @@ const UNIT_JOIN = `
 
 @Injectable()
 export class UnlocksService {
-  constructor(private readonly db: DatabaseService) {}
+  constructor(
+    private readonly db: DatabaseService,
+    private readonly wallet: WalletService,
+  ) {}
 
   async listMine(tenantId: string) {
     const { rows } = await this.db.query(
@@ -135,9 +139,16 @@ export class UnlocksService {
     const unit = await this.loadUnit(unitId);
     const winner = await this.findActiveWinner(unitId);
     const mine = await this.findTenantUnlock(unitId, tenantId);
+    const unlockCreditsAvailable = await this.wallet.countAvailableCredits(
+      tenantId,
+      PaymentPurpose.UNLOCK,
+    );
 
     if (mine?.is_winner && this.isActive(mine)) {
-      return this.enrichWithMedia(this.toResponse(unit, mine, "winner"));
+      const response = await this.enrichWithMedia(
+        this.toResponse(unit, mine, "winner"),
+      );
+      return { ...response, unlockCreditsAvailable };
     }
 
     if (winner && winner.tenant_id !== tenantId) {
@@ -148,6 +159,7 @@ export class UnlocksService {
         status: unit.status,
         unlockState: "locked_by_other" as const,
         feeUgx: PRICING.tenantUnlockFeeUgx,
+        unlockCreditsAvailable,
         exclusiveHours: PRICING.unlockExclusiveHours,
       };
     }
@@ -162,6 +174,7 @@ export class UnlocksService {
           ? ("available" as const)
           : ("unavailable" as const),
       feeUgx: PRICING.tenantUnlockFeeUgx,
+      unlockCreditsAvailable,
       exclusiveHours: PRICING.unlockExclusiveHours,
     };
   }
@@ -190,8 +203,11 @@ export class UnlocksService {
         throw new ConflictException("This unit is not available to unlock.");
       }
 
-      const resolvedPaymentId =
-        paymentId ?? (await this.createDevPayment(tenantId, unitId));
+      const resolvedPayment = await this.resolveUnlockPayment(
+        tenantId,
+        unitId,
+        paymentId,
+      );
 
       const expiresAt = new Date(
         Date.now() + PRICING.unlockExclusiveHours * 60 * 60 * 1000,
@@ -212,7 +228,7 @@ export class UnlocksService {
         [
           unitId,
           tenantId,
-          resolvedPaymentId,
+          resolvedPayment.paymentId,
           revealedPhone,
           revealedAddress,
           expiresAt,
@@ -230,7 +246,18 @@ export class UnlocksService {
       );
 
       await this.db.query("COMMIT");
-      return this.enrichWithMedia(this.toResponse(unit, rows[0], "winner"));
+      const response = await this.enrichWithMedia(
+        this.toResponse(unit, rows[0], "winner"),
+      );
+      return {
+        ...response,
+        paidWithCredit: resolvedPayment.paidWithCredit,
+        creditType: resolvedPayment.creditType,
+        unlockCreditsAvailable: await this.wallet.countAvailableCredits(
+          tenantId,
+          PaymentPurpose.UNLOCK,
+        ),
+      };
     } catch (err) {
       await this.db.query("ROLLBACK");
       throw err;
@@ -300,6 +327,70 @@ export class UnlocksService {
     const lat = unit.exact_lat ?? unit.approximate_lat;
     const lng = unit.exact_lng ?? unit.approximate_lng;
     return { lat, lng };
+  }
+
+  private async resolveUnlockPayment(
+    tenantId: string,
+    unitId: string,
+    paymentId?: string,
+  ) {
+    if (paymentId) {
+      return {
+        paymentId,
+        paidWithCredit: false,
+        creditType: undefined as string | undefined,
+      };
+    }
+
+    const credit = await this.wallet.consumeUnlockCredit(tenantId);
+    if (credit) {
+      const id = await this.createCreditPayment(
+        tenantId,
+        unitId,
+        credit.ledgerId,
+        credit.amountUgx,
+        credit.creditType,
+      );
+      return {
+        paymentId: id,
+        paidWithCredit: true,
+        creditType: credit.creditType,
+      };
+    }
+
+    const id = await this.createDevPayment(tenantId, unitId);
+    return {
+      paymentId: id,
+      paidWithCredit: false,
+      creditType: undefined as string | undefined,
+    };
+  }
+
+  private async createCreditPayment(
+    tenantId: string,
+    unitId: string,
+    ledgerId: string,
+    nominalAmountUgx: number,
+    creditType: string,
+  ) {
+    const { rows } = await this.db.query<{ id: string }>(
+      `INSERT INTO payments (
+        user_id, provider, purpose, amount, currency, status, external_ref, metadata
+      ) VALUES ($1, 'STRIPE', 'UNLOCK', 0, 'UGX', 'COMPLETED', $2, $3)
+      RETURNING id`,
+      [
+        tenantId,
+        `credit-unlock-${ledgerId}`,
+        JSON.stringify({
+          credit: true,
+          creditLedgerId: ledgerId,
+          creditType,
+          nominalAmountUgx,
+          unitId,
+        }),
+      ],
+    );
+    return rows[0].id;
   }
 
   private async createDevPayment(tenantId: string, unitId: string) {

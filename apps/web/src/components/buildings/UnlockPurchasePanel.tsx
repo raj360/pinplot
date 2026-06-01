@@ -15,6 +15,7 @@ export function UnlockPurchasePanel({
   isAuthenticated,
   onUnlock,
   unlockingId,
+  unlockCredits = 0,
   title = "Unlock contact",
   description,
   showHeading = true,
@@ -26,13 +27,17 @@ export function UnlockPurchasePanel({
   isAuthenticated: boolean;
   onUnlock: (unitId: string) => void;
   unlockingId: string | null;
+  unlockCredits?: number;
   title?: string;
   description?: string;
   showHeading?: boolean;
   /** sidebar = single column in narrow aside; grid = responsive columns when space allows */
   layout?: "grid" | "sidebar";
 }) {
-  const defaultDescription = `Pay ${formatCurrency(PRICING.tenantUnlockFeeUgx)} to reveal exact address, landlord contact, building tour, and directions. First payment wins exclusive access for ${PRICING.unlockExclusiveHours} hours.`;
+  const defaultDescription =
+    unlockCredits > 0
+      ? `You have ${unlockCredits} unlock credit${unlockCredits === 1 ? "" : "s"} — use one to reveal exact address, landlord contact, building tour, and directions. Credits are promotional only, not withdrawable.`
+      : `Pay ${formatCurrency(PRICING.tenantUnlockFeeUgx)} to reveal exact address, landlord contact, building tour, and directions. First payment wins exclusive access for ${PRICING.unlockExclusiveHours} hours.`;
 
   const listClass = cn(
     "mt-4 grid gap-3",
@@ -86,7 +91,9 @@ export function UnlockPurchasePanel({
                 loadingLabel="Unlocking unit"
                 onClick={() => onUnlock(unit.id)}
               >
-                Unlock — {formatCurrency(PRICING.tenantUnlockFeeUgx)}
+                {unlockCredits > 0
+                  ? "Unlock with credit"
+                  : `Unlock — ${formatCurrency(PRICING.tenantUnlockFeeUgx)}`}
               </Button>
             </li>
           ))}
@@ -97,7 +104,9 @@ export function UnlockPurchasePanel({
 
       {isAuthenticated && availableUnits.length > 0 ? (
         <p className="mt-3 text-xs text-muted">
-          Dev mode: payment simulated until Stripe / Flutterwave is connected.
+          {unlockCredits > 0
+            ? "Your credit covers this unlock in dev — no card charge until Stripe is connected."
+            : "Dev mode: payment simulated until Stripe / Flutterwave is connected."}
         </p>
       ) : null}
     </div>

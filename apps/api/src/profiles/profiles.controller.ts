@@ -18,6 +18,7 @@ import { DatabaseService } from "../database/database.service";
 import { SupabaseAuthGuard } from "../auth/supabase-auth.guard";
 import { CurrentUser } from "../auth/current-user.decorator";
 import { AuthUser } from "../auth/auth.types";
+import { WalletService } from "../wallet/wallet.service";
 import { UpdateProfileRoleDto } from "../buildings/dto/building.dto";
 import { UpdateProfileDto } from "./dto/profile.dto";
 
@@ -40,7 +41,10 @@ function normalizePhoneField(value: string, label: string) {
 
 @Controller("profiles")
 export class ProfilesController {
-  constructor(private readonly db: DatabaseService) {}
+  constructor(
+    private readonly db: DatabaseService,
+    private readonly wallet: WalletService,
+  ) {}
 
   private profileSelect = `
     id, role, first_name, last_name, phone, phone_secondary,
@@ -61,14 +65,35 @@ export class ProfilesController {
   @Post("sync")
   @UseGuards(SupabaseAuthGuard)
   async sync(@CurrentUser() user: AuthUser) {
-    const { rows } = await this.db.query(
+    const { rows } = await this.db.query<{
+      id: string;
+      role: string;
+      country_code: string;
+    }>(
       `INSERT INTO profiles (id, role)
        VALUES ($1, 'TENANT')
        ON CONFLICT (id) DO UPDATE SET updated_at = NOW()
-       RETURNING ${this.profileSelect}`,
+       RETURNING id, role, country_code`,
       [user.id],
     );
-    return rows[0];
+    const profile = rows[0];
+
+    const welcome = await this.wallet.grantWelcomeBonusIfEligible(
+      user.id,
+      profile?.country_code,
+    );
+    const wallet = await this.wallet.getWallet(user.id);
+
+    const { rows: fullRows } = await this.db.query(
+      `SELECT ${this.profileSelect} FROM profiles WHERE id = $1`,
+      [user.id],
+    );
+
+    return {
+      ...fullRows[0],
+      welcomeBonusGranted: welcome.granted,
+      wallet,
+    };
   }
 
   @Patch("me")

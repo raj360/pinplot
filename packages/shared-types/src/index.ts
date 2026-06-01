@@ -48,7 +48,42 @@ export enum PaymentProvider {
 export enum PaymentPurpose {
   LISTING = "LISTING",
   UNLOCK = "UNLOCK",
+  FEATURED = "FEATURED",
 }
+
+export enum WalletCreditType {
+  WELCOME_BONUS = "WELCOME_BONUS",
+  COUPON = "COUPON",
+  ADMIN_GRANT = "ADMIN_GRANT",
+  FEATURED_GRANT = "FEATURED_GRANT",
+}
+
+/** Promotional credit bucket — not withdrawable cash (PRD §5). */
+export type WalletCredit = {
+  id: string;
+  creditType: WalletCreditType;
+  purpose: PaymentPurpose;
+  quantity: number;
+  remainingQuantity: number;
+  amountUgx: number;
+  remainingUgx: number;
+  expiresAt: string | null;
+  label?: string;
+};
+
+export type WalletSummary = {
+  credits: WalletCredit[];
+  unlockCredits: number;
+  listingCredits: number;
+  featuredCredits: number;
+  /** Shown in UI — credits are not e-money. */
+  policyNote: string;
+};
+
+export const WALLET_POLICY_NOTE =
+  "Promotional platform credits only — not withdrawable or transferable.";
+
+export const WELCOME_BONUS_EXPIRY_DAYS = 90;
 
 export enum PaymentStatus {
   PENDING = "PENDING",

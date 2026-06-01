@@ -9,6 +9,7 @@ import {
   type TenantUnlock,
 } from "@/lib/api/unlocks";
 import { clearBuildingCache } from "@/lib/api/building-cache";
+import { fetchWallet } from "@/lib/api/wallet";
 import type { UnitLike } from "@/lib/buildings/unit-summary";
 
 export function useBuildingUnlocks(buildingId: string, units: UnitLike[]) {
@@ -17,6 +18,7 @@ export function useBuildingUnlocks(buildingId: string, units: UnitLike[]) {
   const [loadedBuildingId, setLoadedBuildingId] = useState<string | null>(null);
   const [unlockingId, setUnlockingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [unlockCredits, setUnlockCredits] = useState(0);
 
   const activeUnlocks = isAuthenticated ? myUnlocks : [];
   const loadingUnlocks =
@@ -61,6 +63,24 @@ export function useBuildingUnlocks(buildingId: string, units: UnitLike[]) {
     };
   }, [isAuthenticated, buildingId]);
 
+  useEffect(() => {
+    if (!isAuthenticated) return;
+
+    let cancelled = false;
+
+    fetchWallet()
+      .then((wallet) => {
+        if (!cancelled) setUnlockCredits(wallet.unlockCredits);
+      })
+      .catch(() => {
+        if (!cancelled) setUnlockCredits(0);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isAuthenticated, loadedBuildingId]);
+
   const handleUnlock = useCallback(
     async (unitId: string): Promise<boolean> => {
       setError(null);
@@ -69,6 +89,12 @@ export function useBuildingUnlocks(buildingId: string, units: UnitLike[]) {
         await unlockUnit(unitId);
         clearBuildingCache(buildingId);
         await reloadUnlocks();
+        try {
+          const wallet = await fetchWallet();
+          setUnlockCredits(wallet.unlockCredits);
+        } catch {
+          /* wallet refresh is best-effort */
+        }
         return true;
       } catch (err) {
         setError(err instanceof Error ? err.message : "Unlock failed");
@@ -83,6 +109,9 @@ export function useBuildingUnlocks(buildingId: string, units: UnitLike[]) {
   const showUnlockSection =
     !loading && (availableUnits.length > 0 || activeUnlocks.length === 0);
 
+  /** Hide stale credits after sign-out without syncing state in an effect. */
+  const visibleUnlockCredits = isAuthenticated ? unlockCredits : 0;
+
   return {
     activeUnlocks,
     availableUnits,
@@ -93,5 +122,6 @@ export function useBuildingUnlocks(buildingId: string, units: UnitLike[]) {
     loading,
     showUnlockSection,
     unlockingId,
+    unlockCredits: visibleUnlockCredits,
   };
 }
