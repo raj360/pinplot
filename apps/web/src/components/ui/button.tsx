@@ -36,6 +36,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
       loadingLabel,
       disabled,
       children,
+      type = "button",
       ...props
     },
     ref,
@@ -45,7 +46,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
     return (
       <button
         ref={ref}
-        type="button"
+        type={type}
         className={cn(
           "inline-flex cursor-pointer items-center justify-center gap-2 font-medium transition-opacity disabled:pointer-events-none disabled:opacity-60",
           variantClasses[variant],
