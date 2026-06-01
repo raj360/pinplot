@@ -35,6 +35,9 @@ export type UnlockStatus =
       status: string;
       unlockState: "available";
       feeUgx: number;
+      quoteLabel?: string;
+      buildingType?: string | null;
+      bedrooms?: number;
       unlockCreditsAvailable?: number;
       exclusiveHours: number;
     }
@@ -45,6 +48,9 @@ export type UnlockStatus =
       status: string;
       unlockState: "locked_by_other" | "unavailable";
       feeUgx: number;
+      quoteLabel?: string;
+      buildingType?: string | null;
+      bedrooms?: number;
       unlockCreditsAvailable?: number;
       exclusiveHours: number;
     }

@@ -12,6 +12,9 @@ import { BuildingDetailSkeleton } from "@/components/explore/BuildingPreviewSkel
 import type { BuildingDetail } from "@/lib/api/buildings";
 import { mergeBuildingMedia } from "@/lib/buildings/media";
 import { formatCurrency } from "@/lib/intl/format";
+import {
+  unlockPanelDescription,
+} from "@/lib/unlocks/unlock-pricing";
 import { useBuildingUnlocks } from "@/lib/unlocks/use-building-unlocks";
 
 type BuildingDetailExperienceProps = {
@@ -32,7 +35,10 @@ export function BuildingDetailExperience({
   onExpandToFull,
   hideHeader = false,
 }: BuildingDetailExperienceProps) {
-  const unlocks = useBuildingUnlocks(building.id, building.units);
+  const unlocks = useBuildingUnlocks(building.id, building.units, {
+    buildingType: building.buildingType,
+    countryCode: building.countryCode,
+  });
   const location = [building.district, building.city].filter(Boolean).join(", ");
   const hasAccess = unlocks.activeUnlocks.length > 0;
   const media = mergeBuildingMedia(building, unlocks.activeUnlocks[0]);
@@ -47,6 +53,26 @@ export function BuildingDetailExperience({
   }
 
   const unlockPanelLayout = layout === "sidebar" ? "sidebar" : "grid";
+
+  const unlockPanelProps = {
+    buildingId: building.id,
+    availableUnits: unlocks.availableUnits,
+    error: unlocks.error,
+    isAuthenticated: unlocks.isAuthenticated,
+    onUnlock: handleUnlock,
+    unlockingId: unlocks.unlockingId,
+    unlockCredits: unlocks.unlockCredits,
+    primaryCreditUgx: unlocks.primaryCreditUgx,
+    unitQuotes: unlocks.unitQuotes,
+    representativeQuote: unlocks.representativeQuote,
+    layout: unlockPanelLayout,
+  } as const;
+
+  const firstUnlockDescription = unlockPanelDescription({
+    unlockCredits: unlocks.unlockCredits,
+    primaryCreditUgx: unlocks.primaryCreditUgx,
+    quote: unlocks.representativeQuote,
+  });
 
   if (variant === "compact") {
     if (hasAccess && building.availableUnitCount === 0) {
@@ -80,16 +106,9 @@ export function BuildingDetailExperience({
 
           {unlocks.showUnlockSection && building.availableUnitCount > 0 ? (
             <UnlockPurchasePanel
-              buildingId={building.id}
-              availableUnits={unlocks.availableUnits}
-              error={unlocks.error}
-              isAuthenticated={unlocks.isAuthenticated}
-              onUnlock={handleUnlock}
-              unlockingId={unlocks.unlockingId}
-              unlockCredits={unlocks.unlockCredits}
-              layout={unlockPanelLayout}
+              {...unlockPanelProps}
               title="Unlock another unit"
-              description={`Pay ${formatCurrency(PRICING.tenantUnlockFeeUgx)} to unlock additional units at this building.`}
+              description={firstUnlockDescription}
             />
           ) : null}
         </div>
@@ -107,16 +126,9 @@ export function BuildingDetailExperience({
 
         {unlocks.showUnlockSection && building.availableUnitCount > 0 ? (
           <UnlockPurchasePanel
-            buildingId={building.id}
-            availableUnits={unlocks.availableUnits}
-            error={unlocks.error}
-            isAuthenticated={unlocks.isAuthenticated}
-            onUnlock={handleUnlock}
-            unlockingId={unlocks.unlockingId}
-            unlockCredits={unlocks.unlockCredits}
-            layout={unlockPanelLayout}
+            {...unlockPanelProps}
             title="Unlock contact"
-            description={`Pay ${formatCurrency(PRICING.tenantUnlockFeeUgx)} to reveal exact address, landlord contact, and directions.`}
+            description={firstUnlockDescription}
           />
         ) : null}
       </div>
@@ -169,15 +181,8 @@ export function BuildingDetailExperience({
               optional
             />
             <UnlockPurchasePanel
-              buildingId={building.id}
-              availableUnits={unlocks.availableUnits}
-              error={unlocks.error}
-              isAuthenticated={unlocks.isAuthenticated}
-              onUnlock={handleUnlock}
-              unlockingId={unlocks.unlockingId}
-              unlockCredits={unlocks.unlockCredits}
+              {...unlockPanelProps}
               showHeading={false}
-              layout={unlockPanelLayout}
               description="Each unit unlock includes its own contact window and directions."
             />
           </section>
@@ -221,17 +226,7 @@ export function BuildingDetailExperience({
         title="Get landlord contact"
         description="Pay once to reveal exact address, contact details, photos, and directions."
       />
-      <UnlockPurchasePanel
-        buildingId={building.id}
-        availableUnits={unlocks.availableUnits}
-        error={unlocks.error}
-        isAuthenticated={unlocks.isAuthenticated}
-        onUnlock={handleUnlock}
-        unlockingId={unlocks.unlockingId}
-        unlockCredits={unlocks.unlockCredits}
-        showHeading={false}
-        layout={unlockPanelLayout}
-      />
+      <UnlockPurchasePanel {...unlockPanelProps} showHeading={false} />
     </section>
   ) : null;
 

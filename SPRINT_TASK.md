@@ -28,7 +28,7 @@
 **Prerequisites:**
 
 ```bash
-yarn db:migrate   # required on each env after merge (through 013)
+yarn db:migrate   # required on each env after merge (through 014)
 ```
 
 Keep `ALLOW_DEV_UNLOCK=1` in dev/staging until Sprint 5.
@@ -40,8 +40,8 @@ Keep `ALLOW_DEV_UNLOCK=1` in dev/staging until Sprint 5.
 | ID | Task | Status | Notes |
 |----|------|--------|-------|
 | S4-03 | Wallet / credits foundation | Done | Migration `013`; `GET /wallet`; FIFO credit consume on unlock |
-| S4-04 | Coupon codes (admin) | Pending | Redeem → credit; campaign UTMs optional |
-| S4-07 | Dynamic fee in unlock UX | Pending | Quote API; show type + beds breakdown |
+| S4-04 | Coupon codes (admin) | Done | Migration `014`; `POST /wallet/redeem-coupon`; `/admin/coupons` |
+| S4-07 | Dynamic fee in unlock UX | Done | Quote API in unlock status + unlock panel (type + beds) |
 | S4-08 | Welcome bonus | Done | `POST /profiles/sync` → 1× unlock credit, 90-day expiry |
 | S4-09 | Landlord multi-photo UI | Pending | Cover + gallery on create/edit |
 | S4-10 | Admin reject listing | Pending | Reason + landlord notification stub |
@@ -112,8 +112,8 @@ Keep `ALLOW_DEV_UNLOCK=1` in dev/staging until Sprint 5.
 | Landlord submit → admin approve/edit | ✅ |
 | Landlord unit status toggle | ✅ |
 | Tiered pricing quote API | ✅ |
-| Dynamic fees in UI | ❌ S4-07 |
-| Wallet / coupons / welcome bonus | ✅ S4-03, S4-08 (coupons S4-04) |
+| Dynamic fees in UI | ✅ S4-07 |
+| Wallet / coupons / welcome bonus | ✅ S4-03, S4-04, S4-08 |
 | Map centers on user location | ❌ S4-13 |
 | Dual-currency / viewer money display | ❌ S4-15 |
 | Featured launch (20 free) | ❌ S4-18 |

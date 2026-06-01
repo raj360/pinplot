@@ -4,16 +4,25 @@ import {
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
-import { PRICING, PaymentPurpose } from "@plotpin/shared-types";
+import {
+  PRICING,
+  PaymentPurpose,
+  type BuildingType,
+  type PriceQuote,
+} from "@plotpin/shared-types";
 import { DatabaseService } from "../database/database.service";
+import { PricingService } from "../pricing/pricing.service";
 import { WalletService } from "../wallet/wallet.service";
 
 type UnitRow = {
   id: string;
   building_id: string;
   unit_number: string;
+  bedrooms: number;
   status: string;
   building_name: string;
+  building_type: string;
+  country_code: string;
   cover_image_path?: string | null;
   video_url?: string | null;
   exact_address: string | null;
@@ -49,6 +58,7 @@ export class UnlocksService {
   constructor(
     private readonly db: DatabaseService,
     private readonly wallet: WalletService,
+    private readonly pricing: PricingService,
   ) {}
 
   async listMine(tenantId: string) {
@@ -151,6 +161,8 @@ export class UnlocksService {
       return { ...response, unlockCreditsAvailable };
     }
 
+    const quote = await this.quoteUnlock(unit);
+
     if (winner && winner.tenant_id !== tenantId) {
       return {
         unitId,
@@ -158,9 +170,8 @@ export class UnlocksService {
         buildingId: unit.building_id,
         status: unit.status,
         unlockState: "locked_by_other" as const,
-        feeUgx: PRICING.tenantUnlockFeeUgx,
         unlockCreditsAvailable,
-        exclusiveHours: PRICING.unlockExclusiveHours,
+        ...this.unlockQuoteFields(quote),
       };
     }
 
@@ -173,9 +184,8 @@ export class UnlocksService {
         unit.status === "AVAILABLE"
           ? ("available" as const)
           : ("unavailable" as const),
-      feeUgx: PRICING.tenantUnlockFeeUgx,
       unlockCreditsAvailable,
-      exclusiveHours: PRICING.unlockExclusiveHours,
+      ...this.unlockQuoteFields(quote),
     };
   }
 
@@ -205,7 +215,7 @@ export class UnlocksService {
 
       const resolvedPayment = await this.resolveUnlockPayment(
         tenantId,
-        unitId,
+        unit,
         paymentId,
       );
 
@@ -266,8 +276,9 @@ export class UnlocksService {
 
   private async lockUnit(unitId: string): Promise<UnitRow> {
     const { rows } = await this.db.query<UnitRow>(
-      `SELECT u.id, u.building_id, u.unit_number, u.status,
-              b.name AS building_name, b.cover_image_path, b.video_url,
+      `SELECT u.id, u.building_id, u.unit_number, u.bedrooms, u.status,
+              b.name AS building_name, b.building_type, b.country_code,
+              b.cover_image_path, b.video_url,
               b.exact_address,
               b.exact_lat, b.exact_lng, b.approximate_lat, b.approximate_lng,
               p.phone AS landlord_phone,
@@ -284,8 +295,9 @@ export class UnlocksService {
 
   private async loadUnit(unitId: string): Promise<UnitRow> {
     const { rows } = await this.db.query<UnitRow>(
-      `SELECT u.id, u.building_id, u.unit_number, u.status,
-              b.name AS building_name, b.cover_image_path, b.video_url,
+      `SELECT u.id, u.building_id, u.unit_number, u.bedrooms, u.status,
+              b.name AS building_name, b.building_type, b.country_code,
+              b.cover_image_path, b.video_url,
               b.exact_address,
               b.exact_lat, b.exact_lng, b.approximate_lat, b.approximate_lng,
               p.phone AS landlord_phone,
@@ -329,9 +341,28 @@ export class UnlocksService {
     return { lat, lng };
   }
 
+  private async quoteUnlock(unit: UnitRow) {
+    return this.pricing.quote({
+      purpose: PaymentPurpose.UNLOCK,
+      buildingType: unit.building_type as BuildingType,
+      bedrooms: unit.bedrooms,
+      countryCode: unit.country_code,
+    });
+  }
+
+  private unlockQuoteFields(quote: PriceQuote) {
+    return {
+      feeUgx: quote.amountUgx,
+      quoteLabel: quote.label,
+      buildingType: quote.buildingType,
+      bedrooms: quote.bedrooms,
+      exclusiveHours: PRICING.unlockExclusiveHours,
+    };
+  }
+
   private async resolveUnlockPayment(
     tenantId: string,
-    unitId: string,
+    unit: UnitRow,
     paymentId?: string,
   ) {
     if (paymentId) {
@@ -346,7 +377,7 @@ export class UnlocksService {
     if (credit) {
       const id = await this.createCreditPayment(
         tenantId,
-        unitId,
+        unit.id,
         credit.ledgerId,
         credit.amountUgx,
         credit.creditType,
@@ -358,7 +389,8 @@ export class UnlocksService {
       };
     }
 
-    const id = await this.createDevPayment(tenantId, unitId);
+    const quote = await this.quoteUnlock(unit);
+    const id = await this.createDevPayment(tenantId, unit.id, quote.amountUgx);
     return {
       paymentId: id,
       paidWithCredit: false,
@@ -393,7 +425,11 @@ export class UnlocksService {
     return rows[0].id;
   }
 
-  private async createDevPayment(tenantId: string, unitId: string) {
+  private async createDevPayment(
+    tenantId: string,
+    unitId: string,
+    feeUgx: number,
+  ) {
     if (process.env.NODE_ENV === "production" && !process.env.ALLOW_DEV_UNLOCK) {
       throw new BadRequestException(
         "Payment required. Connect Stripe or Flutterwave checkout.",
@@ -407,9 +443,9 @@ export class UnlocksService {
       RETURNING id`,
       [
         tenantId,
-        PRICING.tenantUnlockFeeUgx,
+        feeUgx,
         `dev-unlock-${unitId}-${Date.now()}`,
-        JSON.stringify({ dev: true, unitId }),
+        JSON.stringify({ dev: true, unitId, feeUgx }),
       ],
     );
     return rows[0].id;

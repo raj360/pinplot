@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { DashboardSection } from "@/components/layout/DashboardSection";
+import { CouponRedeemPanel } from "@/components/wallet/CouponRedeemPanel";
 import { fetchMyUnlocks, type TenantUnlock } from "@/lib/api/unlocks";
 import { getAccessToken } from "@/lib/api/client";
 import { UnlockedAccessCard } from "@/components/buildings/UnlockedAccessCard";
@@ -36,6 +37,8 @@ export default function TenantUnlocksPage() {
       title="My unlocks"
       description="Buildings and units where you paid for exclusive landlord contact."
     >
+      <CouponRedeemPanel />
+
       {loading ? (
         <LoadingState label="Loading unlocks" />
       ) : error ? (

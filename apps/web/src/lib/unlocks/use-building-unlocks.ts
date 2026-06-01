@@ -1,7 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
-import { UnitStatus } from "@plotpin/shared-types";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { PaymentPurpose, UnitStatus, type PriceQuote } from "@plotpin/shared-types";
 import { useAuth } from "@/lib/auth/use-auth";
 import {
   fetchBuildingUnlocks,
@@ -9,16 +9,41 @@ import {
   type TenantUnlock,
 } from "@/lib/api/unlocks";
 import { clearBuildingCache } from "@/lib/api/building-cache";
+import { fetchPriceQuote } from "@/lib/api/pricing";
 import { fetchWallet } from "@/lib/api/wallet";
 import type { UnitLike } from "@/lib/buildings/unit-summary";
 
-export function useBuildingUnlocks(buildingId: string, units: UnitLike[]) {
+type PricingContext = {
+  buildingType: string;
+  countryCode: string;
+};
+
+function applyWalletSummary(
+  wallet: Awaited<ReturnType<typeof fetchWallet>>,
+  setUnlockCredits: (value: number) => void,
+  setPrimaryCreditUgx: (value: number | null) => void,
+) {
+  setUnlockCredits(wallet.unlockCredits);
+  const nextCredit = wallet.credits.find(
+    (credit) =>
+      credit.purpose === PaymentPurpose.UNLOCK && credit.remainingQuantity > 0,
+  );
+  setPrimaryCreditUgx(nextCredit?.amountUgx ?? null);
+}
+
+export function useBuildingUnlocks(
+  buildingId: string,
+  units: UnitLike[],
+  pricingContext?: PricingContext,
+) {
   const { isAuthenticated, loading: authLoading } = useAuth();
   const [myUnlocks, setMyUnlocks] = useState<TenantUnlock[]>([]);
   const [loadedBuildingId, setLoadedBuildingId] = useState<string | null>(null);
   const [unlockingId, setUnlockingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [unlockCredits, setUnlockCredits] = useState(0);
+  const [primaryCreditUgx, setPrimaryCreditUgx] = useState<number | null>(null);
+  const [unitQuotes, setUnitQuotes] = useState<Record<string, PriceQuote>>({});
 
   const activeUnlocks = isAuthenticated ? myUnlocks : [];
   const loadingUnlocks =
@@ -30,6 +55,8 @@ export function useBuildingUnlocks(buildingId: string, units: UnitLike[]) {
     (unit) =>
       unit.status === UnitStatus.AVAILABLE && !unlockedUnitIds.has(unit.id),
   );
+  const availableUnitKey = availableUnits.map((unit) => unit.id).join(",");
+  const shouldFetchQuotes = Boolean(pricingContext && availableUnits.length > 0);
 
   const reloadUnlocks = useCallback(async () => {
     try {
@@ -70,16 +97,66 @@ export function useBuildingUnlocks(buildingId: string, units: UnitLike[]) {
 
     fetchWallet()
       .then((wallet) => {
-        if (!cancelled) setUnlockCredits(wallet.unlockCredits);
+        if (cancelled) return;
+        applyWalletSummary(wallet, setUnlockCredits, setPrimaryCreditUgx);
       })
       .catch(() => {
-        if (!cancelled) setUnlockCredits(0);
+        if (cancelled) return;
+        setUnlockCredits(0);
+        setPrimaryCreditUgx(null);
       });
 
     return () => {
       cancelled = true;
     };
   }, [isAuthenticated, loadedBuildingId]);
+
+  useEffect(() => {
+    if (!shouldFetchQuotes || !pricingContext) return;
+
+    let cancelled = false;
+
+    Promise.all(
+      availableUnits.map(async (unit) => {
+        const quote = await fetchPriceQuote({
+          bedrooms: unit.bedrooms,
+          purpose: "UNLOCK",
+          buildingType: pricingContext.buildingType,
+          countryCode: pricingContext.countryCode,
+        });
+        return [unit.id, quote] as const;
+      }),
+    )
+      .then((entries) => {
+        if (cancelled) return;
+        setUnitQuotes(Object.fromEntries(entries));
+      })
+      .catch(() => {
+        if (!cancelled) setUnitQuotes({});
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    availableUnitKey,
+    availableUnits,
+    pricingContext,
+    shouldFetchQuotes,
+  ]);
+
+  const visibleUnitQuotes = useMemo(
+    () => (shouldFetchQuotes ? unitQuotes : {}),
+    [shouldFetchQuotes, unitQuotes],
+  );
+
+  const representativeQuote = useMemo(() => {
+    const quotes = Object.values(visibleUnitQuotes);
+    if (quotes.length === 0) return null;
+    return quotes.reduce((lowest, quote) =>
+      quote.amountUgx < lowest.amountUgx ? quote : lowest,
+    );
+  }, [visibleUnitQuotes]);
 
   const handleUnlock = useCallback(
     async (unitId: string): Promise<boolean> => {
@@ -90,8 +167,11 @@ export function useBuildingUnlocks(buildingId: string, units: UnitLike[]) {
         clearBuildingCache(buildingId);
         await reloadUnlocks();
         try {
-          const wallet = await fetchWallet();
-          setUnlockCredits(wallet.unlockCredits);
+          applyWalletSummary(
+            await fetchWallet(),
+            setUnlockCredits,
+            setPrimaryCreditUgx,
+          );
         } catch {
           /* wallet refresh is best-effort */
         }
@@ -109,8 +189,8 @@ export function useBuildingUnlocks(buildingId: string, units: UnitLike[]) {
   const showUnlockSection =
     !loading && (availableUnits.length > 0 || activeUnlocks.length === 0);
 
-  /** Hide stale credits after sign-out without syncing state in an effect. */
   const visibleUnlockCredits = isAuthenticated ? unlockCredits : 0;
+  const visiblePrimaryCreditUgx = isAuthenticated ? primaryCreditUgx : null;
 
   return {
     activeUnlocks,
@@ -120,7 +200,10 @@ export function useBuildingUnlocks(buildingId: string, units: UnitLike[]) {
     handleUnlock,
     isAuthenticated,
     loading,
+    primaryCreditUgx: visiblePrimaryCreditUgx,
+    representativeQuote,
     showUnlockSection,
+    unitQuotes: visibleUnitQuotes,
     unlockingId,
     unlockCredits: visibleUnlockCredits,
   };

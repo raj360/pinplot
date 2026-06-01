@@ -1,10 +1,15 @@
 "use client";
 
 import Link from "next/link";
-import { exploreBuildingUrl } from "@/lib/explore/urls";
+import type { PriceQuote } from "@plotpin/shared-types";
 import { PRICING } from "@plotpin/shared-types";
+import { exploreBuildingUrl } from "@/lib/explore/urls";
 import { formatUnitDetail, type UnitLike } from "@/lib/buildings/unit-summary";
-import { formatCurrency } from "@/lib/intl/format";
+import {
+  formatUnlockQuoteLine,
+  unlockButtonLabel,
+  unlockPanelDescription,
+} from "@/lib/unlocks/unlock-pricing";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils/cn";
 
@@ -16,6 +21,9 @@ export function UnlockPurchasePanel({
   onUnlock,
   unlockingId,
   unlockCredits = 0,
+  primaryCreditUgx = null,
+  unitQuotes = {},
+  representativeQuote = null,
   title = "Unlock contact",
   description,
   showHeading = true,
@@ -28,16 +36,19 @@ export function UnlockPurchasePanel({
   onUnlock: (unitId: string) => void;
   unlockingId: string | null;
   unlockCredits?: number;
+  primaryCreditUgx?: number | null;
+  unitQuotes?: Record<string, PriceQuote>;
+  representativeQuote?: PriceQuote | null;
   title?: string;
   description?: string;
   showHeading?: boolean;
-  /** sidebar = single column in narrow aside; grid = responsive columns when space allows */
   layout?: "grid" | "sidebar";
 }) {
-  const defaultDescription =
-    unlockCredits > 0
-      ? `You have ${unlockCredits} unlock credit${unlockCredits === 1 ? "" : "s"} — use one to reveal exact address, landlord contact, building tour, and directions. Credits are promotional only, not withdrawable.`
-      : `Pay ${formatCurrency(PRICING.tenantUnlockFeeUgx)} to reveal exact address, landlord contact, building tour, and directions. First payment wins exclusive access for ${PRICING.unlockExclusiveHours} hours.`;
+  const defaultDescription = unlockPanelDescription({
+    unlockCredits,
+    primaryCreditUgx,
+    quote: representativeQuote,
+  });
 
   const listClass = cn(
     "mt-4 grid gap-3",
@@ -72,31 +83,44 @@ export function UnlockPurchasePanel({
         </p>
       ) : (
         <ul className={listClass}>
-          {availableUnits.map((unit) => (
-            <li
-              key={unit.id}
-              className="flex min-w-0 flex-col gap-3 border border-border bg-background p-3"
-            >
-              <div>
-                <p className="font-medium">Unit {unit.unitNumber}</p>
-                <p className="mt-0.5 text-sm text-foreground">
-                  {formatUnitDetail(unit)}
-                </p>
-                <p className="mt-1 text-xs text-muted">Available now</p>
-              </div>
-              <Button
-                type="button"
-                className="w-full"
-                loading={unlockingId === unit.id}
-                loadingLabel="Unlocking unit"
-                onClick={() => onUnlock(unit.id)}
+          {availableUnits.map((unit) => {
+            const quote = unitQuotes[unit.id] ?? representativeQuote;
+            const feeUgx = quote?.amountUgx ?? PRICING.tenantUnlockFeeUgx;
+
+            return (
+              <li
+                key={unit.id}
+                className="flex min-w-0 flex-col gap-3 border border-border bg-background p-3"
               >
-                {unlockCredits > 0
-                  ? "Unlock with credit"
-                  : `Unlock — ${formatCurrency(PRICING.tenantUnlockFeeUgx)}`}
-              </Button>
-            </li>
-          ))}
+                <div>
+                  <p className="font-medium">Unit {unit.unitNumber}</p>
+                  <p className="mt-0.5 text-sm text-foreground">
+                    {formatUnitDetail(unit)}
+                  </p>
+                  {quote ? (
+                    <p className="mt-1 text-xs text-muted">
+                      {formatUnlockQuoteLine(quote)}
+                    </p>
+                  ) : (
+                    <p className="mt-1 text-xs text-muted">Available now</p>
+                  )}
+                </div>
+                <Button
+                  type="button"
+                  className="w-full"
+                  loading={unlockingId === unit.id}
+                  loadingLabel="Unlocking unit"
+                  onClick={() => onUnlock(unit.id)}
+                >
+                  {unlockButtonLabel({
+                    unlockCredits,
+                    primaryCreditUgx,
+                    feeUgx,
+                  })}
+                </Button>
+              </li>
+            );
+          })}
         </ul>
       )}
 
@@ -105,7 +129,7 @@ export function UnlockPurchasePanel({
       {isAuthenticated && availableUnits.length > 0 ? (
         <p className="mt-3 text-xs text-muted">
           {unlockCredits > 0
-            ? "Your credit covers this unlock in dev — no card charge until Stripe is connected."
+            ? "Your credit covers this unlock in dev when it matches the quoted fee — no card charge until Stripe is connected."
             : "Dev mode: payment simulated until Stripe / Flutterwave is connected."}
         </p>
       ) : null}
