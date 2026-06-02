@@ -58,7 +58,7 @@ Unlock API, privacy jitter, explore UX, profiles, Call/WhatsApp, gated media —
 | Theme                | Deliverables                                                                  |
 | -------------------- | ----------------------------------------------------------------------------- |
 | **Wallet & promos**  | Credits ledger, coupons, welcome bonus, dynamic fee in unlock UI ✅           |
-| **Landlord quality** | Multi-photo upload ✅; compress + thumbs ✅; admin reject with reason (S4-10) |
+| **Landlord quality** | Multi-photo upload ✅; compress + thumbs ✅; admin reject with reason ✅ (S4-10) |
 | **Explore UX**       | Viewport search, composed filters, Near me ✅; Bondex-aligned tokens (S4-UX) ✅ |
 | **Geo bootstrap**    | Near me + place jump ✅; country-aware defaults (S4-14); persist viewport       |
 | **Currency display** | Present rent + fees in viewer currency (FX hint); canonical storage unchanged |

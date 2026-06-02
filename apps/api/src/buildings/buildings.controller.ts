@@ -17,6 +17,7 @@ import {
   CreateBuildingDto,
   CreateUnitDto,
   RegisterImageDto,
+  RejectBuildingDto,
   UpdateUnitDto,
   VerifyBuildingDto,
 } from "./dto/building.dto";
@@ -52,6 +53,12 @@ export class BuildingsController {
   @UseGuards(SupabaseAuthGuard)
   findMineOne(@Param("id") id: string, @CurrentUser() user: AuthUser) {
     return this.buildings.findMineById(id, user.id);
+  }
+
+  @Patch("mine/:id/resubmit-review")
+  @UseGuards(SupabaseAuthGuard)
+  resubmitForReview(@Param("id") id: string, @CurrentUser() user: AuthUser) {
+    return this.buildings.resubmitForReview(id, user.id);
   }
 
   @Patch(":id/units/:unitId/status")
@@ -180,6 +187,15 @@ export class AdminBuildingsController {
   @Patch(":id/verify")
   verify(@Param("id") id: string, @Body() dto: VerifyBuildingDto) {
     return this.buildings.setVerified(id, dto.verified);
+  }
+
+  @Patch(":id/reject")
+  reject(
+    @Param("id") id: string,
+    @CurrentUser() user: AuthUser,
+    @Body() dto: RejectBuildingDto,
+  ) {
+    return this.buildings.rejectBuilding(id, user.id, dto.reason);
   }
 
   @Get(":id/images")

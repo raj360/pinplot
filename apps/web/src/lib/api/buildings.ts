@@ -103,6 +103,8 @@ export type LandlordBuilding = {
   city: string;
   district: string | null;
   isVerified: boolean;
+  rejectedAt: string | null;
+  rejectionReason: string | null;
   totalUnits: number;
   availableUnitCount: number;
 };
@@ -142,6 +144,8 @@ export type LandlordBuildingDetail = {
   buildingType: string;
   totalUnits: number;
   isVerified: boolean;
+  rejectedAt: string | null;
+  rejectionReason: string | null;
   availableUnitCount: number;
   units: Array<{
     id: string;
@@ -231,6 +235,31 @@ export async function verifyBuilding(id: string, verified: boolean) {
   return apiFetch(`/admin/buildings/${id}/verify`, {
     method: "PATCH",
     body: JSON.stringify({ verified }),
+  });
+}
+
+export async function rejectBuilding(id: string, reason: string) {
+  return apiFetch<{
+    id: string;
+    name: string;
+    rejectedAt: string;
+    rejectionReason: string;
+    notification: { delivered: boolean; channel: string };
+  }>(`/admin/buildings/${id}/reject`, {
+    method: "PATCH",
+    body: JSON.stringify({ reason }),
+  });
+}
+
+export async function resubmitBuildingForReview(id: string) {
+  return apiFetch<{
+    id: string;
+    name: string;
+    isVerified: boolean;
+    rejectedAt: null;
+    rejectionReason: null;
+  }>(`/buildings/mine/${id}/resubmit-review`, {
+    method: "PATCH",
   });
 }
 

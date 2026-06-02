@@ -21,6 +21,7 @@ import type { BuildingSummary, BuildingType, UnitStatus } from "@plotpin/shared-
 import { MAX_BUILDING_PHOTOS, PaymentPurpose } from "@plotpin/shared-types";
 import { EXPLORE_BOUNDS_SQL } from "./explore-query";
 import { ExploreSearchCacheService } from "./explore-search-cache.service";
+import { LandlordNotificationsService } from "./landlord-notifications.service";
 import { PricingService } from "../pricing/pricing.service";
 import { SupabaseAdminService } from "../auth/supabase-admin.service";
 import {
@@ -55,6 +56,7 @@ export class BuildingsService {
     private readonly exploreCache: ExploreSearchCacheService,
     private readonly pricing: PricingService,
     private readonly supabaseAdmin: SupabaseAdminService,
+    private readonly landlordNotifications: LandlordNotificationsService,
   ) {}
 
   async findInBounds(query: BuildingBoundsQueryDto, tenantId?: string) {
@@ -287,6 +289,8 @@ export class BuildingsService {
       city: b.city,
       district: b.district,
       isVerified: b.is_verified,
+      rejectedAt: b.rejected_at ?? null,
+      rejectionReason: b.rejection_reason ?? null,
       totalUnits: b.total_units,
       availableUnitCount: Number(b.available_unit_count ?? 0),
       createdAt: b.created_at,
@@ -321,6 +325,8 @@ export class BuildingsService {
       buildingType: building.building_type,
       totalUnits: building.total_units,
       isVerified: building.is_verified,
+      rejectedAt: building.rejected_at ?? null,
+      rejectionReason: building.rejection_reason ?? null,
       availableUnitCount: Number(building.available_unit_count ?? 0),
       units,
     };
@@ -415,6 +421,7 @@ export class BuildingsService {
        LEFT JOIN profiles p ON p.id = b.landlord_id
        LEFT JOIN auth.users u ON u.id = b.landlord_id
        WHERE b.is_verified = FALSE
+         AND b.rejected_at IS NULL
        ORDER BY b.created_at ASC`,
     );
     return rows.map((row: Record<string, unknown>) => {
@@ -634,13 +641,133 @@ export class BuildingsService {
 
   async setVerified(buildingId: string, verified: boolean) {
     const { rows } = await this.db.query(
-      `UPDATE buildings SET is_verified = $2, updated_at = NOW()
-       WHERE id = $1 RETURNING id, name, is_verified`,
+      `UPDATE buildings
+       SET is_verified = $2,
+           verified_at = CASE WHEN $2 THEN NOW() ELSE verified_at END,
+           rejected_at = NULL,
+           rejection_reason = NULL,
+           updated_at = NOW()
+       WHERE id = $1
+       RETURNING id, name, is_verified`,
       [buildingId, verified],
     );
     if (!rows[0]) throw new NotFoundException("Building not found");
     this.exploreCache.clear();
     return rows[0];
+  }
+
+  async rejectBuilding(buildingId: string, adminId: string, reason: string) {
+    const trimmed = reason.trim();
+    if (!trimmed) {
+      throw new BadRequestException("Rejection reason is required.");
+    }
+
+    const { rows } = await this.db.query<{
+      id: string;
+      name: string;
+      landlord_id: string | null;
+      landlord_email: string | null;
+    }>(
+      `UPDATE buildings b
+       SET rejected_at = NOW(),
+           rejection_reason = $2,
+           managed_by_admin_id = $3,
+           updated_at = NOW()
+       WHERE b.id = $1
+         AND b.is_verified = FALSE
+         AND b.rejected_at IS NULL
+       RETURNING b.id,
+                 b.name,
+                 b.landlord_id,
+                 (SELECT u.email FROM auth.users u WHERE u.id = b.landlord_id) AS landlord_email`,
+      [buildingId, trimmed, adminId],
+    );
+
+    if (!rows[0]) {
+      const { rows: existing } = await this.db.query<{
+        is_verified: boolean;
+        rejected_at: Date | null;
+      }>(
+        "SELECT is_verified, rejected_at FROM buildings WHERE id = $1",
+        [buildingId],
+      );
+      if (!existing[0]) throw new NotFoundException("Building not found");
+      if (existing[0].is_verified) {
+        throw new BadRequestException("Approved listings cannot be rejected.");
+      }
+      if (existing[0].rejected_at) {
+        throw new BadRequestException("This listing was already rejected.");
+      }
+      throw new BadRequestException(
+        "Could not reject this listing. It may be missing a landlord account.",
+      );
+    }
+
+    const row = rows[0];
+    const notification = await this.landlordNotifications.notifyListingRejected({
+      landlordId: row.landlord_id ?? "",
+      landlordEmail: row.landlord_email,
+      buildingId: row.id,
+      buildingName: row.name,
+      reason: trimmed,
+    });
+
+    this.exploreCache.clear();
+
+    return {
+      id: row.id,
+      name: row.name,
+      rejectedAt: new Date().toISOString(),
+      rejectionReason: trimmed,
+      notification,
+    };
+  }
+
+  async resubmitForReview(buildingId: string, landlordId: string) {
+    const { rows } = await this.db.query(
+      `UPDATE buildings
+       SET rejected_at = NULL,
+           rejection_reason = NULL,
+           updated_at = NOW()
+       WHERE id = $1
+         AND landlord_id = $2
+         AND is_verified = FALSE
+         AND rejected_at IS NOT NULL
+       RETURNING id, name, is_verified, rejected_at, rejection_reason`,
+      [buildingId, landlordId],
+    );
+
+    if (!rows[0]) {
+      const { rows: existing } = await this.db.query<{
+        is_verified: boolean;
+        rejected_at: Date | null;
+        landlord_id: string | null;
+      }>(
+        "SELECT is_verified, rejected_at, landlord_id FROM buildings WHERE id = $1",
+        [buildingId],
+      );
+      if (!existing[0]) throw new NotFoundException("Building not found");
+      if (existing[0].landlord_id !== landlordId) {
+        throw new NotFoundException("Building not found");
+      }
+      if (existing[0].is_verified) {
+        throw new BadRequestException("Approved listings are already live.");
+      }
+      if (!existing[0].rejected_at) {
+        throw new BadRequestException(
+          "Only rejected listings can be resubmitted for review.",
+        );
+      }
+      throw new BadRequestException("Could not resubmit this listing.");
+    }
+
+    return {
+      id: rows[0].id,
+      name: rows[0].name,
+      isVerified: rows[0].is_verified,
+      rejectedAt: null,
+      rejectionReason: null,
+    };
   }
 
   async findPendingById(buildingId: string) {
@@ -1182,14 +1309,21 @@ export class BuildingsService {
   }
 
   private async assertPendingBuilding(buildingId: string) {
-    const { rows } = await this.db.query<{ is_verified: boolean }>(
-      "SELECT is_verified FROM buildings WHERE id = $1",
-      [buildingId],
-    );
+    const { rows } = await this.db.query<{
+      is_verified: boolean;
+      rejected_at: Date | null;
+    }>("SELECT is_verified, rejected_at FROM buildings WHERE id = $1", [
+      buildingId,
+    ]);
     if (!rows[0]) throw new NotFoundException("Building not found");
     if (rows[0].is_verified) {
       throw new BadRequestException(
         "This building is already live. Pending edits are only allowed before approval.",
+      );
+    }
+    if (rows[0].rejected_at) {
+      throw new BadRequestException(
+        "This listing was rejected. The landlord must resubmit before admin review.",
       );
     }
   }

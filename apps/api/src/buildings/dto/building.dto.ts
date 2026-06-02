@@ -8,7 +8,9 @@ import {
   IsString,
   Matches,
   Max,
+  MaxLength,
   Min,
+  MinLength,
   ValidateNested,
 } from "class-validator";
 import { Type } from "class-transformer";
@@ -152,6 +154,13 @@ export class CreateUnitDto {
 export class VerifyBuildingDto {
   @IsBoolean()
   verified!: boolean;
+}
+
+export class RejectBuildingDto {
+  @IsString()
+  @MinLength(10, { message: "Rejection reason must be at least 10 characters" })
+  @MaxLength(2000)
+  reason!: string;
 }
 
 export class AdminUpdateBuildingDto {
