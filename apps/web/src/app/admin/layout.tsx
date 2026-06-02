@@ -3,6 +3,7 @@ import { SidebarAppShell } from "@/components/layout/SidebarAppShell";
 const ADMIN_NAV = [
   { href: "/admin", label: "Overview", exact: true },
   { href: "/admin/buildings", label: "Buildings" },
+  { href: "/admin/coupons", label: "Coupons" },
   { href: "/admin/users", label: "Users" },
 ] as const;
 

@@ -260,9 +260,12 @@ function MapFitBounds({
   onProgrammaticMapMove?: () => void;
 }) {
   const map = useMap();
+  const lastFitTokenRef = useRef(0);
 
   useEffect(() => {
     if (!map || fitToken === 0) return;
+    if (fitToken === lastFitTokenRef.current) return;
+    lastFitTokenRef.current = fitToken;
 
     onProgrammaticMapMove?.();
 
@@ -278,16 +281,17 @@ function MapFitBounds({
       });
     }
 
+    if (focusBounds) {
+      const bounds = new google.maps.LatLngBounds(
+        { lat: focusBounds.south, lng: focusBounds.west },
+        { lat: focusBounds.north, lng: focusBounds.east },
+      );
+      map.fitBounds(bounds, 64);
+      applyZoomCap();
+      return;
+    }
+
     if (buildings.length === 0) {
-      if (focusBounds) {
-        const bounds = new google.maps.LatLngBounds(
-          { lat: focusBounds.south, lng: focusBounds.west },
-          { lat: focusBounds.north, lng: focusBounds.east },
-        );
-        map.fitBounds(bounds, 48);
-        applyZoomCap();
-        return;
-      }
       map.setCenter(KAMPALA_CENTER);
       map.setZoom(EXPLORE_MAP_DEFAULT_ZOOM);
       return;
@@ -313,7 +317,7 @@ function MapFitBounds({
       });
     }
 
-    map.fitBounds(bounds, 56);
+    map.fitBounds(bounds, 72);
     applyZoomCap();
   }, [map, buildings, unlockedLocations, fitToken, focusBounds, onProgrammaticMapMove]);
 

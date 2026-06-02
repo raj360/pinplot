@@ -1,117 +1,137 @@
 # PlotPin — Product Roadmap
 
-> Map-first rental discovery for tenants and landlords. Uganda launch, global-ready.
+> Map-first rental discovery for tenants and landlords. **Uganda-first supply, globally open discovery.** English UI only; prices shown in the viewer’s familiar currency where possible.
+
+---
+
+## Vision (2026)
+
+PlotPin should work for **any visitor** landing from social ads (YouTube, Facebook, Instagram, TikTok) anywhere in the world:
+
+1. **Map meets them where they are** — geolocation or sensible country default; Uganda/Kampala when unknown or denied.
+2. **Money makes sense** — listing rent and platform fees shown with **currency presentation** (UGX rent + “~$X” for diaspora), Stripe checkout in local presentment currency later.
+3. **Supply grows without borders** — landlords list in their country; admins verify; featured slots bootstrap early supply.
+4. **No app translation yet** — all copy stays English; only **locale/currency formatting** is localized.
 
 ---
 
 ## Where we stand (product snapshot)
 
-**Phase:** Sprint 4 — landlord supply & pricing foundation
+**Phase:** Sprint 4 — supply, wallet, and **international foundations**
 
-| Persona | Can do today | Sprint 4 focus | Sprint 5 (deferred) |
-|---------|----------------|----------------|---------------------|
-| **Tenant** | Browse, filter, unlock (dev), contact, directions, media | Welcome bonus / coupons; **quoted** fees by type + beds | MoMo, card, **USSD** checkout |
-| **Landlord** | Submit, verify, profile + phone | **Unit status toggle**, multi-photo, listing workflow | Pay listing fee at status change |
-| **Admin** | Approve buildings | Reject flow, coupon grants, pricing rules seed | Payment reconciliation |
+| Persona      | Can do today                                                | Next                                                      |
+| ------------ | ----------------------------------------------------------- | --------------------------------------------------------- |
+| **Tenant**   | Explore Kampala **seed**, unlock (dev), contact, directions | Geo map bootstrap, dual-currency display, welcome credits |
+| **Landlord** | Submit, verify, unit status, multi-photo (compress + thumbs) | Reject flow |
+| **Admin**    | Approve + edit pending listings (pin, units, gallery)         | Reject + coupons + featured launch grants |
 
-**Core loop status:** Discover → unlock (simulated) → contact + visit **works**. Revenue rails and USSD **intentionally deferred** until pricing + wallet model land in Sprint 4.
-
----
-
-## Phase 2 — Core Product ✅ Complete
-
-- [x] Supabase Auth + profile sync (email OTP, Google OAuth)
-- [x] Buildings REST API + Kampala seed data
-- [x] Explore page + Google Maps + Map ID
-- [x] Building detail + unit grid
-- [x] Landlord create-building form (map pin, address hints, cover, YouTube, units)
-- [x] Landlord + admin app shells (sidebar layout)
-- [x] Admin verify-building workflow (map, cover, YouTube, landlord email)
-- [x] RLS lockdown migration (`004`)
-- [x] Building video URL migration (`007`)
-
-**Verified flow:** Landlord submit → admin approve → building verified on dashboard.
+**Core loop:** Discover → unlock (simulated) → contact **works**. Payments **Stripe-first** in Sprint 5; MoMo/USSD for Uganda after card rails prove out.
 
 ---
 
-## Phase 3 — Unlock journey ✅ Complete (Sprint 3)
+## Phase 2 — Core Product ✅
 
-**Goal:** First-unlock-wins; trustworthy contact handoff; explore + building UX.
-
-- [x] Unlock transaction, contact reveal, dev simulation
-- [x] Explore privacy, filters, performance (PostGIS, cache, rate limit)
-- [x] Profiles, Call/WhatsApp, gated media
-- [ ] ~~Stripe / Flutterwave~~ → moved to **Phase 5**
+Auth, maps, explore, landlord submit, admin verify, RLS, video URL — complete.
 
 ---
 
-## Phase 4 — Landlord supply & pricing foundation 🔄 Current (Sprint 4)
+## Phase 3 — Unlock journey ✅
 
-**Goal:** Landlords manage units without payment blockers; design tiered pricing + credits so tenants stay hooked before USSD/MoMo go live.
-
-**Build order:**
-
-1. Pricing rules schema + quote API (type + bedrooms)
-2. Landlord unit status toggle (API + dashboard UI)
-3. Wallet / credits + welcome bonus + admin coupons
-4. Dynamic fees in unlock + landlord UI (display only; dev unlock / credits settle)
-5. Landlord multi-photo upload; admin reject listing
-6. Stability: 429 UX, auth guard resilience
-
-### Business model (Sprint 4 → 5)
-
-- [ ] Tiered unlock/listing fees by `building_type` + bedrooms
-- [ ] Tenant welcome credit (e.g. first unlock discounted)
-- [ ] Coupon / promo codes (admin)
-- [ ] Landlord listing credits for early supply
-- [ ] Enforce payment at checkout — **Sprint 5**
-
-### Landlord tools
-
-- [ ] Unit status toggle UI + API
-- [ ] Multi-photo upload UI
-- [ ] Admin reject listing + notification
-
-### Explore (done in Sprint 4 slice)
-
-- [x] URL filters, map area search, panel UX
-- [x] PostGIS bounds, indexes `011`, anonymous cache, rate limit
+Unlock API, privacy jitter, explore UX, profiles, Call/WhatsApp, gated media — complete.
 
 ---
 
-## Phase 5 — Payments & USSD (Sprint 5)
+## Phase 4 — Supply, wallet & international foundations 🔄 Current
 
-**Goal:** Monetize using Sprint 4 pricing + wallet model.
+**Goal:** Landlords manage listings; pricing/credits model exists; app feels global on first visit without blocking Uganda.
 
-- [ ] Flutterwave mobile money (MTN/Airtel)
-- [ ] **USSD payments** (provider TBD)
-- [ ] Stripe Checkout (cards / diaspora)
-- [ ] Webhooks + idempotency + wallet settlement
-- [ ] Enforce landlord listing fee + tenant unlock fee
-- [ ] SMS phone verification
+### Done (Sprint 4 slice 1)
+
+- [x] Pricing rules + quote API (`012`, tiered by type + bedrooms)
+- [x] Landlord unit status API + dashboard UI
+- [x] Explore performance (PostGIS, cache, rate limit, filters)
+- [x] Admin pending edit (units, cover upload, exact pin)
+- [x] Admin + landlord loading UX polish
+
+### In progress / next (Sprint 4 slice 2–3)
+
+| Theme                | Deliverables                                                                  |
+| -------------------- | ----------------------------------------------------------------------------- |
+| **Wallet & promos**  | Credits ledger, coupons, welcome bonus, dynamic fee in unlock UI ✅           |
+| **Landlord quality** | Multi-photo upload ✅; compress + thumbs ✅; admin reject with reason (S4-10) |
+| **Explore UX**       | Viewport search, composed filters, Near me ✅; Bondex-aligned tokens (S4-UX) ✅ |
+| **Geo bootstrap**    | Near me + place jump ✅; country-aware defaults (S4-14); persist viewport       |
+| **Currency display** | Present rent + fees in viewer currency (FX hint); canonical storage unchanged |
+| **Featured launch**  | First ~20 verified listings featured free (admin grant / coupon / credit)     |
+| **Stability**        | Explore 429 UX; auth guard DB resilience                                      |
+
+### Business model (display now → charge Sprint 5)
+
+- Tiered unlock/listing fees by `building_type` + bedrooms + `country_code`
+- Tenant welcome credit; admin coupons; landlord listing credits
+- Featured listing surcharge (paid later; **launch promo: first 20 global**)
+- Enforce payment at checkout — **Sprint 5**
 
 ---
 
-## Phase 6 — Launch
+## Phase 5 — Payments (Stripe-first, then local rails)
 
-- [ ] Superadmin pricing config
-- [ ] Full RBAC guards on all admin routes
-- [ ] PWA manifest (also resolves `/sw.js` 404 in dev)
-- [ ] 20–30 verified Kampala buildings
-- [ ] Soft launch (WhatsApp, social)
-- [ ] Require landlord phone before listing goes live (policy + validation)
+**Goal:** Monetize using Sprint 4 pricing + wallet. **International diaspora pays by card first.**
+
+| Order | Rail                          | Audience                                               |
+| ----- | ----------------------------- | ------------------------------------------------------ |
+| 1     | **Stripe Checkout**           | US, UK, EU, diaspora — adaptive / presentment currency |
+| 2     | Webhooks + wallet settlement  | All providers                                          |
+| 3     | Flutterwave mobile money      | Uganda MTN/Airtel                                      |
+| 4     | USSD                          | Uganda feature-phone path                              |
+| 5     | Enforce listing + unlock fees | Replace dev unlock                                     |
+
+SMS phone verification moves here or Phase 6 depending on Stripe KYC needs.
+
+---
+
+## Phase 6 — Global soft launch
+
+- [ ] Seed / onboard supply in **UG + 1–2 diaspora corridors** (not Kampala-only marketing)
+- [ ] Social ad landing: UTM capture, Open Graph previews, geo-aware explore entry
+- [ ] Featured monetization (beyond launch 20)
+- [ ] Superadmin pricing per country
+- [ ] Full RBAC on admin routes
+- [ ] PWA manifest
+- [ ] Require landlord phone before go-live
 
 ---
 
 ## Phase 7 — Growth
 
-- [ ] React Native app
-- [ ] Featured listings
-- [ ] Kenya / Tanzania
-- [ ] SEO district pages
-
-*Note: Multi-photo gallery on listings is partially done (API + lightbox); extend landlord upload UX in a later slice.*
+- React Native app
+- Kenya / Tanzania country packs
+- SEO city/district pages (English)
+- Saved searches, analytics
 
 ---
 
-*Last updated: 2026-05-29 — Unlock UX, profiles, and contact handoff complete; real payments next*
+## Architecture principles (international)
+
+| Layer        | Rule                                                                                               |
+| ------------ | -------------------------------------------------------------------------------------------------- |
+| **Data**     | Buildings/units store **listing currency** (ISO 4217). Fees in `pricing_rules` per `country_code`. |
+| **Display**  | `Intl.NumberFormat` with viewer locale/currency; optional FX footnote (“~$12 USD”).                |
+| **Checkout** | Stripe presentment currency matches viewer; settlement config TBD.                                 |
+| **Map**      | GPS → map center + search; deny/unsupported → profile country centroid → **Kampala default**.      |
+| **Language** | English only until explicit i18n sprint.                                                           |
+| **Featured** | `is_featured` + optional `featured_until`; grants via credits/coupons at launch.                   |
+
+---
+
+## What we are *not* doing yet
+
+- Full UI translation (Spanish, French, etc.)
+- Per-country payment methods on day one (Stripe first)
+- Automatic listing in wrong country (geo informs **map**, not fake listings)
+
+---
+
+*Last updated: 2026-06-02 — Sprint 4 slice 2: wallet, multi-photo, image compression + explore thumbs*
+
+

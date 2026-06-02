@@ -1,16 +1,45 @@
 @import "tailwindcss";
 
+/**
+ * PlotPin design tokens — neutral scale + elevation aligned with Bondex hire web.
+ * Prefer these CSS variables / utilities over one-off hex values.
+ */
 :root {
-  --background: #f8fafc;
+  --background: #f6f8fc;
   --foreground: #0f172a;
   --primary: #1d4ed8;
+    /* --primary: #2e3192; */
   --primary-foreground: #ffffff;
   --muted: #64748b;
-  --border: #e2e8f0;
+  /** Default border on white surfaces (Bondex gray-100). */
+  --border: #d4dce7;
+  /** Stronger border for hover / emphasis (Bondex gray-200). */
+  --border-strong: #b4c1d4;
   --surface: #ffffff;
-  /** Light gray chrome — filter strips, dashboard canvas (SchoolSpring-style). */
-  --panel: #eceff3;
+  /** Light gray chrome — filter strips, dashboard canvas. */
+  --panel: #eaeef3;
   --accent-orange: #ea580c;
+
+  /* Neutral scale (Bondex gray-* — use via var() or future shade utilities) */
+  --neutral-25: #f6f8fc;
+  --neutral-50: #eaeef3;
+  --neutral-100: #d4dce7;
+  --neutral-200: #b4c1d4;
+  --neutral-300: #93a7c2;
+
+  /* Skeleton */
+  --skeleton: #d4dce7;
+  --skeleton-highlight: #eaeef3;
+
+  /* Elevation (Bondex shadow scale, slate-tinted) */
+  --shadow-xs: 0 1px 2px rgb(16 24 40 / 5%);
+  --shadow-card: 0 1px 3px rgb(16 24 40 / 10%), 0 1px 2px rgb(16 24 40 / 6%);
+  --shadow-card-md: 0 4px 8px -2px rgb(16 24 40 / 10%),
+    0 2px 4px -2px rgb(16 24 40 / 6%);
+  --shadow-card-lg: 0 12px 16px -4px rgb(16 24 40 / 8%),
+    0 4px 6px -2px rgb(16 24 40 / 3%);
+  --shadow-overlay: 0 20px 24px -4px rgb(16 24 40 / 8%),
+    0 8px 8px -4px rgb(16 24 40 / 3%);
 }
 
 @theme inline {
@@ -20,9 +49,17 @@
   --color-primary-foreground: var(--primary-foreground);
   --color-muted: var(--muted);
   --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
   --color-surface: var(--surface);
   --color-panel: var(--panel);
   --color-accent-orange: var(--accent-orange);
+  --color-skeleton: var(--skeleton);
+  --color-skeleton-highlight: var(--skeleton-highlight);
+  --color-neutral-25: var(--neutral-25);
+  --color-neutral-50: var(--neutral-50);
+  --color-neutral-100: var(--neutral-100);
+  --color-neutral-200: var(--neutral-200);
+  --color-neutral-300: var(--neutral-300);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
   --radius-sm: 2px;
@@ -32,6 +69,10 @@
   --radius-xl: 2px;
   --radius-2xl: 2px;
   --radius-3xl: 2px;
+  --shadow-card: var(--shadow-card);
+  --shadow-card-md: var(--shadow-card-md);
+  --shadow-card-lg: var(--shadow-card-lg);
+  --shadow-overlay: var(--shadow-overlay);
 }
 
 body {
@@ -42,6 +83,42 @@ body {
 
 * {
   border-radius: 2px;
+}
+
+/** White card on gray canvas — consistent elevation */
+.card-elevated {
+  border: 1px solid var(--border);
+  background: var(--surface);
+  box-shadow: var(--shadow-card);
+}
+
+.card-elevated-md {
+  border: 1px solid var(--border);
+  background: var(--surface);
+  box-shadow: var(--shadow-card-md);
+}
+
+.card-elevated-lg {
+  border: 1px solid var(--border);
+  background: var(--surface);
+  box-shadow: var(--shadow-card-lg);
+}
+
+/** Loading placeholder */
+.skeleton-block {
+  border-radius: 4px;
+  background-color: var(--skeleton);
+  animation: plotpin-skeleton-pulse 1.8s ease-in-out infinite;
+}
+
+@keyframes plotpin-skeleton-pulse {
+  0%,
+  100% {
+    background-color: var(--skeleton);
+  }
+  50% {
+    background-color: var(--skeleton-highlight);
+  }
 }
 
 /* Site chrome keeps square edges; spinners stay circular */
@@ -173,7 +250,7 @@ footer * {
   font-weight: 500;
   line-height: 1.25;
   color: var(--foreground);
-  box-shadow: 0 1px 3px rgb(15 23 42 / 12%);
+  box-shadow: var(--shadow-card);
 }
 
 .plotpin-map-tooltip::before,

@@ -236,6 +236,10 @@ export class RegisterImageDto {
   storagePath!: string;
 
   @IsOptional()
+  @IsString()
+  thumbStoragePath?: string;
+
+  @IsOptional()
   @IsBoolean()
   isPrimary?: boolean;
 }

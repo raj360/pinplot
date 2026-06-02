@@ -19,6 +19,7 @@ type NewBuildingPreviewProps = {
   district: string;
   areaLabel: string;
   coverPreviewUrl: string | null;
+  galleryPreviewUrls?: string[];
   units: UnitPreview[];
   step: number;
   className?: string;
@@ -31,6 +32,7 @@ export function NewBuildingPreview({
   district,
   areaLabel,
   coverPreviewUrl,
+  galleryPreviewUrls = [],
   units,
   step,
   className,
@@ -69,13 +71,32 @@ export function NewBuildingPreview({
           <img
             src={coverPreviewUrl}
             alt=""
-            className="mb-4 aspect-video w-full border border-border object-cover"
+            className="mb-3 aspect-video w-full border border-border object-cover"
           />
         ) : (
-          <div className="mb-4 flex aspect-video items-center justify-center border border-dashed border-border bg-background text-xs text-muted">
+          <div className="mb-3 flex aspect-video items-center justify-center border border-dashed border-border bg-background text-xs text-muted">
             Cover photo preview
           </div>
         )}
+
+        {galleryPreviewUrls.length > 1 ? (
+          <div className="mb-4 grid grid-cols-4 gap-1">
+            {galleryPreviewUrls.slice(0, 4).map((url) => (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                key={url}
+                src={url}
+                alt=""
+                className="aspect-square w-full border border-border object-cover"
+              />
+            ))}
+            {galleryPreviewUrls.length > 4 ? (
+              <div className="flex aspect-square items-center justify-center border border-border bg-background text-xs text-muted">
+                +{galleryPreviewUrls.length - 4}
+              </div>
+            ) : null}
+          </div>
+        ) : null}
 
         <h3
           className={cn(

@@ -98,6 +98,20 @@ export class SupabaseAdminService implements OnModuleInit {
       expires_in: sessionData.session.expires_in ?? 3600,
     };
   }
+
+  async removeStorageObjects(
+    bucket: string,
+    paths: string[],
+  ): Promise<void> {
+    if (!this.adminClient || paths.length === 0) return;
+
+    const { error } = await this.adminClient.storage.from(bucket).remove(paths);
+    if (error) {
+      this.logger.warn(
+        `Storage remove failed (${bucket}, ${paths.length} objects): ${error.message}`,
+      );
+    }
+  }
 }
 
 export { CODE_LENGTH, DEFAULT_TTL_SECONDS };

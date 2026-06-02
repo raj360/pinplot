@@ -19,10 +19,7 @@ export function DashboardSection({
 }: DashboardSectionProps) {
   return (
     <section
-      className={cn(
-        "border border-border bg-surface p-4 sm:p-5",
-        className,
-      )}
+      className={cn("card-elevated-md p-4 sm:p-5", className)}
     >
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
@@ -41,11 +38,19 @@ export function DashboardSection({
 type StatCardProps = {
   label: string;
   value: number | string;
+  highlight?: boolean;
+  className?: string;
 };
 
-export function StatCard({ label, value }: StatCardProps) {
+export function StatCard({ label, value, highlight, className }: StatCardProps) {
   return (
-    <div className="border border-border bg-surface px-4 py-3">
+    <div
+      className={cn(
+        "px-4 py-3",
+        highlight ? "border-sky-300 bg-sky-50" : "card-elevated",
+        className,
+      )}
+    >
       <dt className="text-xs font-medium uppercase tracking-wide text-muted">
         {label}
       </dt>

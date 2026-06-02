@@ -1,20 +1,27 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { BUILDING_IMAGE } from "@plotpin/shared-types";
 import { cn } from "@/lib/utils/cn";
 
-export const BUILDING_COVER_MAX_BYTES = 5 * 1024 * 1024;
+const BUILDING_PHOTO_UPLOAD_HINT =
+  `JPEG or PNG from your phone is fine — we optimize to ~${Math.round(BUILDING_IMAGE.FULL_MAX_PX / 100) / 10}K px before upload.`;
 
 const BUILDING_COVER_MIME_TYPES = new Set(["image/jpeg", "image/png"]);
 
-export function validateBuildingCoverFile(file: File): string | null {
+export function validateBuildingCoverSourceFile(file: File): string | null {
   if (!BUILDING_COVER_MIME_TYPES.has(file.type)) {
     return "Use a JPEG or PNG image.";
   }
-  if (file.size > BUILDING_COVER_MAX_BYTES) {
-    return "Image must be 5 MB or smaller.";
+  if (file.size > BUILDING_IMAGE.SOURCE_MAX_BYTES) {
+    return "Image must be 25 MB or smaller.";
   }
   return null;
+}
+
+/** @deprecated Use validateBuildingCoverSourceFile — compression runs before size cap. */
+export function validateBuildingCoverFile(file: File): string | null {
+  return validateBuildingCoverSourceFile(file);
 }
 
 type ImageUploadProps = {
@@ -36,7 +43,7 @@ export function ImageUpload({
   existingUrl = null,
   onClearExisting,
   label = "Cover photo",
-  hint = "Required — JPEG or PNG, up to 5 MB.",
+  hint = BUILDING_PHOTO_UPLOAD_HINT,
   required = false,
   error,
   onValidationError,

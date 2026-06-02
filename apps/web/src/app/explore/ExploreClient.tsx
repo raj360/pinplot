@@ -23,8 +23,10 @@ import {
   type Bounds,
 } from "@/lib/api/buildings";
 import {
-  getMapFocusForSearch,
+  boundsAround,
+  resolveSearchArea,
 } from "@/lib/filters/search-areas";
+import { EXPLORE_NEAR_ME_RADIUS_DEG } from "@/lib/maps/config";
 import {
   boundsForExploreSearch,
   canSearchMapViewport,
@@ -33,13 +35,15 @@ import {
   sanitizeMapBounds,
 } from "@/lib/explore/map-bounds";
 import {
-  LIVE_SEARCH_DEBOUNCE_MS,
-  LIVE_SEARCH_STORAGE_KEY,
-  readLiveSearchPreference,
+  MAP_LIVE_SEARCH_DEBOUNCE_MS,
 } from "@/lib/explore/live-search-preference";
+import { geocodePlaceInUganda } from "@/lib/maps/geocode-place";
 import { loadExploreBuildings } from "@/lib/explore/load-buildings";
 import { useExploreGeolocation } from "@/lib/hooks/use-explore-geolocation";
-import { clearBuildingCache } from "@/lib/api/building-cache";
+import {
+  clearBuildingCache,
+  getCachedBuilding,
+} from "@/lib/api/building-cache";
 import { fetchMyUnlocks, type TenantUnlock } from "@/lib/api/unlocks";
 import { useAuth } from "@/lib/auth/use-auth";
 import type { BuildingSummary } from "@plotpin/shared-types";
@@ -76,6 +80,7 @@ export function ExploreClient() {
   const [allBuildings, setAllBuildings] = useState<BuildingSummary[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [selectedDetail, setSelectedDetail] = useState<BuildingDetail | null>(null);
+  const selectedDetailRef = useRef<BuildingDetail | null>(null);
   const [selectedLoading, setSelectedLoading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [searching, setSearching] = useState(false);
@@ -85,22 +90,21 @@ export function ExploreClient() {
     useState<ExploreSearchFilters>(urlFilters);
   const [mapFitToken, setMapFitToken] = useState(0);
   const [mapFocusBounds, setMapFocusBounds] = useState<Bounds | null>(null);
+  const [whereSegmentLabel, setWhereSegmentLabel] = useState<string | null>(null);
   const [appliedMapBounds, setAppliedMapBounds] = useState<Bounds | null>(urlMapBounds);
   const [appliedSearchBounds, setAppliedSearchBounds] = useState<Bounds>(
     boundsForExploreSearch(urlFilters, urlMapBounds),
   );
-  const [viewportBounds, setViewportBounds] = useState<Bounds | null>(null);
-  const [mapZoom, setMapZoom] = useState<number | null>(null);
-  const [userMovedMap, setUserMovedMap] = useState(false);
   const listRef = useRef<HTMLUListElement>(null);
   const { isAuthenticated } = useAuth();
+  const shouldAutoGeo = !urlMapBounds && !urlFilters.city;
+  const geo = useExploreGeolocation({ autoRequest: shouldAutoGeo });
   const [unlockedLocations, setUnlockedLocations] = useState<
     Map<string, { lat: number; lng: number }>
   >(new Map());
   const [myUnlocks, setMyUnlocks] = useState<TenantUnlock[]>([]);
   const { hoveredId, setHover, loadSelectedDetail } = useExplorePreview();
   const isMobile = useIsMobile();
-  const geo = useExploreGeolocation();
   const deepLinkHandled = useRef(false);
   const initialLoadDone = useRef(false);
   const skipUrlSyncRef = useRef(false);
@@ -112,6 +116,11 @@ export function ExploreClient() {
   const viewportBoundsRef = useRef<Bounds | null>(null);
   const mapZoomRef = useRef<number | null>(null);
   const suppressMapInteractionUntilRef = useRef(0);
+
+  const suppressMapInteraction = useCallback(() => {
+    suppressMapInteractionUntilRef.current = Date.now() + 900;
+  }, []);
+
   const executeSearchRef = useRef<
     (
       next: ExploreSearchFilters,
@@ -120,16 +129,25 @@ export function ExploreClient() {
         history?: "push" | "replace";
         mapBounds?: Bounds | null;
       },
-    ) => Promise<void>
-  >(() => Promise.resolve());
+    ) => Promise<BuildingSummary[] | null>
+  >(() => Promise.resolve(null));
   const searchGenerationRef = useRef(0);
   const initialLoadGenerationRef = useRef(0);
-  const liveSearchTimerRef = useRef<number | undefined>(undefined);
-  const filtersRef = useRef(filters);
-  const [liveSearchEnabled, setLiveSearchEnabled] = useState(
-    readLiveSearchPreference,
+  const mapSearchTimerRef = useRef<number | undefined>(undefined);
+  const bootstrapTimerRef = useRef<number | undefined>(undefined);
+  const bootstrapPendingRef = useRef(
+    !urlMapBounds && !urlFilters.city,
   );
-  const userLocationForSearch = geo.inUganda ? geo.location : null;
+  const geoLocationRef = useRef(geo.location);
+  const geoInUgandaRef = useRef(geo.inUganda);
+  const geoLoadingRef = useRef(geo.loading);
+  const filtersRef = useRef(filters);
+
+  useEffect(() => {
+    geoLocationRef.current = geo.location;
+    geoInUgandaRef.current = geo.inUganda;
+    geoLoadingRef.current = geo.loading;
+  }, [geo.inUganda, geo.loading, geo.location]);
 
   useEffect(() => {
     filtersRef.current = filters;
@@ -137,7 +155,8 @@ export function ExploreClient() {
 
   useEffect(
     () => () => {
-      window.clearTimeout(liveSearchTimerRef.current);
+      window.clearTimeout(mapSearchTimerRef.current);
+      window.clearTimeout(bootstrapTimerRef.current);
     },
     [],
   );
@@ -183,13 +202,30 @@ export function ExploreClient() {
     async (id: string) => {
       setSelectedId(id);
       setHover(id);
-      setSelectedLoading(true);
-      setSelectedDetail(null);
+
+      if (selectedDetailRef.current?.id === id) {
+        return;
+      }
+
+      const cached = getCachedBuilding(id, isAuthenticated);
+      if (cached) {
+        selectedDetailRef.current = cached;
+        setSelectedDetail(cached);
+        setSelectedLoading(false);
+      } else {
+        setSelectedLoading(true);
+        setSelectedDetail(null);
+        selectedDetailRef.current = null;
+      }
+
       const detail = await loadSelectedDetail(id);
-      setSelectedDetail(detail);
+      if (detail) {
+        selectedDetailRef.current = detail;
+        setSelectedDetail(detail);
+      }
       setSelectedLoading(false);
     },
-    [loadSelectedDetail, setHover],
+    [isAuthenticated, loadSelectedDetail, setHover],
   );
 
   const applySearchResults = useCallback(
@@ -337,7 +373,21 @@ export function ExploreClient() {
     let cancelled = false;
 
     const initialFilters = initialUrlFiltersRef.current;
-    const initialMapBounds = initialUrlMapBoundsRef.current;
+    let initialMapBounds = initialUrlMapBoundsRef.current;
+
+    if (!initialMapBounds && initialFilters.city) {
+      const preset = resolveSearchArea(initialFilters.city);
+      if (preset) {
+        initialMapBounds = preset.bounds;
+      }
+    }
+
+    if (bootstrapPendingRef.current) {
+      return () => {
+        cancelled = true;
+      };
+    }
+
     const initialSearchBounds = boundsForExploreSearch(
       initialFilters,
       initialMapBounds,
@@ -354,6 +404,9 @@ export function ExploreClient() {
         appliedSearchBoundsRef.current = initialSearchBounds;
         setAppliedMapBounds(initialMapBounds);
         appliedMapBoundsRef.current = initialMapBounds;
+        if (initialMapBounds) {
+          setMapFocusBounds(initialMapBounds);
+        }
         setMapFitToken((token) => token + 1);
         consumeDeepLinkRef.current(data);
       })
@@ -401,7 +454,7 @@ export function ExploreClient() {
         history?: "push" | "replace";
         mapBounds?: Bounds | null;
       },
-    ) => {
+    ): Promise<BuildingSummary[] | null> => {
       const syncUrl = options?.syncUrl ?? true;
       const history = options?.history ?? "push";
       const mapBounds =
@@ -420,14 +473,10 @@ export function ExploreClient() {
       setSearching(true);
       setError(null);
       try {
-        const focus = useMapBounds
-          ? mapBounds
-          : getMapFocusForSearch(next.city, userLocationForSearch)?.bounds ?? null;
-        setMapFocusBounds(focus);
         const data = await loadExploreBuildings(next, mapBounds);
-        if (generation !== searchGenerationRef.current) return;
+        if (generation !== searchGenerationRef.current) return null;
         applySearchResults(data);
-        if (generation !== searchGenerationRef.current) return;
+        if (generation !== searchGenerationRef.current) return null;
 
         setAppliedFilters(next);
         appliedFiltersRef.current = next;
@@ -435,29 +484,31 @@ export function ExploreClient() {
         appliedMapBoundsRef.current = useMapBounds ? mapBounds : null;
         setAppliedSearchBounds(searchBounds);
         appliedSearchBoundsRef.current = searchBounds;
-        setUserMovedMap(false);
         consumeDeepLink(data);
 
         if (!useMapBounds) {
+          setMapFocusBounds(null);
           setMapFitToken((token) => token + 1);
         }
 
         if (syncUrl) {
           syncSearchToUrl(next, useMapBounds ? mapBounds : null, history);
         }
+        return data;
       } catch {
-        if (generation !== searchGenerationRef.current) return;
+        if (generation !== searchGenerationRef.current) return null;
         if (syncUrl) {
           skipUrlSyncRef.current = false;
         }
         setError("Could not load buildings. Is the API running?");
+        return null;
       } finally {
         if (generation === searchGenerationRef.current) {
           setSearching(false);
         }
       }
     },
-    [applySearchResults, consumeDeepLink, syncSearchToUrl, userLocationForSearch],
+    [applySearchResults, consumeDeepLink, syncSearchToUrl],
   );
 
   useEffect(() => {
@@ -487,22 +538,124 @@ export function ExploreClient() {
     });
   }, [urlFilters, urlMapBounds]);
 
-  const runSearch = useCallback(async () => {
-    await executeSearch({ ...filters }, { mapBounds: null });
-  }, [executeSearch, filters]);
+  const runSearchMapArea = useCallback(
+    async (bounds: Bounds, options?: { history?: "push" | "replace" }) => {
+      const zoom = mapZoomRef.current;
+      if (!canSearchMapViewport(zoom)) return;
 
-  const runSearchMapArea = useCallback(async () => {
-    const bounds = viewportBoundsRef.current;
-    const zoom = mapZoomRef.current;
-    if (!bounds || !canSearchMapViewport(zoom)) return;
+      const next = { ...filtersRef.current, city: "" };
+      setFilters(next);
+      setWhereSegmentLabel("Map area");
+      await executeSearch(next, {
+        mapBounds: bounds,
+        history: options?.history ?? "push",
+      });
+    },
+    [executeSearch],
+  );
 
-    const next = { ...filtersRef.current, city: "" };
+  const runBootstrapSearch = useCallback(
+    async (viewportBounds: Bounds) => {
+      bootstrapPendingRef.current = false;
+      window.clearTimeout(bootstrapTimerRef.current);
+
+      const geoPoint =
+        geoInUgandaRef.current && geoLocationRef.current
+          ? geoLocationRef.current
+          : null;
+      const bounds = geoPoint
+        ? boundsAround(geoPoint.lat, geoPoint.lng, EXPLORE_NEAR_ME_RADIUS_DEG)
+        : viewportBounds;
+
+      suppressMapInteraction();
+      setMapFocusBounds(bounds);
+      setMapFitToken((token) => token + 1);
+
+      const next = { ...EMPTY_EXPLORE_FILTERS, city: "" };
+      setFilters(next);
+      setWhereSegmentLabel(geoPoint ? "Near you" : "Map area");
+      await executeSearch(next, {
+        mapBounds: bounds,
+        history: "replace",
+      });
+      setLoading(false);
+      initialLoadDone.current = true;
+    },
+    [executeSearch, suppressMapInteraction],
+  );
+
+  const handlePlaceJump = useCallback(
+    async (query: string) => {
+      const trimmed = query.trim();
+      if (!trimmed) return;
+
+      const preset = resolveSearchArea(trimmed);
+      if (preset) {
+        suppressMapInteraction();
+        setMapFocusBounds(preset.bounds);
+        setMapFitToken((token) => token + 1);
+        setWhereSegmentLabel(preset.label);
+        const next = { ...filtersRef.current, city: preset.value };
+        setFilters(next);
+        await executeSearch(next, { mapBounds: preset.bounds });
+        return;
+      }
+
+      setSearching(true);
+      setError(null);
+      try {
+        const result = await geocodePlaceInUganda(trimmed);
+        if (!result) {
+          setError(`Could not find “${trimmed}” in Uganda. Try a nearby city.`);
+          return;
+        }
+
+        suppressMapInteraction();
+        setMapFocusBounds(result.bounds);
+        setMapFitToken((token) => token + 1);
+        setWhereSegmentLabel(result.label);
+        const next = { ...filtersRef.current, city: result.label };
+        setFilters(next);
+        await executeSearch(next, { mapBounds: result.bounds });
+      } catch {
+        setError("Place search failed. Check your connection and try again.");
+      } finally {
+        setSearching(false);
+      }
+    },
+    [executeSearch, suppressMapInteraction],
+  );
+
+  const handleNearMe = useCallback(async () => {
+    setError(null);
+    const { location: point, error: geoError } = await geo.requestLocation({
+      highAccuracy: true,
+    });
+
+    if (!point) {
+      setError(geoError ?? "Could not get your location.");
+      return;
+    }
+
+    const bounds = boundsAround(point.lat, point.lng, EXPLORE_NEAR_ME_RADIUS_DEG);
+    suppressMapInteraction();
+    setMapFocusBounds(bounds);
+    setMapFitToken((token) => token + 1);
+    setWhereSegmentLabel("Near you");
+
+    const next = { ...filtersRef.current, city: "Near you" };
     setFilters(next);
-    await executeSearch(next, { mapBounds: bounds });
-  }, [executeSearch]);
+    const data = await executeSearch(next, { mapBounds: bounds });
+    if (data && data.length === 0) {
+      setError(
+        "No listings near you yet. Pan the map or try another area — filters still apply.",
+      );
+    }
+  }, [executeSearch, geo, suppressMapInteraction]);
 
   const removeMapBounds = useCallback(async () => {
-    const next = { ...appliedFilters };
+    setWhereSegmentLabel(null);
+    const next = { ...appliedFilters, city: "" };
     setFilters(next);
     await executeSearch(next, { mapBounds: null });
   }, [appliedFilters, executeSearch]);
@@ -519,47 +672,20 @@ export function ExploreClient() {
   const runReset = useCallback(async () => {
     geo.clearLocation();
     setFilters(EMPTY_EXPLORE_FILTERS);
-    setUserMovedMap(false);
+    setMapFocusBounds(null);
+    setWhereSegmentLabel(null);
     await executeSearch(EMPTY_EXPLORE_FILTERS, {
       history: "replace",
       mapBounds: null,
     });
   }, [executeSearch, geo]);
 
-  const handleFiltersChange = useCallback(
-    (next: ExploreSearchFilters) => {
-      setFilters(next);
-      if (!liveSearchEnabled) return;
-
-      window.clearTimeout(liveSearchTimerRef.current);
-      liveSearchTimerRef.current = window.setTimeout(() => {
-        void executeSearchRef.current(next, {
-          mapBounds: appliedMapBoundsRef.current,
-        });
-      }, LIVE_SEARCH_DEBOUNCE_MS);
-    },
-    [liveSearchEnabled],
-  );
-
-  const handleLiveSearchChange = useCallback(
-    (enabled: boolean) => {
-      setLiveSearchEnabled(enabled);
-      try {
-        window.localStorage.setItem(LIVE_SEARCH_STORAGE_KEY, enabled ? "1" : "0");
-      } catch {
-        // ignore storage failures
-      }
-
-      if (enabled) {
-        window.clearTimeout(liveSearchTimerRef.current);
-        void executeSearch(
-          { ...filtersRef.current },
-          { mapBounds: appliedMapBoundsRef.current },
-        );
-      }
-    },
-    [executeSearch],
-  );
+  const handleFiltersApply = useCallback((next: ExploreSearchFilters) => {
+    setFilters(next);
+    void executeSearchRef.current(next, {
+      mapBounds: appliedMapBoundsRef.current,
+    });
+  }, []);
 
   const openAccessModal = useCallback((buildingId: string) => {
     setAccessModalBuildingId(buildingId);
@@ -658,62 +784,45 @@ export function ExploreClient() {
     (viewport: { bounds: Bounds; zoom: number }) => {
       viewportBoundsRef.current = viewport.bounds;
       mapZoomRef.current = viewport.zoom;
-      setViewportBounds(viewport.bounds);
-      setMapZoom(viewport.zoom);
+
+      window.clearTimeout(mapSearchTimerRef.current);
+      window.clearTimeout(bootstrapTimerRef.current);
+
+      if (bootstrapPendingRef.current) {
+        const waitForGeo = geoLoadingRef.current ? 1200 : 0;
+        bootstrapTimerRef.current = window.setTimeout(() => {
+          void runBootstrapSearch(viewport.bounds);
+        }, waitForGeo);
+        return;
+      }
+
+      if (Date.now() < suppressMapInteractionUntilRef.current) return;
+      if (!canSearchMapViewport(viewport.zoom)) return;
+      if (
+        !mapViewportDiffersFromSearch(
+          viewport.bounds,
+          appliedSearchBoundsRef.current,
+        )
+      ) {
+        return;
+      }
+
+      mapSearchTimerRef.current = window.setTimeout(() => {
+        const bounds = viewportBoundsRef.current;
+        const zoom = mapZoomRef.current;
+        if (!bounds || !canSearchMapViewport(zoom)) return;
+        if (
+          !mapViewportDiffersFromSearch(
+            bounds,
+            appliedSearchBoundsRef.current,
+          )
+        ) {
+          return;
+        }
+        void runSearchMapArea(bounds);
+      }, MAP_LIVE_SEARCH_DEBOUNCE_MS);
     },
-    [],
-  );
-
-  const handleUserMapInteraction = useCallback(() => {
-    if (Date.now() < suppressMapInteractionUntilRef.current) return;
-    setUserMovedMap(true);
-  }, []);
-
-  const handleProgrammaticMapMove = useCallback(() => {
-    suppressMapInteractionUntilRef.current = Date.now() + 900;
-    setUserMovedMap(false);
-  }, []);
-
-  const showMapAreaSearch = useMemo(
-    () =>
-      isMobile &&
-      mapVisible &&
-      !loading &&
-      !searching &&
-      userMovedMap &&
-      canSearchMapViewport(mapZoom) &&
-      mapViewportDiffersFromSearch(viewportBounds, appliedSearchBounds),
-    [
-      appliedSearchBounds,
-      isMobile,
-      loading,
-      mapVisible,
-      mapZoom,
-      searching,
-      userMovedMap,
-      viewportBounds,
-    ],
-  );
-
-  const showSearchAreaButton = useMemo(
-    () =>
-      !isMobile &&
-      mapVisible &&
-      !loading &&
-      !searching &&
-      userMovedMap &&
-      canSearchMapViewport(mapZoom) &&
-      mapViewportDiffersFromSearch(viewportBounds, appliedSearchBounds),
-    [
-      appliedSearchBounds,
-      isMobile,
-      loading,
-      mapVisible,
-      mapZoom,
-      searching,
-      userMovedMap,
-      viewportBounds,
-    ],
+    [runBootstrapSearch, runSearchMapArea],
   );
 
   const mapProps = {
@@ -729,11 +838,7 @@ export function ExploreClient() {
     fitBoundsToken: mapFitToken,
     focusBounds: mapFocusBounds,
     onViewportChange: handleViewportChange,
-    onUserMapInteraction: handleUserMapInteraction,
-    onProgrammaticMapMove: handleProgrammaticMapMove,
-    showSearchAreaButton,
-    mapAreaSearching: searching,
-    onSearchMapArea: () => void runSearchMapArea(),
+    onProgrammaticMapMove: suppressMapInteraction,
   };
 
   const showMobileSheet = Boolean(selectedId) && isMobile && detailMode !== null;
@@ -744,7 +849,7 @@ export function ExploreClient() {
 
   return (
     <div className="flex min-h-screen flex-col bg-background md:h-screen md:overflow-hidden">
-      <div className="sticky top-0 z-30 shrink-0 bg-background shadow-sm">
+      <div className="sticky top-0 z-40 shrink-0 bg-background shadow-card">
         <AppHeader variant="wide" />
 
         <ContentBand width="wide" className="bg-panel" innerClassName="py-1 sm:py-1.5">
@@ -752,25 +857,23 @@ export function ExploreClient() {
             filters={filters}
             appliedFilters={appliedFilters}
             appliedMapBounds={appliedMapBounds}
-            onChange={handleFiltersChange}
-            onSearch={() => void runSearch()}
+            whereDisplayOverride={
+              whereSegmentLabel ??
+              (appliedMapBounds && !filters.city ? "Map area" : undefined)
+            }
+            onApplyFilters={handleFiltersApply}
+            onPlaceJump={(place) => void handlePlaceJump(place)}
+            onNearMe={() => void handleNearMe()}
             onReset={() => void runReset()}
             onRemoveAppliedFilter={(key) => void removeAppliedFilter(key)}
             onRemoveMapBounds={() => void removeMapBounds()}
             searching={searching}
             filterLoading={searching && !loading}
-            liveSearch={liveSearchEnabled}
-            onLiveSearchChange={handleLiveSearchChange}
             mapVisible={mapVisible}
             onToggleMap={handleToggleMap}
-            showMapAreaSearch={showMapAreaSearch}
-            onSearchMapArea={() => void runSearchMapArea()}
-            mapAreaSearching={searching}
             resultCount={allBuildings.length}
             userLocation={geo.location}
             inUganda={geo.inUganda}
-            onRequestLocation={geo.requestLocation}
-            onClearLocation={geo.clearLocation}
             locationLoading={geo.loading}
           />
         </ContentBand>

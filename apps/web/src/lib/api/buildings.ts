@@ -347,14 +347,3 @@ export async function adminDeletePendingUnit(buildingId: string, unitId: string)
     { method: "DELETE" },
   );
 }
-
-export async function registerBuildingImage(
-  buildingId: string,
-  storagePath: string,
-  isPrimary = true,
-) {
-  return apiFetch(`/buildings/${buildingId}/images`, {
-    method: "POST",
-    body: JSON.stringify({ storagePath, isPrimary }),
-  });
-}

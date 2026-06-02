@@ -3,11 +3,12 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
+import { MAX_BUILDING_PHOTOS } from "@plotpin/shared-types";
 import { AdminEditBuildingSkeleton } from "@/components/admin/AdminPageSkeletons";
+import { BuildingPhotoManager } from "@/components/buildings/BuildingPhotoManager";
 import { DashboardSection } from "@/components/layout/DashboardSection";
 import { LocationPinPicker } from "@/components/maps/LocationPinPicker";
 import { Button } from "@/components/ui/button";
-import { ImageUpload } from "@/components/ui/image-upload";
 import { BUILDING_TYPE_OPTIONS } from "@/lib/filters/building-types";
 import {
   adminAddPendingUnit,
@@ -22,7 +23,6 @@ import {
 } from "@/lib/api/buildings";
 import { getAccessToken } from "@/lib/api/client";
 import { formatCurrency } from "@/lib/intl/format";
-import { uploadBuildingImage } from "@/lib/supabase/storage";
 
 type UnitDraft = {
   unitNumber: string;
@@ -65,9 +65,6 @@ export default function AdminEditBuildingClient({
   const [district, setDistrict] = useState("");
   const [buildingType, setBuildingType] = useState("apartment");
   const [exactAddress, setExactAddress] = useState("");
-  const [coverImagePath, setCoverImagePath] = useState("");
-  const [coverFile, setCoverFile] = useState<File | null>(null);
-  const [coverError, setCoverError] = useState<string | null>(null);
   const [videoUrl, setVideoUrl] = useState("");
   const [pin, setPin] = useState({ lat: 0, lng: 0 });
 
@@ -88,7 +85,6 @@ export default function AdminEditBuildingClient({
     setDistrict(data.district ?? "");
     setBuildingType(data.buildingType);
     setExactAddress(data.exactAddress ?? "");
-    setCoverImagePath(data.coverImagePath ?? "");
     setVideoUrl(data.videoUrl ?? "");
     setPin({ lat: data.pinLat, lng: data.pinLng });
     setUnitDrafts(
@@ -134,23 +130,16 @@ export default function AdminEditBuildingClient({
     setSaveMessage(null);
     setError(null);
     try {
-      let nextCoverPath = coverImagePath.trim();
-      if (coverFile) {
-        nextCoverPath = await uploadBuildingImage(buildingId, coverFile);
-      }
-
       const updated = await updateAdminPendingBuilding(buildingId, {
         name: name.trim(),
         city: city.trim(),
         district: district.trim() || undefined,
         buildingType,
         exactAddress: exactAddress.trim() || undefined,
-        coverImagePath: nextCoverPath,
         videoUrl: videoUrl.trim(),
         exactLat: pin.lat,
         exactLng: pin.lng,
       });
-      setCoverFile(null);
       applyBuilding(updated);
       setSaveMessage("Building details saved. Still pending approval.");
     } catch (err) {
@@ -355,18 +344,19 @@ export default function AdminEditBuildingClient({
         </section>
 
         <section className="border border-border bg-surface p-4">
-          <h2 className="text-sm font-medium">Media</h2>
-          <div className="mt-3 space-y-3">
-            <ImageUpload
-              value={coverFile}
-              onChange={setCoverFile}
-              existingUrl={coverFile ? null : coverImagePath || null}
-              onClearExisting={() => setCoverImagePath("")}
-              error={coverError}
-              onValidationError={setCoverError}
-              hint="JPEG or PNG, up to 5 MB. Saved when you click Save changes."
-              required={false}
-            />
+          <h2 className="text-sm font-medium">Photos</h2>
+          <p className="mt-1 text-sm text-muted">
+            Cover and gallery photos sync to the listing gallery tenants see after unlock.
+            Maximum {MAX_BUILDING_PHOTOS} photos (cover included).
+          </p>
+          <div className="mt-3">
+            <BuildingPhotoManager buildingId={buildingId} variant="admin" />
+          </div>
+        </section>
+
+        <section className="border border-border bg-surface p-4">
+          <h2 className="text-sm font-medium">Video</h2>
+          <div className="mt-3">
             <Field
               label="YouTube tour"
               value={videoUrl}

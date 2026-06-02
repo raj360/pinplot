@@ -19,12 +19,16 @@ export function buildExploreFilterChips(
   const chips: ExploreFilterChip[] = [];
 
   if (mapBounds) {
-    chips.push({ key: "mapArea", label: mapAreaChipLabel() });
-  }
-
-  const area = searchAreaLabel(filters.city) ?? filters.city.trim();
-  if (area) {
-    chips.push({ key: "city", label: area });
+    const place = searchAreaLabel(filters.city) ?? filters.city.trim();
+    chips.push({
+      key: "mapArea",
+      label: place || mapAreaChipLabel(),
+    });
+  } else {
+    const area = searchAreaLabel(filters.city) ?? filters.city.trim();
+    if (area) {
+      chips.push({ key: "city", label: area });
+    }
   }
 
   const price = rentRangeShortLabel(filters.priceRange);

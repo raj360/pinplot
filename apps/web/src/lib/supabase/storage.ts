@@ -1,23 +1,51 @@
-import { createClient } from "@/lib/supabase/client";
-import { validateBuildingCoverFile } from "@/components/ui/image-upload";
+"use client";
+
+import { compressBuildingImages } from "@/lib/images/compress-building-image";
+import { validateBuildingCoverSourceFile } from "@/components/ui/image-upload";
+
+export type BuildingImageUpload = {
+  fullUrl: string;
+  thumbUrl: string;
+};
 
 export async function uploadBuildingImage(
   buildingId: string,
   file: File,
-): Promise<string> {
-  const validationError = validateBuildingCoverFile(file);
+): Promise<BuildingImageUpload> {
+  const validationError = validateBuildingCoverSourceFile(file);
   if (validationError) throw new Error(validationError);
 
+  const { createClient } = await import("@/lib/supabase/client");
+  const { full, thumb } = await compressBuildingImages(file);
+
   const supabase = createClient();
-  const ext = file.name.split(".").pop() ?? "jpg";
-  const path = `${buildingId}/${Date.now()}.${ext}`;
+  const stamp = Date.now();
+  const fullPath = `${buildingId}/${stamp}-full.jpg`;
+  const thumbPath = `${buildingId}/${stamp}-thumb.jpg`;
 
-  const { error } = await supabase.storage
-    .from("building-images")
-    .upload(path, file, { upsert: false, contentType: file.type });
+  const bucket = supabase.storage.from("building-images");
+  const [fullUpload, thumbUpload] = await Promise.all([
+    bucket.upload(fullPath, full, {
+      upsert: false,
+      contentType: "image/jpeg",
+    }),
+    bucket.upload(thumbPath, thumb, {
+      upsert: false,
+      contentType: "image/jpeg",
+    }),
+  ]);
 
-  if (error) throw new Error(error.message);
+  if (fullUpload.error) throw new Error(fullUpload.error.message);
+  if (thumbUpload.error) {
+    await bucket.remove([fullPath]);
+    throw new Error(thumbUpload.error.message);
+  }
 
-  const { data } = supabase.storage.from("building-images").getPublicUrl(path);
-  return data.publicUrl;
+  const { data: fullData } = bucket.getPublicUrl(fullPath);
+  const { data: thumbData } = bucket.getPublicUrl(thumbPath);
+
+  return {
+    fullUrl: fullData.publicUrl,
+    thumbUrl: thumbData.publicUrl,
+  };
 }

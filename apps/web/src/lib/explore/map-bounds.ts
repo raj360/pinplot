@@ -38,7 +38,7 @@ export function sanitizeMapBounds(params: URLSearchParams): Bounds | null {
   }
 
   if (north <= south || east <= west) return null;
-  if (north - south > 0.35 || east - west > 0.35) return null;
+  if (north - south > 0.55 || east - west > 0.55) return null;
 
   return { north, south, east, west };
 }

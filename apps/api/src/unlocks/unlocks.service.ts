@@ -4,15 +4,25 @@ import {
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
-import { PRICING } from "@plotpin/shared-types";
+import {
+  PRICING,
+  PaymentPurpose,
+  type BuildingType,
+  type PriceQuote,
+} from "@plotpin/shared-types";
 import { DatabaseService } from "../database/database.service";
+import { PricingService } from "../pricing/pricing.service";
+import { WalletService } from "../wallet/wallet.service";
 
 type UnitRow = {
   id: string;
   building_id: string;
   unit_number: string;
+  bedrooms: number;
   status: string;
   building_name: string;
+  building_type: string;
+  country_code: string;
   cover_image_path?: string | null;
   video_url?: string | null;
   exact_address: string | null;
@@ -45,7 +55,11 @@ const UNIT_JOIN = `
 
 @Injectable()
 export class UnlocksService {
-  constructor(private readonly db: DatabaseService) {}
+  constructor(
+    private readonly db: DatabaseService,
+    private readonly wallet: WalletService,
+    private readonly pricing: PricingService,
+  ) {}
 
   async listMine(tenantId: string) {
     const { rows } = await this.db.query(
@@ -135,10 +149,19 @@ export class UnlocksService {
     const unit = await this.loadUnit(unitId);
     const winner = await this.findActiveWinner(unitId);
     const mine = await this.findTenantUnlock(unitId, tenantId);
+    const unlockCreditsAvailable = await this.wallet.countAvailableCredits(
+      tenantId,
+      PaymentPurpose.UNLOCK,
+    );
 
     if (mine?.is_winner && this.isActive(mine)) {
-      return this.enrichWithMedia(this.toResponse(unit, mine, "winner"));
+      const response = await this.enrichWithMedia(
+        this.toResponse(unit, mine, "winner"),
+      );
+      return { ...response, unlockCreditsAvailable };
     }
+
+    const quote = await this.quoteUnlock(unit);
 
     if (winner && winner.tenant_id !== tenantId) {
       return {
@@ -147,8 +170,8 @@ export class UnlocksService {
         buildingId: unit.building_id,
         status: unit.status,
         unlockState: "locked_by_other" as const,
-        feeUgx: PRICING.tenantUnlockFeeUgx,
-        exclusiveHours: PRICING.unlockExclusiveHours,
+        unlockCreditsAvailable,
+        ...this.unlockQuoteFields(quote),
       };
     }
 
@@ -161,8 +184,8 @@ export class UnlocksService {
         unit.status === "AVAILABLE"
           ? ("available" as const)
           : ("unavailable" as const),
-      feeUgx: PRICING.tenantUnlockFeeUgx,
-      exclusiveHours: PRICING.unlockExclusiveHours,
+      unlockCreditsAvailable,
+      ...this.unlockQuoteFields(quote),
     };
   }
 
@@ -190,8 +213,11 @@ export class UnlocksService {
         throw new ConflictException("This unit is not available to unlock.");
       }
 
-      const resolvedPaymentId =
-        paymentId ?? (await this.createDevPayment(tenantId, unitId));
+      const resolvedPayment = await this.resolveUnlockPayment(
+        tenantId,
+        unit,
+        paymentId,
+      );
 
       const expiresAt = new Date(
         Date.now() + PRICING.unlockExclusiveHours * 60 * 60 * 1000,
@@ -212,7 +238,7 @@ export class UnlocksService {
         [
           unitId,
           tenantId,
-          resolvedPaymentId,
+          resolvedPayment.paymentId,
           revealedPhone,
           revealedAddress,
           expiresAt,
@@ -230,7 +256,18 @@ export class UnlocksService {
       );
 
       await this.db.query("COMMIT");
-      return this.enrichWithMedia(this.toResponse(unit, rows[0], "winner"));
+      const response = await this.enrichWithMedia(
+        this.toResponse(unit, rows[0], "winner"),
+      );
+      return {
+        ...response,
+        paidWithCredit: resolvedPayment.paidWithCredit,
+        creditType: resolvedPayment.creditType,
+        unlockCreditsAvailable: await this.wallet.countAvailableCredits(
+          tenantId,
+          PaymentPurpose.UNLOCK,
+        ),
+      };
     } catch (err) {
       await this.db.query("ROLLBACK");
       throw err;
@@ -239,8 +276,9 @@ export class UnlocksService {
 
   private async lockUnit(unitId: string): Promise<UnitRow> {
     const { rows } = await this.db.query<UnitRow>(
-      `SELECT u.id, u.building_id, u.unit_number, u.status,
-              b.name AS building_name, b.cover_image_path, b.video_url,
+      `SELECT u.id, u.building_id, u.unit_number, u.bedrooms, u.status,
+              b.name AS building_name, b.building_type, b.country_code,
+              b.cover_image_path, b.video_url,
               b.exact_address,
               b.exact_lat, b.exact_lng, b.approximate_lat, b.approximate_lng,
               p.phone AS landlord_phone,
@@ -257,8 +295,9 @@ export class UnlocksService {
 
   private async loadUnit(unitId: string): Promise<UnitRow> {
     const { rows } = await this.db.query<UnitRow>(
-      `SELECT u.id, u.building_id, u.unit_number, u.status,
-              b.name AS building_name, b.cover_image_path, b.video_url,
+      `SELECT u.id, u.building_id, u.unit_number, u.bedrooms, u.status,
+              b.name AS building_name, b.building_type, b.country_code,
+              b.cover_image_path, b.video_url,
               b.exact_address,
               b.exact_lat, b.exact_lng, b.approximate_lat, b.approximate_lng,
               p.phone AS landlord_phone,
@@ -302,7 +341,95 @@ export class UnlocksService {
     return { lat, lng };
   }
 
-  private async createDevPayment(tenantId: string, unitId: string) {
+  private async quoteUnlock(unit: UnitRow) {
+    return this.pricing.quote({
+      purpose: PaymentPurpose.UNLOCK,
+      buildingType: unit.building_type as BuildingType,
+      bedrooms: unit.bedrooms,
+      countryCode: unit.country_code,
+    });
+  }
+
+  private unlockQuoteFields(quote: PriceQuote) {
+    return {
+      feeUgx: quote.amountUgx,
+      quoteLabel: quote.label,
+      buildingType: quote.buildingType,
+      bedrooms: quote.bedrooms,
+      exclusiveHours: PRICING.unlockExclusiveHours,
+    };
+  }
+
+  private async resolveUnlockPayment(
+    tenantId: string,
+    unit: UnitRow,
+    paymentId?: string,
+  ) {
+    if (paymentId) {
+      return {
+        paymentId,
+        paidWithCredit: false,
+        creditType: undefined as string | undefined,
+      };
+    }
+
+    const credit = await this.wallet.consumeUnlockCredit(tenantId);
+    if (credit) {
+      const id = await this.createCreditPayment(
+        tenantId,
+        unit.id,
+        credit.ledgerId,
+        credit.amountUgx,
+        credit.creditType,
+      );
+      return {
+        paymentId: id,
+        paidWithCredit: true,
+        creditType: credit.creditType,
+      };
+    }
+
+    const quote = await this.quoteUnlock(unit);
+    const id = await this.createDevPayment(tenantId, unit.id, quote.amountUgx);
+    return {
+      paymentId: id,
+      paidWithCredit: false,
+      creditType: undefined as string | undefined,
+    };
+  }
+
+  private async createCreditPayment(
+    tenantId: string,
+    unitId: string,
+    ledgerId: string,
+    nominalAmountUgx: number,
+    creditType: string,
+  ) {
+    const { rows } = await this.db.query<{ id: string }>(
+      `INSERT INTO payments (
+        user_id, provider, purpose, amount, currency, status, external_ref, metadata
+      ) VALUES ($1, 'STRIPE', 'UNLOCK', 0, 'UGX', 'COMPLETED', $2, $3)
+      RETURNING id`,
+      [
+        tenantId,
+        `credit-unlock-${ledgerId}`,
+        JSON.stringify({
+          credit: true,
+          creditLedgerId: ledgerId,
+          creditType,
+          nominalAmountUgx,
+          unitId,
+        }),
+      ],
+    );
+    return rows[0].id;
+  }
+
+  private async createDevPayment(
+    tenantId: string,
+    unitId: string,
+    feeUgx: number,
+  ) {
     if (process.env.NODE_ENV === "production" && !process.env.ALLOW_DEV_UNLOCK) {
       throw new BadRequestException(
         "Payment required. Connect Stripe or Flutterwave checkout.",
@@ -316,9 +443,9 @@ export class UnlocksService {
       RETURNING id`,
       [
         tenantId,
-        PRICING.tenantUnlockFeeUgx,
+        feeUgx,
         `dev-unlock-${unitId}-${Date.now()}`,
-        JSON.stringify({ dev: true, unitId }),
+        JSON.stringify({ dev: true, unitId, feeUgx }),
       ],
     );
     return rows[0].id;

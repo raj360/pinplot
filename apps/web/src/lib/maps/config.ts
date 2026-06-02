@@ -1,8 +1,16 @@
 /** Public explore map — neighborhood level only, not street/roof detail. */
 export const EXPLORE_MAP_MAX_ZOOM = 14;
 export const EXPLORE_MAP_CLUSTER_ZOOM_STEP = 2;
-export const EXPLORE_MAP_MIN_ZOOM = 10;
-export const EXPLORE_MAP_DEFAULT_ZOOM = 13;
+/** Allow one step wider than before so users can browse larger areas. */
+export const EXPLORE_MAP_MIN_ZOOM = 9;
+export const EXPLORE_MAP_DEFAULT_ZOOM = 12;
+
+/** Half-span (degrees) for preset search areas — ~3.5 km at the equator. */
+export const EXPLORE_NEIGHBORHOOD_RADIUS_DEG = 0.032;
+/** Half-span for city / town jumps — ~9 km. */
+export const EXPLORE_CITY_RADIUS_DEG = 0.08;
+/** Half-span for Near me / geo bootstrap — ~8 km. */
+export const EXPLORE_NEAR_ME_RADIUS_DEG = 0.07;
 
 /** Explore pin + cluster palette (keep globals.css map tokens in sync). */
 export const EXPLORE_MAP_CLUSTER_COLORS = {

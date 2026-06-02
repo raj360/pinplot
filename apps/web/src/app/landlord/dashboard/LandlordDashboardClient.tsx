@@ -10,6 +10,11 @@ import {
 import { LandlordDashboardSkeleton } from "@/components/landlord/LandlordPageSkeletons";
 import { fetchMyBuildings, type LandlordBuilding } from "@/lib/api/buildings";
 import { getAccessToken } from "@/lib/api/client";
+import {
+  countBuildingsNeedingSetup,
+  countBuildingsVisibleOnExplore,
+  getLandlordBuildingStatus,
+} from "@/lib/landlord/building-status";
 
 export default function LandlordDashboardClient() {
   const router = useRouter();
@@ -18,6 +23,9 @@ export default function LandlordDashboardClient() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const created = params.get("created") === "1";
+  const needsSetupCount = countBuildingsNeedingSetup(buildings);
+  const visibleCount = countBuildingsVisibleOnExplore(buildings);
+  const pendingCount = buildings.filter((b) => !b.isVerified).length;
 
   useEffect(() => {
     let cancelled = false;
@@ -49,14 +57,29 @@ export default function LandlordDashboardClient() {
     <div className="space-y-4">
       {created && !loading && (
         <p className="border border-primary/30 bg-primary/5 px-4 py-3 text-sm">
-          Building submitted — an admin will verify it before it appears on the
-          map.
+          Building submitted — an admin will review it first. After approval,
+          open the building and mark units <strong>available</strong> so tenants
+          can find it on the map.
         </p>
       )}
 
+      {!loading && needsSetupCount > 0 ? (
+        <div className="border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-950">
+          <p className="font-medium">
+            {needsSetupCount === 1
+              ? "1 approved building needs your attention"
+              : `${needsSetupCount} approved buildings need your attention`}
+          </p>
+          <p className="mt-1 text-sky-900/90">
+            Admin approved your listing, but tenants cannot see it until you
+            mark at least one unit as available.
+          </p>
+        </div>
+      ) : null}
+
       <DashboardSection
         title="Your buildings"
-        description="Manage units and mark them available when ready. Listing fees are quoted per unit — payment collection starts in a future update."
+        description="After admin approval, open each building and mark units available when you are ready to receive tenant unlocks."
         action={
           <Link
             href="/landlord/new"
@@ -74,23 +97,38 @@ export default function LandlordDashboardClient() {
               <dl className="grid gap-3 sm:grid-cols-3">
                 <StatCard label="Total" value={buildings.length} />
                 <StatCard
-                  label="Live on map"
-                  value={buildings.filter((b) => b.isVerified).length}
+                  label="Visible on map"
+                  value={visibleCount}
                 />
                 <StatCard
-                  label="Pending"
-                  value={buildings.filter((b) => !b.isVerified).length}
+                  label="Needs setup"
+                  value={needsSetupCount}
+                  highlight={needsSetupCount > 0}
                 />
+                {pendingCount > 0 ? (
+                  <StatCard
+                    label="Pending review"
+                    value={pendingCount}
+                    className="sm:col-span-3"
+                  />
+                ) : null}
               </dl>
             )}
 
             {error && <p className="mt-4 text-sm text-red-600">{error}</p>}
 
             <ul className={buildings.length > 0 ? "mt-6 space-y-3" : "space-y-3"}>
-              {buildings.map((b) => (
+              {buildings.map((b) => {
+                const status = getLandlordBuildingStatus(b);
+
+                return (
                 <li
                   key={b.id}
-                  className="flex flex-wrap items-center justify-between gap-3 border border-border bg-surface p-4"
+                  className={`flex flex-wrap items-center justify-between gap-3 border bg-surface p-4 ${
+                    status.actionRequired
+                      ? "border-sky-300 ring-1 ring-sky-200"
+                      : "border-border"
+                  }`}
                 >
                   <div className="min-w-0">
                     <p className="font-semibold text-foreground">{b.name}</p>
@@ -100,24 +138,36 @@ export default function LandlordDashboardClient() {
                     <p className="mt-1 text-xs text-muted">
                       {b.availableUnitCount} available · {b.totalUnits} units total
                     </p>
+                    {status.hint ? (
+                      <p
+                        className={`mt-1.5 text-xs ${
+                          status.actionRequired
+                            ? "font-medium text-sky-800"
+                            : "text-muted"
+                        }`}
+                      >
+                        {status.hint}
+                      </p>
+                    ) : null}
                   </div>
                   <span
-                    className={`shrink-0 px-2 py-1 text-xs font-medium ${
-                      b.isVerified
-                        ? "bg-green-100 text-green-800"
-                        : "bg-amber-100 text-amber-800"
-                    }`}
+                    className={`shrink-0 px-2 py-1 text-xs font-medium ${status.className}`}
                   >
-                    {b.isVerified ? "Live on map" : "Pending verification"}
+                    {status.label}
                   </span>
                   <Link
                     href={`/landlord/buildings/${b.id}`}
-                    className="inline-flex shrink-0 border border-border bg-surface px-3 py-1.5 text-xs font-medium text-foreground hover:bg-background"
+                    className={`inline-flex shrink-0 px-3 py-1.5 text-xs font-medium ${
+                      status.actionRequired
+                        ? "bg-primary text-primary-foreground hover:bg-primary/90"
+                        : "border border-border bg-surface text-foreground hover:bg-background"
+                    }`}
                   >
-                    Manage units
+                    {status.actionRequired ? "Mark units available" : "Manage units"}
                   </Link>
                 </li>
-              ))}
+              );
+              })}
               {buildings.length === 0 && !error && (
                 <li className="border border-dashed border-border px-4 py-12 text-center text-sm text-muted">
                   No buildings yet.{" "}

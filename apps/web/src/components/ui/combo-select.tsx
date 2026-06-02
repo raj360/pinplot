@@ -172,7 +172,7 @@ export function ComboSelect({
           aria-labelledby={selectId}
           tabIndex={-1}
           onKeyDown={onListKeyDown}
-          className="absolute z-[60] mt-0.5 max-h-52 min-w-full w-max max-w-[min(100vw-2rem,20rem)] overflow-y-auto border border-border bg-surface py-0.5 shadow-md"
+          className="absolute z-[60] mt-0.5 max-h-52 min-w-full w-max max-w-[min(100vw-2rem,20rem)] overflow-y-auto border border-border bg-surface py-0.5 shadow-card-md"
         >
           {options.map((opt, index) => {
             const isSelected = opt.value === value;

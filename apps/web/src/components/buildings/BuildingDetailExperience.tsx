@@ -8,10 +8,13 @@ import { BuildingUnlockedHero } from "@/components/buildings/BuildingUnlockedHer
 import { UnlockPurchasePanel } from "@/components/buildings/UnlockPurchasePanel";
 import { UnlockedAccessCard } from "@/components/buildings/UnlockedAccessCard";
 import { UnlockedAccessCompact } from "@/components/buildings/UnlockedAccessCompact";
-import { BuildingDetailSkeleton } from "@/components/explore/BuildingPreviewSkeleton";
+import { UnlockSectionSkeleton } from "@/components/explore/BuildingPreviewSkeleton";
 import type { BuildingDetail } from "@/lib/api/buildings";
 import { mergeBuildingMedia } from "@/lib/buildings/media";
 import { formatCurrency } from "@/lib/intl/format";
+import {
+  unlockPanelDescription,
+} from "@/lib/unlocks/unlock-pricing";
 import { useBuildingUnlocks } from "@/lib/unlocks/use-building-unlocks";
 
 type BuildingDetailExperienceProps = {
@@ -32,7 +35,10 @@ export function BuildingDetailExperience({
   onExpandToFull,
   hideHeader = false,
 }: BuildingDetailExperienceProps) {
-  const unlocks = useBuildingUnlocks(building.id, building.units);
+  const unlocks = useBuildingUnlocks(building.id, building.units, {
+    buildingType: building.buildingType,
+    countryCode: building.countryCode,
+  });
   const location = [building.district, building.city].filter(Boolean).join(", ");
   const hasAccess = unlocks.activeUnlocks.length > 0;
   const media = mergeBuildingMedia(building, unlocks.activeUnlocks[0]);
@@ -42,11 +48,27 @@ export function BuildingDetailExperience({
     if (ok) onUnlockSuccess?.();
   };
 
-  if (unlocks.loading) {
-    return <BuildingDetailSkeleton variant={variant} />;
-  }
-
   const unlockPanelLayout = layout === "sidebar" ? "sidebar" : "grid";
+
+  const unlockPanelProps = {
+    buildingId: building.id,
+    availableUnits: unlocks.availableUnits,
+    error: unlocks.error,
+    isAuthenticated: unlocks.isAuthenticated,
+    onUnlock: handleUnlock,
+    unlockingId: unlocks.unlockingId,
+    unlockCredits: unlocks.unlockCredits,
+    primaryCreditUgx: unlocks.primaryCreditUgx,
+    unitQuotes: unlocks.unitQuotes,
+    representativeQuote: unlocks.representativeQuote,
+    layout: unlockPanelLayout,
+  } as const;
+
+  const firstUnlockDescription = unlockPanelDescription({
+    unlockCredits: unlocks.unlockCredits,
+    primaryCreditUgx: unlocks.primaryCreditUgx,
+    quote: unlocks.representativeQuote,
+  });
 
   if (variant === "compact") {
     if (hasAccess && building.availableUnitCount === 0) {
@@ -78,17 +100,13 @@ export function BuildingDetailExperience({
             />
           ))}
 
-          {unlocks.showUnlockSection && building.availableUnitCount > 0 ? (
+          {unlocks.loadingUnlocks && building.availableUnitCount > 0 ? (
+            <UnlockSectionSkeleton />
+          ) : unlocks.showUnlockSection && building.availableUnitCount > 0 ? (
             <UnlockPurchasePanel
-              buildingId={building.id}
-              availableUnits={unlocks.availableUnits}
-              error={unlocks.error}
-              isAuthenticated={unlocks.isAuthenticated}
-              onUnlock={handleUnlock}
-              unlockingId={unlocks.unlockingId}
-              layout={unlockPanelLayout}
+              {...unlockPanelProps}
               title="Unlock another unit"
-              description={`Pay ${formatCurrency(PRICING.tenantUnlockFeeUgx)} to unlock additional units at this building.`}
+              description={firstUnlockDescription}
             />
           ) : null}
         </div>
@@ -97,6 +115,17 @@ export function BuildingDetailExperience({
 
     return (
       <div className="space-y-3">
+        {building.coverThumbUrl ? (
+          <div className="overflow-hidden border border-border bg-surface">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={building.coverThumbUrl}
+              alt=""
+              className="aspect-[16/10] w-full object-cover"
+            />
+          </div>
+        ) : null}
+
         <BuildingDetailPanel
           building={building}
           compact
@@ -104,17 +133,13 @@ export function BuildingDetailExperience({
           hideHeader={hideHeader}
         />
 
-        {unlocks.showUnlockSection && building.availableUnitCount > 0 ? (
+        {unlocks.loadingUnlocks && building.availableUnitCount > 0 ? (
+          <UnlockSectionSkeleton />
+        ) : unlocks.showUnlockSection && building.availableUnitCount > 0 ? (
           <UnlockPurchasePanel
-            buildingId={building.id}
-            availableUnits={unlocks.availableUnits}
-            error={unlocks.error}
-            isAuthenticated={unlocks.isAuthenticated}
-            onUnlock={handleUnlock}
-            unlockingId={unlocks.unlockingId}
-            layout={unlockPanelLayout}
+            {...unlockPanelProps}
             title="Unlock contact"
-            description={`Pay ${formatCurrency(PRICING.tenantUnlockFeeUgx)} to reveal exact address, landlord contact, and directions.`}
+            description={firstUnlockDescription}
           />
         ) : null}
       </div>
@@ -167,14 +192,8 @@ export function BuildingDetailExperience({
               optional
             />
             <UnlockPurchasePanel
-              buildingId={building.id}
-              availableUnits={unlocks.availableUnits}
-              error={unlocks.error}
-              isAuthenticated={unlocks.isAuthenticated}
-              onUnlock={handleUnlock}
-              unlockingId={unlocks.unlockingId}
+              {...unlockPanelProps}
               showHeading={false}
-              layout={unlockPanelLayout}
               description="Each unit unlock includes its own contact window and directions."
             />
           </section>
@@ -200,36 +219,50 @@ export function BuildingDetailExperience({
 
   const detailColumn = (
     <div className="min-w-0 space-y-4">
+      {building.coverThumbUrl && !hasAccess ? (
+        <div className="overflow-hidden border border-border bg-surface">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={building.coverThumbUrl}
+            alt=""
+            className="aspect-[16/10] w-full object-cover"
+          />
+        </div>
+      ) : null}
+
       <BuildingDetailPanel building={building} showUnlockLink={false} />
 
-      {building.hasPremiumMedia ? (
+      {building.hasPremiumMedia && !hasAccess ? (
         <p className="border border-dashed border-border bg-surface px-3 py-2.5 text-sm text-muted">
-          Photos and building tour unlock after you pay for contact access.
+          Full photo gallery and building tour unlock after you pay for contact
+          access.
         </p>
       ) : null}
     </div>
   );
 
-  const unlockColumn = unlocks.showUnlockSection ? (
-    <section className="min-w-0 space-y-3">
-      <BuildingStepHeader
-        step={1}
-        label="Unlock"
-        title="Get landlord contact"
-        description="Pay once to reveal exact address, contact details, photos, and directions."
-      />
-      <UnlockPurchasePanel
-        buildingId={building.id}
-        availableUnits={unlocks.availableUnits}
-        error={unlocks.error}
-        isAuthenticated={unlocks.isAuthenticated}
-        onUnlock={handleUnlock}
-        unlockingId={unlocks.unlockingId}
-        showHeading={false}
-        layout={unlockPanelLayout}
-      />
-    </section>
-  ) : null;
+  const unlockColumn =
+    unlocks.loadingUnlocks && !unlocks.activeUnlocks.length ? (
+      <section className="min-w-0 space-y-3">
+        <BuildingStepHeader
+          step={1}
+          label="Unlock"
+          title="Get landlord contact"
+          description="Pay once to reveal exact address, contact details, photos, and directions."
+        />
+        <UnlockSectionSkeleton />
+      </section>
+    ) : unlocks.showUnlockSection ? (
+      <section className="min-w-0 space-y-3">
+        <BuildingStepHeader
+          step={1}
+          label="Unlock"
+          title="Get landlord contact"
+          description="Pay once to reveal exact address, contact details, photos, and directions."
+        />
+        <UnlockPurchasePanel {...unlockPanelProps} showHeading={false} />
+      </section>
+    ) : null;
 
   if (layout === "sidebar") {
     return (

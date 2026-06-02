@@ -96,6 +96,32 @@ export class BuildingsController {
   ) {
     return this.buildings.registerImage(id, user.id, dto);
   }
+
+  @Get(":id/images")
+  @UseGuards(SupabaseAuthGuard)
+  listImages(@Param("id") id: string, @CurrentUser() user: AuthUser) {
+    return this.buildings.listImages(id, user.id);
+  }
+
+  @Delete(":id/images/:imageId")
+  @UseGuards(SupabaseAuthGuard)
+  deleteImage(
+    @Param("id") id: string,
+    @Param("imageId") imageId: string,
+    @CurrentUser() user: AuthUser,
+  ) {
+    return this.buildings.deleteImage(id, user.id, imageId);
+  }
+
+  @Patch(":id/images/:imageId/primary")
+  @UseGuards(SupabaseAuthGuard)
+  setPrimaryImage(
+    @Param("id") id: string,
+    @Param("imageId") imageId: string,
+    @CurrentUser() user: AuthUser,
+  ) {
+    return this.buildings.setPrimaryImage(id, user.id, imageId);
+  }
 }
 
 @Controller("admin/buildings")
@@ -154,5 +180,25 @@ export class AdminBuildingsController {
   @Patch(":id/verify")
   verify(@Param("id") id: string, @Body() dto: VerifyBuildingDto) {
     return this.buildings.setVerified(id, dto.verified);
+  }
+
+  @Get(":id/images")
+  listImages(@Param("id") id: string) {
+    return this.buildings.adminListImages(id);
+  }
+
+  @Post(":id/images")
+  registerImage(@Param("id") id: string, @Body() dto: RegisterImageDto) {
+    return this.buildings.adminRegisterImage(id, dto);
+  }
+
+  @Delete(":id/images/:imageId")
+  deleteImage(@Param("id") id: string, @Param("imageId") imageId: string) {
+    return this.buildings.adminDeleteImage(id, imageId);
+  }
+
+  @Patch(":id/images/:imageId/primary")
+  setPrimaryImage(@Param("id") id: string, @Param("imageId") imageId: string) {
+    return this.buildings.adminSetPrimaryImage(id, imageId);
   }
 }

@@ -4,13 +4,20 @@ import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent }
 import { useRouter } from "next/navigation";
 import {
   createBuilding,
-  registerBuildingImage,
   setProfileRole,
 } from "@/lib/api/buildings";
+import { MAX_BUILDING_PHOTOS } from "@plotpin/shared-types";
+import {
+  registerBuildingImage,
+  uploadAndRegisterBuildingImages,
+} from "@/lib/api/building-images";
 import { getAccessToken } from "@/lib/api/client";
 import { uploadBuildingImage } from "@/lib/supabase/storage";
 import { Button } from "@/components/ui/button";
-import { ImageUpload } from "@/components/ui/image-upload";
+import {
+  BuildingGalleryUpload,
+  type DraftPhoto,
+} from "@/components/buildings/BuildingGalleryUpload";
 import {
   KAMPALA_CENTER,
   LocationPinPicker,
@@ -19,6 +26,8 @@ import {
 import { BUILDING_TYPE_OPTIONS } from "@/lib/filters/building-types";
 import {
   normalizeYouTubeUrl,
+  resolveCityFromHints,
+  resolveDistrictFromHints,
   type AddressHints,
 } from "@/lib/maps/address-hints";
 import { cn } from "@/lib/utils/cn";
@@ -50,9 +59,9 @@ const FORM_STEPS = [
   },
   {
     label: "Photos",
-    title: "Cover photo",
+    title: "Building photos",
     description:
-      "Required — a clear cover photo helps admins verify your listing faster.",
+      "Add up to 4 photos (cover included) — admins review these before your listing goes live.",
   },
   {
     label: "Units",
@@ -71,8 +80,9 @@ export default function NewBuildingPage() {
   const [step, setStep] = useState(1);
   const [buildingName, setBuildingName] = useState("");
   const [units, setUnits] = useState<UnitRow[]>(DEFAULT_UNITS);
-  const [coverFile, setCoverFile] = useState<File | null>(null);
-  const [coverError, setCoverError] = useState<string | null>(null);
+  const [photos, setPhotos] = useState<DraftPhoto[]>([]);
+  const [primaryPhotoId, setPrimaryPhotoId] = useState<string | null>(null);
+  const [photoError, setPhotoError] = useState<string | null>(null);
   const [location, setLocation] = useState<LatLng>(KAMPALA_CENTER);
   const [city, setCity] = useState("Kampala");
   const [district, setDistrict] = useState("");
@@ -88,18 +98,29 @@ export default function NewBuildingPage() {
   const [loading, setLoading] = useState(false);
 
   const coverPreviewUrl = useMemo(() => {
-    if (!coverFile) return null;
-    return URL.createObjectURL(coverFile);
-  }, [coverFile]);
+    const primary =
+      photos.find((photo) => photo.id === primaryPhotoId) ?? photos[0];
+    if (!primary) return null;
+    return URL.createObjectURL(primary.file);
+  }, [photos, primaryPhotoId]);
+
+  const galleryPreviewUrls = useMemo(
+    () => photos.map((photo) => URL.createObjectURL(photo.file)),
+    [photos],
+  );
 
   useEffect(() => {
     return () => {
       if (coverPreviewUrl) URL.revokeObjectURL(coverPreviewUrl);
+      for (const url of galleryPreviewUrls) {
+        URL.revokeObjectURL(url);
+      }
     };
-  }, [coverPreviewUrl]);
+  }, [coverPreviewUrl, galleryPreviewUrls]);
 
   const cityTouched = useRef(false);
   const districtTouched = useRef(false);
+  const lastAddressHints = useRef<AddressHints | null>(null);
 
   const currentStep = FORM_STEPS[step - 1];
 
@@ -118,19 +139,33 @@ export default function NewBuildingPage() {
   }, [step]);
 
   const applyAddressHints = useCallback((hints: AddressHints) => {
+    lastAddressHints.current = hints;
     setAreaLabel(hints.areaLabel);
     setAddressHint(hints.addressHint);
     setZones(hints.zones);
     setStreetHint(hints.street ?? "");
     setLandmarkHint(hints.landmark ?? "");
 
-    if (!cityTouched.current && hints.city) {
-      setCity(hints.city);
+    if (!cityTouched.current) {
+      setCity(resolveCityFromHints(hints));
     }
-    if (!districtTouched.current && hints.district) {
-      setDistrict(hints.district);
+    if (!districtTouched.current) {
+      setDistrict(resolveDistrictFromHints(hints));
     }
   }, []);
+
+  /** Pin is source of truth — moving it clears manual overrides from a prior pin. */
+  useEffect(() => {
+    cityTouched.current = false;
+    districtTouched.current = false;
+  }, [location.lat, location.lng]);
+
+  /** Re-sync fields when opening Details if user never edited them on this pin. */
+  useEffect(() => {
+    if (step !== 2 || !lastAddressHints.current) return;
+    if (cityTouched.current || districtTouched.current) return;
+    applyAddressHints(lastAddressHints.current);
+  }, [step, applyAddressHints]);
 
   function validateCurrentStep(current: number): boolean {
     setError(null);
@@ -143,8 +178,12 @@ export default function NewBuildingPage() {
     }
 
     if (current === 3) {
-      if (!coverFile) {
-        setError("Add a cover photo to continue.");
+      if (photos.length === 0) {
+        setError("Add at least one photo to continue.");
+        return false;
+      }
+      if (photos.length > MAX_BUILDING_PHOTOS) {
+        setError(`Maximum ${MAX_BUILDING_PHOTOS} photos (cover included).`);
         return false;
       }
     }
@@ -156,8 +195,8 @@ export default function NewBuildingPage() {
         stepRef.current = 2;
         return false;
       }
-      if (!coverFile) {
-        setError("Add a cover photo.");
+      if (photos.length === 0) {
+        setError("Add at least one photo.");
         setStep(3);
         stepRef.current = 3;
         return false;
@@ -236,12 +275,20 @@ export default function NewBuildingPage() {
         units,
       });
 
-      if (!coverFile) {
-        throw new Error("Cover photo is required.");
-      }
+      const primaryIndex = Math.max(
+        0,
+        photos.findIndex(
+          (photo) => photo.id === (primaryPhotoId ?? photos[0]?.id),
+        ),
+      );
 
-      const publicUrl = await uploadBuildingImage(building.id, coverFile);
-      await registerBuildingImage(building.id, publicUrl, true);
+      await uploadAndRegisterBuildingImages(
+        building.id,
+        photos.map((photo) => photo.file),
+        primaryIndex,
+        registerBuildingImage,
+        uploadBuildingImage,
+      );
 
       router.push("/landlord/dashboard?created=1");
     } catch (err) {
@@ -371,6 +418,9 @@ export default function NewBuildingPage() {
                   onChange={(v) => {
                     cityTouched.current = true;
                     setCity(v);
+                    if (!districtTouched.current) {
+                      setDistrict("");
+                    }
                   }}
                 />
                 <ControlledField
@@ -400,12 +450,15 @@ export default function NewBuildingPage() {
 
           {step === 3 ? (
             <div className="space-y-3">
-              <ImageUpload
-                value={coverFile}
-                onChange={setCoverFile}
-                required
-                error={coverError}
-                onValidationError={setCoverError}
+              <BuildingGalleryUpload
+                photos={photos}
+                primaryId={primaryPhotoId}
+                onChange={(nextPhotos, nextPrimaryId) => {
+                  setPhotos(nextPhotos);
+                  setPrimaryPhotoId(nextPrimaryId);
+                }}
+                error={photoError}
+                onValidationError={setPhotoError}
               />
               <ControlledField
                 label="YouTube link"
@@ -542,6 +595,7 @@ export default function NewBuildingPage() {
               district={district}
               areaLabel={areaLabel}
               coverPreviewUrl={coverPreviewUrl}
+              galleryPreviewUrls={galleryPreviewUrls}
               units={units}
               step={step}
             />
