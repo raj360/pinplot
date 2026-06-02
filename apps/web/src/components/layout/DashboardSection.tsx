@@ -19,10 +19,7 @@ export function DashboardSection({
 }: DashboardSectionProps) {
   return (
     <section
-      className={cn(
-        "border border-border bg-surface p-4 sm:p-5",
-        className,
-      )}
+      className={cn("card-elevated-md p-4 sm:p-5", className)}
     >
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
@@ -49,8 +46,8 @@ export function StatCard({ label, value, highlight, className }: StatCardProps) 
   return (
     <div
       className={cn(
-        "border bg-surface px-4 py-3",
-        highlight ? "border-sky-300 bg-sky-50" : "border-border",
+        "px-4 py-3",
+        highlight ? "border-sky-300 bg-sky-50" : "card-elevated",
         className,
       )}
     >

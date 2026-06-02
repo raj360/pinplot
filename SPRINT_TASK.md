@@ -48,6 +48,7 @@ Keep `ALLOW_DEV_UNLOCK=1` in dev/staging until Sprint 5.
 | S4-10 | Admin reject listing | Pending | Reason + landlord notification stub |
 | S4-11 | Explore 429 UX | Pending | Friendly rate-limit message |
 | S4-12 | Auth guard DB resilience | Pending | Transient pg errors in guards |
+| S4-UX | **Design tokens (Bondex-aligned)** | Done | Global `--border`, neutral scale, `--shadow-card*`, `.card-elevated`, `Skeleton` + explore row skeletons |
 
 ---
 
@@ -55,7 +56,7 @@ Keep `ALLOW_DEV_UNLOCK=1` in dev/staging until Sprint 5.
 
 | ID | Task | Status | Notes |
 |----|------|--------|-------|
-| S4-13 | **Explore geo bootstrap** | In progress | **Phase A+B done:** debounced viewport search (default on), “Map area” chip, geo on load, Near me, place jump + geocode (Jinja, Wakiso, Entebbe…). **Remaining:** persist last viewport; profile `country_code` centroid fallback (→ S4-14 diaspora) |
+| S4-13 | **Explore geo bootstrap** | In progress | **Phase A+B done:** viewport search, composed filters, Near me (GPS + errors), place jump/geocode. **Remaining:** persist viewport; S4-14 diaspora defaults |
 | S4-14 | **Country catalog** | Pending | Extend `countries`: default map center, bounds, `display_locale` (e.g. `en-GB`), currency; seed UG, US, GB, KE (+ EU later) |
 | S4-15 | **Currency display layer** | Pending | `formatMoney(amount, listingCurrency, viewerContext)` → primary + optional FX footnote; use ECB/Stripe rates cache (daily); rent stays in listing currency |
 | S4-16 | **Viewer context** | Pending | Derive from profile country → else `navigator.language` + timezone hint → else UG; store preference in profile or localStorage |
@@ -118,6 +119,7 @@ Keep `ALLOW_DEV_UNLOCK=1` in dev/staging until Sprint 5.
 | Map centers on user location | 🟡 S4-13 (geo bootstrap + Near me; diaspora defaults → S4-14) |
 | Live map viewport search | ✅ S4-13 Phase A |
 | Place search (geocode + city presets) | ✅ S4-13 Phase B |
+| Composed explore filters + design polish | ✅ S4-UX |
 | Dual-currency / viewer money display | ❌ S4-15 |
 | Featured launch (20 free) | ❌ S4-18 |
 | Stripe checkout | ❌ S5-01 |
@@ -129,12 +131,18 @@ Keep `ALLOW_DEV_UNLOCK=1` in dev/staging until Sprint 5.
 ## Recommended build order (post–slice 1 merge)
 
 ```
-Week A: S4-03 → S4-04 → S4-07 → S4-08     (wallet + visible pricing)
-Week B: S4-13 → S4-14 → S4-15 → S4-16     (geo + currency display)
-Week C: S4-09 → S4-10 → S4-18             (supply quality + featured launch)
-Week D: S4-11 → S4-12 → S4-19 → S4-20     (stability + country on create)
-        ── then Sprint 5 Stripe ──
+Now:     S4-10 → S4-11 → S4-12          (finish slice 2 — reject, 429, auth resilience)
+Next:    S4-14 → S4-15 → S4-16          (country catalog + FX display + viewer context)
+Then:    S4-17 → S4-18 → S4-09 supply   (empty state, featured launch, more UG pins e.g. Bweyogere)
+Parallel: S4-19 → S4-20                 (landlord country + multi-country pricing seed)
+         ── then Sprint 5 Stripe ──
 ```
+
+**Slice 2 close-out (this week):** S4-10 admin reject with reason → landlord sees status; S4-11 friendly 429 on explore; S4-12 guard retries on transient DB.
+
+**Slice 3 (next week):** S4-14 country catalog unlocks diaspora map default; S4-15 FX footnote on explore cards unlocks ad landing UX; S4-16 viewer context wires profile → display.
+
+**Supply gap:** Near me works but Bweyogere/Gulu may show 0 results — seed dev listings or landlord outreach (S6-06), not a geo bug.
 
 ---
 
@@ -167,4 +175,4 @@ yarn db:migrate
 
 ---
 
-*Last updated: 2026-06-01 — International strategy; Sprint 4 slice 1 merged; Stripe-first Sprint 5*
+*Last updated: 2026-06-02 — S4-UX design tokens; explore composed filters + Near me; slice 2/3 plan*

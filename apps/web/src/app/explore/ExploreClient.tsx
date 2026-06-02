@@ -828,7 +828,7 @@ export function ExploreClient() {
 
   return (
     <div className="flex min-h-screen flex-col bg-background md:h-screen md:overflow-hidden">
-      <div className="sticky top-0 z-40 shrink-0 bg-background shadow-sm">
+      <div className="sticky top-0 z-40 shrink-0 bg-background shadow-card">
         <AppHeader variant="wide" />
 
         <ContentBand width="wide" className="bg-panel" innerClassName="py-1 sm:py-1.5">

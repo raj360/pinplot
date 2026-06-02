@@ -5,7 +5,7 @@ import type { RefObject } from "react";
 import { ExploreEmptyResults } from "@/components/explore/ExploreEmptyResults";
 import { FeaturedListingBadge } from "@/components/explore/FeaturedListingBadge";
 import type { ExploreSearchFilters } from "@/components/explore/ExploreFilters";
-import { LoadingState } from "@/components/ui/loading-state";
+import { ExploreResultRowSkeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import type { Bounds } from "@/lib/api/buildings";
 import { formatRentPerMonth } from "@/lib/intl/format";
@@ -55,9 +55,11 @@ export function ExploreResultsList({
       )}
     >
       {loading && buildings.length === 0 ? (
-        <li className="px-4 py-8">
-          <LoadingState label="Loading buildings" compact />
-        </li>
+        <>
+          {Array.from({ length: 6 }).map((_, index) => (
+            <ExploreResultRowSkeleton key={index} />
+          ))}
+        </>
       ) : null}
       {buildings.map((building) => {
         const active = selectedId === building.id;

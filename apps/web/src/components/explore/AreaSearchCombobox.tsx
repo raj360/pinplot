@@ -352,7 +352,7 @@ export function AreaSearchCombobox({
             <div
               ref={panelRef}
               style={panelStyle}
-              className="flex max-h-[min(70vh,28rem)] flex-col overflow-hidden rounded-lg border border-border bg-surface shadow-lg"
+              className="flex max-h-[min(70vh,28rem)] flex-col overflow-hidden rounded-lg border border-border bg-surface shadow-overlay"
               role="listbox"
               id={listboxId}
               aria-labelledby={triggerId}

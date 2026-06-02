@@ -1,19 +1,10 @@
-import { cn } from "@/lib/utils/cn";
-
-function Bone({ className }: { className?: string }) {
-  return (
-    <div
-      className={cn("animate-pulse rounded-sm bg-border/70", className)}
-      aria-hidden
-    />
-  );
-}
+import { Skeleton } from "@/components/ui/skeleton";
 
 function StatCardSkeleton() {
   return (
-    <div className="border border-border bg-surface px-4 py-3">
-      <Bone className="h-3 w-16" />
-      <Bone className="mt-3 h-8 w-10" />
+    <div className="card-elevated px-4 py-3">
+      <Skeleton className="h-3 w-16" />
+      <Skeleton className="mt-3 h-8 w-10" />
     </div>
   );
 }
@@ -30,14 +21,14 @@ export function LandlordStatCardsSkeleton() {
 
 export function LandlordBuildingRowSkeleton() {
   return (
-    <li className="flex flex-wrap items-center justify-between gap-3 border border-border bg-surface p-4">
+    <li className="card-elevated flex flex-wrap items-center justify-between gap-3 p-4">
       <div className="min-w-0 flex-1 space-y-2">
-        <Bone className="h-5 w-48 max-w-full" />
-        <Bone className="h-4 w-64 max-w-full" />
-        <Bone className="h-3 w-36" />
+        <Skeleton className="h-5 w-48 max-w-full" />
+        <Skeleton className="h-4 w-64 max-w-full" />
+        <Skeleton className="h-3 w-36" />
       </div>
-      <Bone className="h-6 w-24 shrink-0" />
-      <Bone className="h-8 w-24 shrink-0" />
+      <Skeleton className="h-6 w-24 shrink-0" />
+      <Skeleton className="h-8 w-24 shrink-0" />
     </li>
   );
 }
@@ -57,14 +48,14 @@ export function LandlordDashboardSkeleton() {
 
 function LandlordUnitRowSkeleton() {
   return (
-    <li className="flex flex-wrap items-center justify-between gap-3 border border-border bg-surface p-4">
+    <li className="card-elevated flex flex-wrap items-center justify-between gap-3 p-4">
       <div className="min-w-0 flex-1 space-y-2">
-        <Bone className="h-5 w-28" />
-        <Bone className="h-4 w-52 max-w-full" />
+        <Skeleton className="h-5 w-28" />
+        <Skeleton className="h-4 w-52 max-w-full" />
       </div>
       <div className="flex flex-wrap items-center gap-2">
-        <Bone className="h-6 w-20" />
-        <Bone className="h-8 w-28" />
+        <Skeleton className="h-6 w-20" />
+        <Skeleton className="h-8 w-28" />
       </div>
     </li>
   );
@@ -74,10 +65,10 @@ function LandlordUnitRowSkeleton() {
 export function ManageBuildingSkeleton() {
   return (
     <div className="space-y-4" aria-busy="true" aria-label="Loading building">
-      <Bone className="h-4 w-36" />
-      <section className="border border-border bg-surface p-4 sm:p-5">
-        <Bone className="h-8 w-64 max-w-full" />
-        <Bone className="mt-2 h-4 w-56 max-w-full" />
+      <Skeleton className="h-4 w-36" />
+      <section className="card-elevated-md p-4 sm:p-5">
+        <Skeleton className="h-8 w-64 max-w-full" />
+        <Skeleton className="mt-2 h-4 w-56 max-w-full" />
         <ul className="mt-5 space-y-3">
           <LandlordUnitRowSkeleton />
           <LandlordUnitRowSkeleton />

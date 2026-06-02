@@ -181,7 +181,7 @@ export function ExploreFiltersPopover({
               role="dialog"
               aria-labelledby={triggerId}
               style={panelStyle}
-              className="overflow-hidden rounded-lg border border-border bg-surface shadow-lg"
+              className="overflow-hidden rounded-lg border border-border bg-surface shadow-overlay"
             >
               <div className="border-b border-border px-4 py-3">
                 <p className="text-sm font-semibold text-foreground">Property filters</p>

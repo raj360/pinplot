@@ -53,13 +53,14 @@ Unlock API, privacy jitter, explore UX, profiles, Call/WhatsApp, gated media —
 - [x] Admin pending edit (units, cover upload, exact pin)
 - [x] Admin + landlord loading UX polish
 
-### In progress / next (Sprint 4 slice 2)
+### In progress / next (Sprint 4 slice 2–3)
 
 | Theme                | Deliverables                                                                  |
 | -------------------- | ----------------------------------------------------------------------------- |
 | **Wallet & promos**  | Credits ledger, coupons, welcome bonus, dynamic fee in unlock UI ✅           |
-| **Landlord quality** | Multi-photo upload ✅; client JPEG compress + thumb/full variants ✅; explore cover thumbs + featured badge ✅; admin reject with reason |
-| **Geo bootstrap**    | Explore map centers on user location; fallback Kampala; country-aware bounds  |
+| **Landlord quality** | Multi-photo upload ✅; compress + thumbs ✅; admin reject with reason (S4-10) |
+| **Explore UX**       | Viewport search, composed filters, Near me ✅; Bondex-aligned tokens (S4-UX) ✅ |
+| **Geo bootstrap**    | Near me + place jump ✅; country-aware defaults (S4-14); persist viewport       |
 | **Currency display** | Present rent + fees in viewer currency (FX hint); canonical storage unchanged |
 | **Featured launch**  | First ~20 verified listings featured free (admin grant / coupon / credit)     |
 | **Stability**        | Explore 429 UX; auth guard DB resilience                                      |

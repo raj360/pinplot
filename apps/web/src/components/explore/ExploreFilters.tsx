@@ -115,7 +115,7 @@ export function ExploreFilters({
         />
       ) : null}
 
-      <div className="rounded-lg border border-border bg-surface shadow-sm">
+      <div className="card-elevated overflow-visible rounded-lg">
         <div className="flex flex-col overflow-visible sm:flex-row sm:items-stretch">
           <div className="flex min-w-0 flex-1 divide-y divide-border overflow-visible sm:divide-x sm:divide-y-0">
             <AreaSearchCombobox
