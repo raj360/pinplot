@@ -8,7 +8,7 @@ import { BuildingUnlockedHero } from "@/components/buildings/BuildingUnlockedHer
 import { UnlockPurchasePanel } from "@/components/buildings/UnlockPurchasePanel";
 import { UnlockedAccessCard } from "@/components/buildings/UnlockedAccessCard";
 import { UnlockedAccessCompact } from "@/components/buildings/UnlockedAccessCompact";
-import { BuildingDetailSkeleton } from "@/components/explore/BuildingPreviewSkeleton";
+import { UnlockSectionSkeleton } from "@/components/explore/BuildingPreviewSkeleton";
 import type { BuildingDetail } from "@/lib/api/buildings";
 import { mergeBuildingMedia } from "@/lib/buildings/media";
 import { formatCurrency } from "@/lib/intl/format";
@@ -47,10 +47,6 @@ export function BuildingDetailExperience({
     const ok = await unlocks.handleUnlock(unitId);
     if (ok) onUnlockSuccess?.();
   };
-
-  if (unlocks.loading) {
-    return <BuildingDetailSkeleton variant={variant} />;
-  }
 
   const unlockPanelLayout = layout === "sidebar" ? "sidebar" : "grid";
 
@@ -104,7 +100,9 @@ export function BuildingDetailExperience({
             />
           ))}
 
-          {unlocks.showUnlockSection && building.availableUnitCount > 0 ? (
+          {unlocks.loadingUnlocks && building.availableUnitCount > 0 ? (
+            <UnlockSectionSkeleton />
+          ) : unlocks.showUnlockSection && building.availableUnitCount > 0 ? (
             <UnlockPurchasePanel
               {...unlockPanelProps}
               title="Unlock another unit"
@@ -135,7 +133,9 @@ export function BuildingDetailExperience({
           hideHeader={hideHeader}
         />
 
-        {unlocks.showUnlockSection && building.availableUnitCount > 0 ? (
+        {unlocks.loadingUnlocks && building.availableUnitCount > 0 ? (
+          <UnlockSectionSkeleton />
+        ) : unlocks.showUnlockSection && building.availableUnitCount > 0 ? (
           <UnlockPurchasePanel
             {...unlockPanelProps}
             title="Unlock contact"
@@ -241,17 +241,28 @@ export function BuildingDetailExperience({
     </div>
   );
 
-  const unlockColumn = unlocks.showUnlockSection ? (
-    <section className="min-w-0 space-y-3">
-      <BuildingStepHeader
-        step={1}
-        label="Unlock"
-        title="Get landlord contact"
-        description="Pay once to reveal exact address, contact details, photos, and directions."
-      />
-      <UnlockPurchasePanel {...unlockPanelProps} showHeading={false} />
-    </section>
-  ) : null;
+  const unlockColumn =
+    unlocks.loadingUnlocks && !unlocks.activeUnlocks.length ? (
+      <section className="min-w-0 space-y-3">
+        <BuildingStepHeader
+          step={1}
+          label="Unlock"
+          title="Get landlord contact"
+          description="Pay once to reveal exact address, contact details, photos, and directions."
+        />
+        <UnlockSectionSkeleton />
+      </section>
+    ) : unlocks.showUnlockSection ? (
+      <section className="min-w-0 space-y-3">
+        <BuildingStepHeader
+          step={1}
+          label="Unlock"
+          title="Get landlord contact"
+          description="Pay once to reveal exact address, contact details, photos, and directions."
+        />
+        <UnlockPurchasePanel {...unlockPanelProps} showHeading={false} />
+      </section>
+    ) : null;
 
   if (layout === "sidebar") {
     return (

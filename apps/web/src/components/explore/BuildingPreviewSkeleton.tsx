@@ -36,6 +36,17 @@ export function BuildingPreviewSkeleton({
   );
 }
 
+/** Unlock strip only — building detail can render while unlock state loads. */
+export function UnlockSectionSkeleton({ className }: { className?: string }) {
+  return (
+    <div className={cn("space-y-3", className)} aria-hidden>
+      <Skeleton className="h-4 w-32" />
+      <Skeleton className="h-24 w-full border border-border bg-neutral-25" />
+      <Skeleton className="h-11 w-full" />
+    </div>
+  );
+}
+
 export function BuildingDetailSkeleton({
   variant = "full",
   className,

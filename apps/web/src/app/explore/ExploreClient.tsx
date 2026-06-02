@@ -40,7 +40,10 @@ import {
 import { geocodePlaceInUganda } from "@/lib/maps/geocode-place";
 import { loadExploreBuildings } from "@/lib/explore/load-buildings";
 import { useExploreGeolocation } from "@/lib/hooks/use-explore-geolocation";
-import { clearBuildingCache } from "@/lib/api/building-cache";
+import {
+  clearBuildingCache,
+  getCachedBuilding,
+} from "@/lib/api/building-cache";
 import { fetchMyUnlocks, type TenantUnlock } from "@/lib/api/unlocks";
 import { useAuth } from "@/lib/auth/use-auth";
 import type { BuildingSummary } from "@plotpin/shared-types";
@@ -204,9 +207,16 @@ export function ExploreClient() {
         return;
       }
 
-      setSelectedLoading(true);
-      setSelectedDetail(null);
-      selectedDetailRef.current = null;
+      const cached = getCachedBuilding(id, isAuthenticated);
+      if (cached) {
+        selectedDetailRef.current = cached;
+        setSelectedDetail(cached);
+        setSelectedLoading(false);
+      } else {
+        setSelectedLoading(true);
+        setSelectedDetail(null);
+        selectedDetailRef.current = null;
+      }
 
       const detail = await loadSelectedDetail(id);
       if (detail) {
@@ -215,7 +225,7 @@ export function ExploreClient() {
       }
       setSelectedLoading(false);
     },
-    [loadSelectedDetail, setHover],
+    [isAuthenticated, loadSelectedDetail, setHover],
   );
 
   const applySearchResults = useCallback(
