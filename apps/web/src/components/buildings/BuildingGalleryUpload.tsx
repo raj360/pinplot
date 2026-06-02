@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { MAX_BUILDING_PHOTOS } from "@plotpin/shared-types";
 import { cn } from "@/lib/utils/cn";
 import { validateBuildingCoverFile } from "@/components/ui/image-upload";
+import { BUILDING_PHOTO_UPLOAD_HINT } from "@/lib/images/constants";
 
 export { MAX_BUILDING_PHOTOS };
 
@@ -122,7 +123,7 @@ export function BuildingGalleryUpload({
             <span className="text-red-600"> *</span>
           </span>
           <p className="mt-1 text-sm text-muted">
-            {limitLabel} JPEG or PNG, up to 5 MB each. Mark one as cover; tenants
+            {limitLabel} {BUILDING_PHOTO_UPLOAD_HINT} Mark one as cover; tenants
             see the rest after unlock.
           </p>
         </div>

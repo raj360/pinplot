@@ -22,8 +22,8 @@ PlotPin should work for **any visitor** landing from social ads (YouTube, Facebo
 | Persona      | Can do today                                                | Next                                                      |
 | ------------ | ----------------------------------------------------------- | --------------------------------------------------------- |
 | **Tenant**   | Explore Kampala **seed**, unlock (dev), contact, directions | Geo map bootstrap, dual-currency display, welcome credits |
-| **Landlord** | Submit, verify, unit status, admin can edit pending         | Multi-photo, reject flow                                  |
-| **Admin**    | Approve + edit pending listings (pin, units, media)         | Reject + coupons + featured launch grants                 |
+| **Landlord** | Submit, verify, unit status, multi-photo (compress + thumbs) | Reject flow |
+| **Admin**    | Approve + edit pending listings (pin, units, gallery)         | Reject + coupons + featured launch grants |
 
 **Core loop:** Discover → unlock (simulated) → contact **works**. Payments **Stripe-first** in Sprint 5; MoMo/USSD for Uganda after card rails prove out.
 
@@ -57,8 +57,8 @@ Unlock API, privacy jitter, explore UX, profiles, Call/WhatsApp, gated media —
 
 | Theme                | Deliverables                                                                  |
 | -------------------- | ----------------------------------------------------------------------------- |
-| **Wallet & promos**  | Credits ledger, coupons, welcome bonus, dynamic fee in unlock UI              |
-| **Landlord quality** | Multi-photo upload; admin reject with reason                                  |
+| **Wallet & promos**  | Credits ledger, coupons, welcome bonus, dynamic fee in unlock UI ✅           |
+| **Landlord quality** | Multi-photo upload ✅; client JPEG compress + thumb/full variants ✅; explore cover thumbs + featured badge ✅; admin reject with reason |
 | **Geo bootstrap**    | Explore map centers on user location; fallback Kampala; country-aware bounds  |
 | **Currency display** | Present rent + fees in viewer currency (FX hint); canonical storage unchanged |
 | **Featured launch**  | First ~20 verified listings featured free (admin grant / coupon / credit)     |
@@ -131,6 +131,6 @@ SMS phone verification moves here or Phase 6 depending on Stripe KYC needs.
 
 ---
 
-*Last updated: 2026-06-01 — International-first strategy; Sprint 4 slice 1 merged*
+*Last updated: 2026-06-02 — Sprint 4 slice 2: wallet, multi-photo, image compression + explore thumbs*
 
 

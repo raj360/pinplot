@@ -193,8 +193,11 @@ export function BuildingPhotoManager({
         : registerBuildingImage;
 
       for (const photo of draftPhotos) {
-        const publicUrl = await uploadBuildingImage(buildingId, photo.file);
-        await register(buildingId, publicUrl, false);
+        const { fullUrl, thumbUrl } = await uploadBuildingImage(
+          buildingId,
+          photo.file,
+        );
+        await register(buildingId, fullUrl, false, thumbUrl);
       }
 
       setDraftPhotos([]);
@@ -217,7 +220,7 @@ export function BuildingPhotoManager({
           {images.map((image) => (
             <BuildingPhotoTile
               key={image.id}
-              src={image.storagePath}
+              src={image.thumbStoragePath ?? image.storagePath}
               isCover={image.isPrimary}
               readOnly={readOnly}
               busy={busyId === image.id}

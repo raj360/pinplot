@@ -117,6 +117,17 @@ export function BuildingDetailExperience({
 
     return (
       <div className="space-y-3">
+        {building.coverThumbUrl ? (
+          <div className="overflow-hidden border border-border bg-surface">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={building.coverThumbUrl}
+              alt=""
+              className="aspect-[16/10] w-full object-cover"
+            />
+          </div>
+        ) : null}
+
         <BuildingDetailPanel
           building={building}
           compact
@@ -208,11 +219,23 @@ export function BuildingDetailExperience({
 
   const detailColumn = (
     <div className="min-w-0 space-y-4">
+      {building.coverThumbUrl && !hasAccess ? (
+        <div className="overflow-hidden border border-border bg-surface">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={building.coverThumbUrl}
+            alt=""
+            className="aspect-[16/10] w-full object-cover"
+          />
+        </div>
+      ) : null}
+
       <BuildingDetailPanel building={building} showUnlockLink={false} />
 
-      {building.hasPremiumMedia ? (
+      {building.hasPremiumMedia && !hasAccess ? (
         <p className="border border-dashed border-border bg-surface px-3 py-2.5 text-sm text-muted">
-          Photos and building tour unlock after you pay for contact access.
+          Full photo gallery and building tour unlock after you pay for contact
+          access.
         </p>
       ) : null}
     </div>

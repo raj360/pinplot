@@ -3,6 +3,7 @@
 import { MapPin } from "lucide-react";
 import type { RefObject } from "react";
 import { ExploreEmptyResults } from "@/components/explore/ExploreEmptyResults";
+import { FeaturedListingBadge } from "@/components/explore/FeaturedListingBadge";
 import type { ExploreSearchFilters } from "@/components/explore/ExploreFilters";
 import { LoadingState } from "@/components/ui/loading-state";
 import { Spinner } from "@/components/ui/spinner";
@@ -82,20 +83,41 @@ export function ExploreResultsList({
                 !active && !hovered && "hover:bg-background/70",
               )}
             >
+              {building.coverThumbUrl ? (
+                <div className="relative w-16 shrink-0 sm:w-24">
+                  {building.isFeatured ? (
+                    <FeaturedListingBadge variant="overlay" />
+                  ) : null}
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={building.coverThumbUrl}
+                    alt=""
+                    className="h-full w-full object-cover"
+                  />
+                </div>
+              ) : null}
               <button
                 type="button"
                 onClick={() => onSelect(building.id)}
                 className="min-w-0 flex-1 px-3 py-3.5 text-left sm:px-4 sm:py-3.5"
               >
                 <div className="flex items-start justify-between gap-2">
-                  <p
-                    className={cn(
-                      "text-[15px] font-semibold leading-snug sm:text-base",
-                      unlocked ? "text-lime-800" : "text-primary",
-                    )}
-                  >
-                    {building.name}
-                  </p>
+                  <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+                    <p
+                      className={cn(
+                        "text-[15px] font-semibold leading-snug sm:text-base",
+                        unlocked ? "text-lime-800" : "text-primary",
+                      )}
+                    >
+                      {building.name}
+                    </p>
+                    {building.isFeatured ? (
+                      <FeaturedListingBadge
+                        variant="inline"
+                        className={building.coverThumbUrl ? "sm:hidden" : undefined}
+                      />
+                    ) : null}
+                  </div>
                   {active && selectedLoading ? (
                     <Spinner
                       className="mt-1 size-3 shrink-0"

@@ -22,6 +22,11 @@ import { MAX_BUILDING_PHOTOS, PaymentPurpose } from "@plotpin/shared-types";
 import { EXPLORE_BOUNDS_SQL } from "./explore-query";
 import { ExploreSearchCacheService } from "./explore-search-cache.service";
 import { PricingService } from "../pricing/pricing.service";
+import { SupabaseAdminService } from "../auth/supabase-admin.service";
+import {
+  BUILDING_IMAGES_BUCKET,
+  collectStoragePaths,
+} from "../common/storage.util";
 
 type BuildingRow = {
   id: string;
@@ -39,6 +44,7 @@ type BuildingRow = {
   is_featured: boolean;
   available_unit_count: string;
   rent_from: string | null;
+  cover_image_thumb_path?: string | null;
   my_unlock_count?: string;
 };
 
@@ -48,6 +54,7 @@ export class BuildingsService {
     private readonly db: DatabaseService,
     private readonly exploreCache: ExploreSearchCacheService,
     private readonly pricing: PricingService,
+    private readonly supabaseAdmin: SupabaseAdminService,
   ) {}
 
   async findInBounds(query: BuildingBoundsQueryDto, tenantId?: string) {
@@ -103,6 +110,7 @@ export class BuildingsService {
         b.total_units,
         b.is_verified,
         b.is_featured,
+        b.cover_image_thumb_path,
         COUNT(u.id) FILTER (WHERE u.status = 'AVAILABLE') AS available_unit_count,
         MIN(u.rent_amount) FILTER (WHERE u.status = 'AVAILABLE') AS rent_from
       FROM buildings b
@@ -193,6 +201,7 @@ export class BuildingsService {
         b.total_units,
         b.is_verified,
         b.is_featured,
+        b.cover_image_thumb_path,
         0 AS available_unit_count,
         NULL AS rent_from,
         COUNT(DISTINCT uu.id) AS my_unlock_count
@@ -497,6 +506,10 @@ export class BuildingsService {
       isVerified: building.is_verified,
       isFeatured: building.is_featured,
       hasPremiumMedia,
+      coverThumbUrl:
+        (building.cover_image_thumb_path as string | null) ??
+        (building.cover_image_path as string | null) ??
+        undefined,
       coverImageUrl: mediaAccess
         ? (building.cover_image_path as string | null) ?? undefined
         : undefined,
@@ -936,28 +949,35 @@ export class BuildingsService {
       );
     }
 
+    const thumbPath = dto.thumbStoragePath ?? dto.storagePath;
+
     if (dto.isPrimary) {
       await this.db.query(
         "UPDATE unit_images SET is_primary = FALSE WHERE building_id = $1",
         [buildingId],
       );
       await this.db.query(
-        "UPDATE buildings SET cover_image_path = $2, updated_at = NOW() WHERE id = $1",
-        [buildingId, dto.storagePath],
+        `UPDATE buildings
+         SET cover_image_path = $2,
+             cover_image_thumb_path = $3,
+             updated_at = NOW()
+         WHERE id = $1`,
+        [buildingId, dto.storagePath, thumbPath],
       );
     }
 
     const { rows } = await this.db.query<{
       id: string;
       storage_path: string;
+      thumb_storage_path: string | null;
       is_primary: boolean;
       sort_order: number;
       created_at: Date;
     }>(
-      `INSERT INTO unit_images (building_id, storage_path, is_primary, sort_order)
-       VALUES ($1, $2, $3, (SELECT COALESCE(MAX(sort_order), 0) + 1 FROM unit_images WHERE building_id = $1))
-       RETURNING id, storage_path, is_primary, sort_order, created_at`,
-      [buildingId, dto.storagePath, dto.isPrimary ?? false],
+      `INSERT INTO unit_images (building_id, storage_path, thumb_storage_path, is_primary, sort_order)
+       VALUES ($1, $2, $3, $4, (SELECT COALESCE(MAX(sort_order), 0) + 1 FROM unit_images WHERE building_id = $1))
+       RETURNING id, storage_path, thumb_storage_path, is_primary, sort_order, created_at`,
+      [buildingId, dto.storagePath, thumbPath, dto.isPrimary ?? false],
     );
     return this.mapImageRow(rows[0]);
   }
@@ -966,11 +986,12 @@ export class BuildingsService {
     const { rows } = await this.db.query<{
       id: string;
       storage_path: string;
+      thumb_storage_path: string | null;
       is_primary: boolean;
       sort_order: number;
       created_at: Date;
     }>(
-      `SELECT id, storage_path, is_primary, sort_order, created_at
+      `SELECT id, storage_path, thumb_storage_path, is_primary, sort_order, created_at
        FROM unit_images
        WHERE building_id = $1
        ORDER BY is_primary DESC, sort_order ASC, created_at ASC`,
@@ -982,6 +1003,7 @@ export class BuildingsService {
   private mapImageRow(row: {
     id: string;
     storage_path: string;
+    thumb_storage_path?: string | null;
     is_primary: boolean;
     sort_order: number;
     created_at: Date;
@@ -989,18 +1011,32 @@ export class BuildingsService {
     return {
       id: row.id,
       storagePath: row.storage_path,
+      thumbStoragePath: row.thumb_storage_path ?? row.storage_path,
       isPrimary: row.is_primary,
       sortOrder: row.sort_order,
       createdAt: row.created_at.toISOString(),
     };
   }
 
+  private async removeImageStorage(
+    storagePath: string | null | undefined,
+    thumbStoragePath?: string | null,
+  ) {
+    const paths = collectStoragePaths(storagePath, thumbStoragePath);
+    await this.supabaseAdmin.removeStorageObjects(
+      BUILDING_IMAGES_BUCKET,
+      paths,
+    );
+  }
+
   private async removeBuildingImage(buildingId: string, imageId: string) {
     const { rows } = await this.db.query<{
       id: string;
       is_primary: boolean;
+      storage_path: string;
+      thumb_storage_path: string | null;
     }>(
-      `SELECT id, is_primary
+      `SELECT id, is_primary, storage_path, thumb_storage_path
        FROM unit_images
        WHERE id = $1 AND building_id = $2`,
       [imageId, buildingId],
@@ -1008,17 +1044,22 @@ export class BuildingsService {
     if (!rows[0]) throw new NotFoundException("Image not found");
 
     const wasPrimary = rows[0].is_primary;
+    const { storage_path, thumb_storage_path } = rows[0];
+
     await this.db.query(
       "DELETE FROM unit_images WHERE id = $1 AND building_id = $2",
       [imageId, buildingId],
     );
 
+    await this.removeImageStorage(storage_path, thumb_storage_path);
+
     if (wasPrimary) {
       const { rows: nextRows } = await this.db.query<{
         id: string;
         storage_path: string;
+        thumb_storage_path: string | null;
       }>(
-        `SELECT id, storage_path
+        `SELECT id, storage_path, thumb_storage_path
          FROM unit_images
          WHERE building_id = $1
          ORDER BY sort_order ASC, created_at ASC
@@ -1029,7 +1070,11 @@ export class BuildingsService {
         await this.promoteBuildingImage(buildingId, nextRows[0].id);
       } else {
         await this.db.query(
-          "UPDATE buildings SET cover_image_path = NULL, updated_at = NOW() WHERE id = $1",
+          `UPDATE buildings
+           SET cover_image_path = NULL,
+               cover_image_thumb_path = NULL,
+               updated_at = NOW()
+           WHERE id = $1`,
           [buildingId],
         );
       }
@@ -1039,13 +1084,18 @@ export class BuildingsService {
   }
 
   private async promoteBuildingImage(buildingId: string, imageId: string) {
-    const { rows } = await this.db.query<{ storage_path: string }>(
-      `SELECT storage_path
+    const { rows } = await this.db.query<{
+      storage_path: string;
+      thumb_storage_path: string | null;
+    }>(
+      `SELECT storage_path, thumb_storage_path
        FROM unit_images
        WHERE id = $1 AND building_id = $2`,
       [imageId, buildingId],
     );
     if (!rows[0]) throw new NotFoundException("Image not found");
+
+    const thumbPath = rows[0].thumb_storage_path ?? rows[0].storage_path;
 
     await this.db.query(
       "UPDATE unit_images SET is_primary = FALSE WHERE building_id = $1",
@@ -1056,8 +1106,12 @@ export class BuildingsService {
       [imageId],
     );
     await this.db.query(
-      "UPDATE buildings SET cover_image_path = $2, updated_at = NOW() WHERE id = $1",
-      [buildingId, rows[0].storage_path],
+      `UPDATE buildings
+       SET cover_image_path = $2,
+           cover_image_thumb_path = $3,
+           updated_at = NOW()
+       WHERE id = $1`,
+      [buildingId, rows[0].storage_path, thumbPath],
     );
 
     const images = await this.fetchBuildingImages(buildingId);
@@ -1112,6 +1166,7 @@ export class BuildingsService {
       isFeatured: row.is_featured,
       availableUnitCount: Number(row.available_unit_count),
       rentFrom: row.rent_from ? Number(row.rent_from) : null,
+      coverThumbUrl: row.cover_image_thumb_path ?? undefined,
       myUnlockCount: row.my_unlock_count
         ? Number(row.my_unlock_count)
         : undefined,

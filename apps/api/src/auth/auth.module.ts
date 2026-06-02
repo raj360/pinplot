@@ -16,6 +16,6 @@ import { SupabaseAdminService } from "./supabase-admin.service";
     EmailDeliveryService,
     SupabaseAdminService,
   ],
-  exports: [SupabaseAuthGuard, OptionalSupabaseAuthGuard, RolesGuard],
+  exports: [SupabaseAuthGuard, OptionalSupabaseAuthGuard, RolesGuard, SupabaseAdminService],
 })
 export class AuthModule {}

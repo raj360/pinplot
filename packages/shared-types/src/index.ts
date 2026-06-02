@@ -16,6 +16,20 @@ export const PRICING = {
 /** Max building photos per listing (cover + gallery). */
 export const MAX_BUILDING_PHOTOS = 4;
 
+/** Client-side compression targets before Supabase upload. */
+export const BUILDING_IMAGE = {
+  FULL_MAX_PX: 1600,
+  FULL_JPEG_QUALITY: 0.85,
+  /** Max stored full JPEG (~300–500 KB typical at quality 0.85). */
+  FULL_MAX_BYTES: 3 * 1024 * 1024,
+  THUMB_MAX_PX: 640,
+  THUMB_JPEG_QUALITY: 0.82,
+  /** Max stored thumb JPEG (~100–150 KB typical). */
+  THUMB_MAX_BYTES: 200 * 1024,
+  /** Accept large phone originals; compression runs before upload. */
+  SOURCE_MAX_BYTES: 25 * 1024 * 1024,
+} as const;
+
 export type PriceQuote = {
   purpose: PaymentPurpose;
   amountUgx: number;
@@ -118,7 +132,12 @@ export type BuildingSummary = {
   availableUnitCount: number;
   rentFrom: number | null;
   currency: string;
+  /** Public cover thumbnail for explore cards (compressed, not full gallery). */
+  coverThumbUrl?: string;
+  /** Full-resolution cover — only returned when viewer has unlock access. */
   coverImageUrl?: string;
+  /** Promoted listing — sorted first in explore; show badge on cards. */
+  isFeatured?: boolean;
   /** Active unlocks held by the signed-in tenant on this building. */
   myUnlockCount?: number;
 };

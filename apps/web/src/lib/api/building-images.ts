@@ -1,8 +1,10 @@
 import { apiFetch } from "./client";
+import type { BuildingImageUpload } from "@/lib/supabase/storage";
 
 export type BuildingImage = {
   id: string;
   storagePath: string;
+  thumbStoragePath: string;
   isPrimary: boolean;
   sortOrder: number;
   createdAt: string;
@@ -16,10 +18,11 @@ export async function registerBuildingImage(
   buildingId: string,
   storagePath: string,
   isPrimary = false,
+  thumbStoragePath?: string,
 ) {
   return apiFetch<BuildingImage>(`/buildings/${buildingId}/images`, {
     method: "POST",
-    body: JSON.stringify({ storagePath, isPrimary }),
+    body: JSON.stringify({ storagePath, thumbStoragePath, isPrimary }),
   });
 }
 
@@ -48,10 +51,11 @@ export async function registerAdminBuildingImage(
   buildingId: string,
   storagePath: string,
   isPrimary = false,
+  thumbStoragePath?: string,
 ) {
   return apiFetch<BuildingImage>(`/admin/buildings/${buildingId}/images`, {
     method: "POST",
-    body: JSON.stringify({ storagePath, isPrimary }),
+    body: JSON.stringify({ storagePath, thumbStoragePath, isPrimary }),
   });
 }
 
@@ -83,14 +87,20 @@ export async function uploadAndRegisterBuildingImages(
     buildingId: string,
     storagePath: string,
     isPrimary: boolean,
+    thumbStoragePath?: string,
   ) => Promise<BuildingImage>,
-  upload: (buildingId: string, file: File) => Promise<string>,
+  upload: (buildingId: string, file: File) => Promise<BuildingImageUpload>,
 ) {
   const results: BuildingImage[] = [];
   for (let index = 0; index < files.length; index += 1) {
-    const publicUrl = await upload(buildingId, files[index]);
+    const { fullUrl, thumbUrl } = await upload(buildingId, files[index]);
     results.push(
-      await register(buildingId, publicUrl, index === primaryIndex),
+      await register(
+        buildingId,
+        fullUrl,
+        index === primaryIndex,
+        thumbUrl,
+      ),
     );
   }
   return results;
