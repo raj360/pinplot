@@ -39,6 +39,41 @@ function isLikelyZoneName(part: string): boolean {
   return part.trim().length >= 3;
 }
 
+/** Finest area label for district field — excludes city and country. */
+export function resolveDistrictFromParts(
+  city: string,
+  zones: string[],
+  areaLabel: string,
+): string {
+  if (zones[0]) return zones[0];
+
+  const cityLower = city.trim().toLowerCase();
+  const fromLabel = areaLabel
+    .split(" · ")
+    .map((part) => part.trim())
+    .filter(Boolean)
+    .find((part) => part.toLowerCase() !== cityLower);
+
+  return fromLabel ?? "";
+}
+
+/** City for listing — prefer locality, fall back to coarsest area label part. */
+export function resolveCityFromHints(hints: AddressHints): string {
+  if (hints.city.trim()) return hints.city.trim();
+
+  const parts = hints.areaLabel
+    .split(" · ")
+    .map((part) => part.trim())
+    .filter(Boolean);
+
+  return parts[parts.length - 1] ?? "";
+}
+
+/** District / area for listing — never leave stale value when geocode has no division. */
+export function resolveDistrictFromHints(hints: AddressHints): string {
+  return resolveDistrictFromParts(hints.city, hints.zones, hints.areaLabel);
+}
+
 function supplementZones(
   formattedAddress: string,
   city: string,
@@ -93,8 +128,6 @@ export function parseGeocoderResult(
 
   zones = supplementZones(result.formatted_address, city, zones);
 
-  const district = zones[0] || "";
-
   const street = get("route");
   const streetNumber = get("street_number");
   const landmark =
@@ -113,6 +146,8 @@ export function parseGeocoderResult(
   ).join(", ");
 
   const areaLabel = uniqueNames([...zones, city]).join(" · ");
+
+  const district = resolveDistrictFromParts(city, zones, areaLabel);
 
   return {
     city,

@@ -16,11 +16,18 @@ import { getAccessToken } from "@/lib/api/client";
 import { formatCurrency } from "@/lib/intl/format";
 import type { PriceQuote } from "@plotpin/shared-types";
 
-type UnitStatus = "AVAILABLE" | "UNAVAILABLE" | "RENTED" | "LOCKED";
+type UnitAction = "AVAILABLE" | "UNAVAILABLE" | "RENTED";
+
+type PendingUnitAction = {
+  unitId: string;
+  status: UnitAction;
+};
+
+type UnitStatus = UnitAction | "LOCKED";
 
 const STATUS_LABELS: Record<UnitStatus, string> = {
-  AVAILABLE: "Live on map",
-  UNAVAILABLE: "Not listed",
+  AVAILABLE: "Visible on map",
+  UNAVAILABLE: "Hidden",
   RENTED: "Rented",
   LOCKED: "Tenant hold",
 };
@@ -41,7 +48,9 @@ export default function ManageBuildingClient({
   const [building, setBuilding] = useState<LandlordBuildingDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [pendingUnitId, setPendingUnitId] = useState<string | null>(null);
+  const [pendingAction, setPendingAction] = useState<PendingUnitAction | null>(
+    null,
+  );
   const [listingQuote, setListingQuote] = useState<PriceQuote | null>(null);
 
   const load = useCallback(async () => {
@@ -74,11 +83,8 @@ export default function ManageBuildingClient({
     };
   }, [buildingId, load, router]);
 
-  async function setStatus(
-    unitId: string,
-    status: "AVAILABLE" | "UNAVAILABLE" | "RENTED",
-  ) {
-    setPendingUnitId(unitId);
+  async function setStatus(unitId: string, status: UnitAction) {
+    setPendingAction({ unitId, status });
     setError(null);
     try {
       const result = await updateUnitStatus(buildingId, unitId, status);
@@ -102,7 +108,7 @@ export default function ManageBuildingClient({
         err instanceof Error ? err.message : "Could not update unit status.";
       setError(message);
     } finally {
-      setPendingUnitId(null);
+      setPendingAction(null);
     }
   }
 
@@ -132,10 +138,21 @@ export default function ManageBuildingClient({
 
       {!building.isVerified && (
         <p className="border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-          Pending admin verification — units cannot go live on the map until
-          approved.
+          Pending admin review — you can edit photos while waiting. Units cannot
+          go on the map until approved.
         </p>
       )}
+
+      {building.isVerified && building.availableUnitCount === 0 ? (
+        <div className="border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-950">
+          <p className="font-medium">Your building is approved</p>
+          <p className="mt-1">
+            Mark at least one unit <strong>available</strong> below so tenants
+            can discover it on explore. Until then, it will not appear in search
+            results.
+          </p>
+        </div>
+      ) : null}
 
       {listingQuote && (
         <p className="border border-primary/30 bg-primary/5 px-4 py-3 text-sm">
@@ -157,7 +174,13 @@ export default function ManageBuildingClient({
 
       <DashboardSection
         title={building.name}
-        description={`${building.availableUnitCount} of ${building.units.length} units live on the map.`}
+        description={
+          building.availableUnitCount > 0
+            ? `${building.availableUnitCount} of ${building.units.length} units visible to tenants on explore.`
+            : building.isVerified
+              ? "No units visible yet — mark units available when you are ready."
+              : `${building.units.length} units — available after admin approval.`
+        }
       >
         {error && <p className="mb-4 text-sm text-red-600">{error}</p>}
 
@@ -165,7 +188,9 @@ export default function ManageBuildingClient({
           {building.units.map((unit) => {
             const status = unit.status as UnitStatus;
             const locked = status === "LOCKED";
-            const busy = pendingUnitId === unit.id;
+            const unitBusy = pendingAction?.unitId === unit.id;
+            const isLoading = (action: UnitAction) =>
+              unitBusy && pendingAction?.status === action;
 
             return (
               <li
@@ -192,7 +217,9 @@ export default function ManageBuildingClient({
                   {!locked && status !== "AVAILABLE" && (
                     <Button
                       size="sm"
-                      disabled={busy || !building.isVerified}
+                      loading={isLoading("AVAILABLE")}
+                      loadingLabel="Marking unit available"
+                      disabled={unitBusy || !building.isVerified}
                       onClick={() => setStatus(unit.id, "AVAILABLE")}
                     >
                       Mark available
@@ -202,7 +229,9 @@ export default function ManageBuildingClient({
                     <Button
                       size="sm"
                       variant="outline"
-                      disabled={busy}
+                      loading={isLoading("UNAVAILABLE")}
+                      loadingLabel="Hiding unit from map"
+                      disabled={unitBusy}
                       onClick={() => setStatus(unit.id, "UNAVAILABLE")}
                     >
                       Hide from map
@@ -212,7 +241,9 @@ export default function ManageBuildingClient({
                     <Button
                       size="sm"
                       variant="outline"
-                      disabled={busy}
+                      loading={isLoading("RENTED")}
+                      loadingLabel="Marking unit as rented"
+                      disabled={unitBusy}
                       onClick={() => setStatus(unit.id, "RENTED")}
                     >
                       Mark rented
@@ -222,7 +253,9 @@ export default function ManageBuildingClient({
                     <Button
                       size="sm"
                       variant="outline"
-                      disabled={busy}
+                      loading={isLoading("UNAVAILABLE")}
+                      loadingLabel="Taking unit off market"
+                      disabled={unitBusy}
                       onClick={() => setStatus(unit.id, "UNAVAILABLE")}
                     >
                       Off market

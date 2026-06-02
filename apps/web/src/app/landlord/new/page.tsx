@@ -26,6 +26,8 @@ import {
 import { BUILDING_TYPE_OPTIONS } from "@/lib/filters/building-types";
 import {
   normalizeYouTubeUrl,
+  resolveCityFromHints,
+  resolveDistrictFromHints,
   type AddressHints,
 } from "@/lib/maps/address-hints";
 import { cn } from "@/lib/utils/cn";
@@ -118,6 +120,7 @@ export default function NewBuildingPage() {
 
   const cityTouched = useRef(false);
   const districtTouched = useRef(false);
+  const lastAddressHints = useRef<AddressHints | null>(null);
 
   const currentStep = FORM_STEPS[step - 1];
 
@@ -136,19 +139,33 @@ export default function NewBuildingPage() {
   }, [step]);
 
   const applyAddressHints = useCallback((hints: AddressHints) => {
+    lastAddressHints.current = hints;
     setAreaLabel(hints.areaLabel);
     setAddressHint(hints.addressHint);
     setZones(hints.zones);
     setStreetHint(hints.street ?? "");
     setLandmarkHint(hints.landmark ?? "");
 
-    if (!cityTouched.current && hints.city) {
-      setCity(hints.city);
+    if (!cityTouched.current) {
+      setCity(resolveCityFromHints(hints));
     }
-    if (!districtTouched.current && hints.district) {
-      setDistrict(hints.district);
+    if (!districtTouched.current) {
+      setDistrict(resolveDistrictFromHints(hints));
     }
   }, []);
+
+  /** Pin is source of truth — moving it clears manual overrides from a prior pin. */
+  useEffect(() => {
+    cityTouched.current = false;
+    districtTouched.current = false;
+  }, [location.lat, location.lng]);
+
+  /** Re-sync fields when opening Details if user never edited them on this pin. */
+  useEffect(() => {
+    if (step !== 2 || !lastAddressHints.current) return;
+    if (cityTouched.current || districtTouched.current) return;
+    applyAddressHints(lastAddressHints.current);
+  }, [step, applyAddressHints]);
 
   function validateCurrentStep(current: number): boolean {
     setError(null);
@@ -401,6 +418,9 @@ export default function NewBuildingPage() {
                   onChange={(v) => {
                     cityTouched.current = true;
                     setCity(v);
+                    if (!districtTouched.current) {
+                      setDistrict("");
+                    }
                   }}
                 />
                 <ControlledField

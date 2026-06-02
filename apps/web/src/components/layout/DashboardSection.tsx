@@ -41,11 +41,19 @@ export function DashboardSection({
 type StatCardProps = {
   label: string;
   value: number | string;
+  highlight?: boolean;
+  className?: string;
 };
 
-export function StatCard({ label, value }: StatCardProps) {
+export function StatCard({ label, value, highlight, className }: StatCardProps) {
   return (
-    <div className="border border-border bg-surface px-4 py-3">
+    <div
+      className={cn(
+        "border bg-surface px-4 py-3",
+        highlight ? "border-sky-300 bg-sky-50" : "border-border",
+        className,
+      )}
+    >
       <dt className="text-xs font-medium uppercase tracking-wide text-muted">
         {label}
       </dt>
