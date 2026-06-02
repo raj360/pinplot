@@ -28,6 +28,7 @@ type ExploreResultsListProps = {
   onRemoveFilter: (key: keyof ExploreSearchFilters) => void;
   onRemoveMapBounds: () => void;
   onReset: () => void;
+  onBrowseSupply?: () => void;
 };
 
 export function ExploreResultsList({
@@ -45,6 +46,7 @@ export function ExploreResultsList({
   onRemoveFilter,
   onRemoveMapBounds,
   onReset,
+  onBrowseSupply,
 }: ExploreResultsListProps) {
   const { formatListingRentPerMonth } = useViewerContext();
 
@@ -182,6 +184,7 @@ export function ExploreResultsList({
             onRemoveFilter={onRemoveFilter}
             onRemoveMapBounds={onRemoveMapBounds}
             onReset={onReset}
+            onBrowseSupply={onBrowseSupply}
           />
         </li>
       ) : null}

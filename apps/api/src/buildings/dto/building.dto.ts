@@ -257,3 +257,31 @@ export class UpdateProfileRoleDto {
   @IsString()
   role!: "LANDLORD" | "TENANT";
 }
+
+export class SetBuildingFeaturedDto {
+  @IsBoolean()
+  featured!: boolean;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(365)
+  durationDays?: number;
+}
+
+export class LaunchFeaturedGrantDto {
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(20)
+  limit?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(365)
+  durationDays?: number;
+}

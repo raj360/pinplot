@@ -19,7 +19,11 @@ import {
 } from "./dto/building.dto";
 import type { BuildingSummary, BuildingType, UnitStatus } from "@plotpin/shared-types";
 import { MAX_BUILDING_PHOTOS, PaymentPurpose } from "@plotpin/shared-types";
-import { EXPLORE_BOUNDS_SQL } from "./explore-query";
+import {
+  EXPLORE_BOUNDS_SQL,
+  EXPLORE_FEATURED_ACTIVE_SQL,
+  EXPLORE_FEATURED_ORDER_SQL,
+} from "./explore-query";
 import { ExploreSearchCacheService } from "./explore-search-cache.service";
 import { LandlordNotificationsService } from "./landlord-notifications.service";
 import { PricingService } from "../pricing/pricing.service";
@@ -43,6 +47,7 @@ type BuildingRow = {
   total_units: number;
   is_verified: boolean;
   is_featured: boolean;
+  featured_until: Date | null;
   available_unit_count: string;
   rent_from: string | null;
   currency: string;
@@ -113,6 +118,7 @@ export class BuildingsService {
         b.total_units,
         b.is_verified,
         b.is_featured,
+        b.featured_until,
         b.cover_image_thumb_path,
         COUNT(u.id) FILTER (WHERE u.status = 'AVAILABLE') AS available_unit_count,
         MIN(u.rent_amount) FILTER (WHERE u.status = 'AVAILABLE') AS rent_from,
@@ -135,7 +141,7 @@ export class BuildingsService {
     }
 
     sql += `
-      GROUP BY b.id, co.currency
+      GROUP BY b.id, co.currency, b.is_featured, b.featured_until
       HAVING COUNT(u.id) FILTER (WHERE u.status = 'AVAILABLE') > 0
     `;
 
@@ -174,7 +180,7 @@ export class BuildingsService {
       sql += ` AND b.building_type = $${params.length}::building_type`;
     }
 
-    sql += ` ORDER BY b.is_featured DESC, b.created_at DESC LIMIT 200`;
+    sql += ` ORDER BY ${EXPLORE_FEATURED_ORDER_SQL} LIMIT 200`;
 
     const { rows } = await this.db.query<BuildingRow>(sql, params);
     return rows;
@@ -240,7 +246,7 @@ export class BuildingsService {
     sql += `
       GROUP BY b.id, co.currency
       HAVING COUNT(u.id) FILTER (WHERE u.status = 'AVAILABLE') = 0
-      ORDER BY b.is_featured DESC, b.created_at DESC
+      ORDER BY ${EXPLORE_FEATURED_ORDER_SQL}
       LIMIT 200
     `;
 
@@ -1298,7 +1304,7 @@ export class BuildingsService {
       approximateLng: coords.lng,
       totalUnits: row.total_units,
       isVerified: row.is_verified,
-      isFeatured: row.is_featured,
+      isFeatured: this.isFeaturedActive(row),
       availableUnitCount: Number(row.available_unit_count),
       rentFrom: row.rent_from ? Number(row.rent_from) : null,
       currency: row.currency,
@@ -1307,6 +1313,154 @@ export class BuildingsService {
         ? Number(row.my_unlock_count)
         : undefined,
     };
+  }
+
+  private static readonly LAUNCH_FEATURED_MAX = 20;
+  private static readonly LAUNCH_FEATURED_DAYS = 90;
+
+  async getLaunchFeaturedStats() {
+    const { rows } = await this.db.query<{ active: string }>(
+      `SELECT COUNT(*)::text AS active
+       FROM buildings b
+       WHERE b.featured_source = 'LAUNCH_GRANT'
+         AND ${EXPLORE_FEATURED_ACTIVE_SQL}`,
+    );
+    const activeLaunchGrants = Number(rows[0]?.active ?? 0);
+    const maxSlots = BuildingsService.LAUNCH_FEATURED_MAX;
+    return {
+      maxSlots,
+      activeLaunchGrants,
+      remainingSlots: Math.max(0, maxSlots - activeLaunchGrants),
+    };
+  }
+
+  async runLaunchFeaturedGrant(
+    adminId: string,
+    limit = BuildingsService.LAUNCH_FEATURED_MAX,
+    durationDays = BuildingsService.LAUNCH_FEATURED_DAYS,
+  ) {
+    const stats = await this.getLaunchFeaturedStats();
+    if (stats.remainingSlots <= 0) {
+      return {
+        ...stats,
+        granted: [] as Array<{
+          id: string;
+          name: string;
+          featuredUntil: string;
+        }>,
+        message: "All launch featured slots are in use.",
+      };
+    }
+
+    const grantCount = Math.min(limit, stats.remainingSlots);
+    const { rows } = await this.db.query<{ id: string; name: string }>(
+      `SELECT b.id, b.name
+       FROM buildings b
+       WHERE b.is_verified = TRUE
+         AND b.rejected_at IS NULL
+         AND NOT (${EXPLORE_FEATURED_ACTIVE_SQL})
+       ORDER BY b.created_at ASC
+       LIMIT $1`,
+      [grantCount],
+    );
+
+    const granted = [];
+    for (const row of rows) {
+      const result = await this.setBuildingFeatured(row.id, adminId, {
+        featured: true,
+        durationDays,
+        source: "LAUNCH_GRANT",
+      });
+      granted.push(result);
+    }
+
+    return {
+      ...(await this.getLaunchFeaturedStats()),
+      granted,
+    };
+  }
+
+  async setBuildingFeatured(
+    buildingId: string,
+    adminId: string,
+    options: {
+      featured: boolean;
+      durationDays?: number;
+      source?: "LAUNCH_GRANT" | "ADMIN_GRANT";
+    },
+  ) {
+    if (!options.featured) {
+      const { rows } = await this.db.query<{ id: string; name: string }>(
+        `UPDATE buildings
+         SET is_featured = FALSE,
+             featured_until = NULL,
+             featured_granted_at = NULL,
+             featured_source = NULL,
+             updated_at = NOW()
+         WHERE id = $1 AND is_verified = TRUE
+         RETURNING id, name`,
+        [buildingId],
+      );
+      if (!rows[0]) throw new NotFoundException("Verified building not found");
+      this.exploreCache.clear();
+      return { id: rows[0].id, name: rows[0].name, isFeatured: false };
+    }
+
+    if (options.source === "LAUNCH_GRANT") {
+      const stats = await this.getLaunchFeaturedStats();
+      if (stats.remainingSlots <= 0) {
+        throw new BadRequestException(
+          "All launch featured slots are in use. Revoke one or wait for expiry.",
+        );
+      }
+    }
+
+    const durationDays =
+      options.durationDays ?? BuildingsService.LAUNCH_FEATURED_DAYS;
+    const source = options.source ?? "ADMIN_GRANT";
+
+    const { rows } = await this.db.query<{
+      id: string;
+      name: string;
+      featured_until: Date;
+    }>(
+      `UPDATE buildings
+       SET is_featured = TRUE,
+           featured_granted_at = NOW(),
+           featured_until = NOW() + ($2 * INTERVAL '1 day'),
+           featured_source = $3,
+           updated_at = NOW()
+       WHERE id = $1
+         AND is_verified = TRUE
+         AND rejected_at IS NULL
+       RETURNING id, name, featured_until`,
+      [buildingId, durationDays, source],
+    );
+    if (!rows[0]) throw new NotFoundException("Verified building not found");
+
+    await this.db.query(
+      `INSERT INTO featured_grants (building_id, admin_id, source, expires_at)
+       VALUES ($1, $2, $3, $4)`,
+      [buildingId, adminId, source, rows[0].featured_until],
+    );
+
+    this.exploreCache.clear();
+    return {
+      id: rows[0].id,
+      name: rows[0].name,
+      isFeatured: true,
+      featuredUntil: rows[0].featured_until.toISOString(),
+      source,
+    };
+  }
+
+  private isFeaturedActive(row: {
+    is_featured: boolean;
+    featured_until?: Date | null;
+  }) {
+    if (!row.is_featured) return false;
+    if (!row.featured_until) return true;
+    return row.featured_until.getTime() > Date.now();
   }
 
   private async assertLandlord(buildingId: string, landlordId: string) {

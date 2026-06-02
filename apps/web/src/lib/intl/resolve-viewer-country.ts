@@ -35,75 +35,85 @@ export function writeStoredViewerCountry(code: string) {
   localStorage.setItem(VIEWER_COUNTRY_STORAGE_KEY, normalized);
 }
 
-/** Infer country from browser locale + timezone before profile is available. */
+function inferViewerCountryFromTimeZone(timeZone: string): string | null {
+  if (timeZone.includes("London") || timeZone.startsWith("Europe/London")) {
+    return "GB";
+  }
+  if (timeZone.includes("Berlin") || timeZone.startsWith("Europe/Berlin")) {
+    return "DE";
+  }
+  if (
+    timeZone.includes("Toronto") ||
+    timeZone.includes("Vancouver") ||
+    timeZone.includes("Winnipeg") ||
+    timeZone.includes("Edmonton") ||
+    timeZone.startsWith("America/Toronto") ||
+    timeZone.startsWith("America/Vancouver") ||
+    timeZone.startsWith("America/Winnipeg") ||
+    timeZone.startsWith("America/Edmonton")
+  ) {
+    return "CA";
+  }
+  if (
+    timeZone.includes("New_York") ||
+    timeZone.includes("Chicago") ||
+    timeZone.includes("Los_Angeles") ||
+    timeZone.startsWith("America/")
+  ) {
+    return "US";
+  }
+  if (timeZone.includes("Nairobi") || timeZone.startsWith("Africa/Nairobi")) {
+    return "KE";
+  }
+  if (
+    timeZone.includes("Dar_es_Salaam") ||
+    timeZone.startsWith("Africa/Dar_es_Salaam")
+  ) {
+    return "TZ";
+  }
+  if (timeZone.includes("Kigali") || timeZone.startsWith("Africa/Kigali")) {
+    return "RW";
+  }
+  if (timeZone.includes("Lagos") || timeZone.startsWith("Africa/Lagos")) {
+    return "NG";
+  }
+  if (
+    timeZone.includes("Johannesburg") ||
+    timeZone.startsWith("Africa/Johannesburg")
+  ) {
+    return "ZA";
+  }
+  if (timeZone.includes("Dubai") || timeZone.startsWith("Asia/Dubai")) {
+    return "AE";
+  }
+  if (timeZone.includes("Kampala") || timeZone.startsWith("Africa/Kampala")) {
+    return "UG";
+  }
+  return null;
+}
+
+function inferViewerCountryFromLanguage(language: string): string | null {
+  const parts = language.split("-");
+  if (parts.length >= 2) {
+    return normalizeCountryCode(parts[1]);
+  }
+  return null;
+}
+
+/** Infer country from browser timezone + locale before profile is available. */
 export function inferViewerCountryFromBrowser(): string {
   if (typeof navigator === "undefined") return DEFAULT_COUNTRY.code;
 
-  const language = navigator.language ?? "";
-  const parts = language.split("-");
-  if (parts.length >= 2) {
-    const fromLang = normalizeCountryCode(parts[1]);
-    if (fromLang) return fromLang;
-  }
-
   try {
     const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone ?? "";
-    if (timeZone.includes("London") || timeZone.startsWith("Europe/London")) {
-      return "GB";
-    }
-    if (timeZone.includes("Berlin") || timeZone.startsWith("Europe/Berlin")) {
-      return "DE";
-    }
-    if (
-      timeZone.includes("Toronto") ||
-      timeZone.includes("Vancouver") ||
-      timeZone.includes("Winnipeg") ||
-      timeZone.includes("Edmonton") ||
-      timeZone.startsWith("America/Toronto") ||
-      timeZone.startsWith("America/Vancouver") ||
-      timeZone.startsWith("America/Winnipeg") ||
-      timeZone.startsWith("America/Edmonton")
-    ) {
-      return "CA";
-    }
-    if (
-      timeZone.includes("New_York") ||
-      timeZone.includes("Chicago") ||
-      timeZone.includes("Los_Angeles") ||
-      timeZone.startsWith("America/")
-    ) {
-      return "US";
-    }
-    if (timeZone.includes("Nairobi") || timeZone.startsWith("Africa/Nairobi")) {
-      return "KE";
-    }
-    if (
-      timeZone.includes("Dar_es_Salaam") ||
-      timeZone.startsWith("Africa/Dar_es_Salaam")
-    ) {
-      return "TZ";
-    }
-    if (timeZone.includes("Kigali") || timeZone.startsWith("Africa/Kigali")) {
-      return "RW";
-    }
-    if (timeZone.includes("Lagos") || timeZone.startsWith("Africa/Lagos")) {
-      return "NG";
-    }
-    if (
-      timeZone.includes("Johannesburg") ||
-      timeZone.startsWith("Africa/Johannesburg")
-    ) {
-      return "ZA";
-    }
-    if (timeZone.includes("Dubai") || timeZone.startsWith("Asia/Dubai")) {
-      return "AE";
-    }
-    if (timeZone.includes("Kampala") || timeZone.startsWith("Africa/Kampala")) {
-      return "UG";
-    }
+    const fromTimeZone = inferViewerCountryFromTimeZone(timeZone);
+    if (fromTimeZone) return fromTimeZone;
   } catch {
     /* ignore */
   }
+
+  const fromLanguage = inferViewerCountryFromLanguage(navigator.language ?? "");
+  if (fromLanguage) return fromLanguage;
 
   return DEFAULT_COUNTRY.code;
 }

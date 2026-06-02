@@ -21,6 +21,7 @@ import { Spinner } from "@/components/ui/spinner";
 import {
   type BuildingDetail,
   type Bounds,
+  KAMPALA_BOUNDS,
 } from "@/lib/api/buildings";
 import {
   boundsAround,
@@ -725,6 +726,29 @@ export function ExploreClient() {
     });
   }, [executeSearch, geo]);
 
+  const handleBrowseSupply = useCallback(async () => {
+    const ugBounds = countriesByCode.get("UG")?.mapBounds;
+    const bounds: Bounds = ugBounds
+      ? {
+          north: ugBounds.north,
+          south: ugBounds.south,
+          east: ugBounds.east,
+          west: ugBounds.west,
+        }
+      : KAMPALA_BOUNDS;
+    suppressMapInteraction();
+    setMapFocusBounds(bounds);
+    setMapFitToken((token) => token + 1);
+    setWhereSegmentLabel("Uganda area");
+
+    const next = { ...EMPTY_EXPLORE_FILTERS, city: "" };
+    setFilters(next);
+    await executeSearch(next, {
+      mapBounds: bounds,
+      history: "replace",
+    });
+  }, [countriesByCode, executeSearch, suppressMapInteraction]);
+
   const handleFiltersApply = useCallback((next: ExploreSearchFilters) => {
     setFilters(next);
     void executeSearchRef.current(next, {
@@ -989,6 +1013,7 @@ export function ExploreClient() {
               onRemoveFilter={(key) => void removeAppliedFilter(key)}
               onRemoveMapBounds={() => void removeMapBounds()}
               onReset={() => void runReset()}
+              onBrowseSupply={() => void handleBrowseSupply()}
             />
 
             {showMapSummary ? (

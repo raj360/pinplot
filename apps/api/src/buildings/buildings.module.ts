@@ -3,6 +3,7 @@ import { AuthModule } from "../auth/auth.module";
 import { PricingModule } from "../pricing/pricing.module";
 import {
   AdminBuildingsController,
+  AdminFeaturedController,
   BuildingsController,
 } from "./buildings.controller";
 import { BuildingsService } from "./buildings.service";
@@ -11,7 +12,7 @@ import { LandlordNotificationsService } from "./landlord-notifications.service";
 
 @Module({
   imports: [AuthModule, PricingModule],
-  controllers: [BuildingsController, AdminBuildingsController],
+  controllers: [BuildingsController, AdminBuildingsController, AdminFeaturedController],
   providers: [
     BuildingsService,
     ExploreSearchCacheService,

@@ -16,8 +16,10 @@ import {
   BuildingBoundsQueryDto,
   CreateBuildingDto,
   CreateUnitDto,
+  LaunchFeaturedGrantDto,
   RegisterImageDto,
   RejectBuildingDto,
+  SetBuildingFeaturedDto,
   UpdateUnitDto,
   VerifyBuildingDto,
 } from "./dto/building.dto";
@@ -198,6 +200,19 @@ export class AdminBuildingsController {
     return this.buildings.rejectBuilding(id, user.id, dto.reason);
   }
 
+  @Patch(":id/featured")
+  setFeatured(
+    @Param("id") id: string,
+    @CurrentUser() user: AuthUser,
+    @Body() dto: SetBuildingFeaturedDto,
+  ) {
+    return this.buildings.setBuildingFeatured(id, user.id, {
+      featured: dto.featured,
+      durationDays: dto.durationDays,
+      source: "ADMIN_GRANT",
+    });
+  }
+
   @Get(":id/images")
   listImages(@Param("id") id: string) {
     return this.buildings.adminListImages(id);
@@ -216,5 +231,29 @@ export class AdminBuildingsController {
   @Patch(":id/images/:imageId/primary")
   setPrimaryImage(@Param("id") id: string, @Param("imageId") imageId: string) {
     return this.buildings.adminSetPrimaryImage(id, imageId);
+  }
+}
+
+@Controller("admin/featured")
+@UseGuards(SupabaseAuthGuard, RolesGuard)
+@RequireRoles("ADMIN", "SUPERADMIN")
+export class AdminFeaturedController {
+  constructor(private readonly buildings: BuildingsService) {}
+
+  @Get("launch-stats")
+  launchStats() {
+    return this.buildings.getLaunchFeaturedStats();
+  }
+
+  @Post("launch-grant")
+  launchGrant(
+    @CurrentUser() user: AuthUser,
+    @Body() dto: LaunchFeaturedGrantDto,
+  ) {
+    return this.buildings.runLaunchFeaturedGrant(
+      user.id,
+      dto.limit,
+      dto.durationDays,
+    );
   }
 }
