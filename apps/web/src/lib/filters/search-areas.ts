@@ -1,6 +1,11 @@
 import type { Bounds } from "@/lib/api/buildings";
 import { KAMPALA_BOUNDS } from "@/lib/api/buildings";
 import {
+  EXPLORE_CITY_RADIUS_DEG,
+  EXPLORE_NEAR_ME_RADIUS_DEG,
+  EXPLORE_NEIGHBORHOOD_RADIUS_DEG,
+} from "@/lib/maps/config";
+import {
   distanceKm,
   formatDistanceKm,
   isInUganda,
@@ -14,10 +19,15 @@ export type SearchAreaPreset = {
   bounds: Bounds;
 };
 
-const DELTA = 0.022;
-const NEARBY_RADIUS_KM = 18;
+const DELTA = EXPLORE_NEIGHBORHOOD_RADIUS_DEG;
+const CITY_DELTA = EXPLORE_CITY_RADIUS_DEG;
+const NEARBY_RADIUS_KM = 22;
 
-function boundsAround(lat: number, lng: number, delta = DELTA): Bounds {
+export function boundsAround(
+  lat: number,
+  lng: number,
+  delta = DELTA,
+): Bounds {
   return {
     north: lat + delta,
     south: lat - delta,
@@ -25,6 +35,17 @@ function boundsAround(lat: number, lng: number, delta = DELTA): Bounds {
     west: lng - delta,
   };
 }
+
+/** Major towns — map viewport jump (not a text filter on the API). */
+export const UGANDA_CITY_PRESETS: SearchAreaPreset[] = [
+  { value: "Jinja", label: "Jinja", center: { lat: 0.4244, lng: 33.2041 }, bounds: boundsAround(0.4244, 33.2041, CITY_DELTA) },
+  { value: "Bugembe", label: "Bugembe", center: { lat: 0.4661, lng: 33.2334 }, bounds: boundsAround(0.4661, 33.2334, CITY_DELTA) },
+  { value: "Entebbe", label: "Entebbe", center: { lat: 0.0512, lng: 32.4634 }, bounds: boundsAround(0.0512, 32.4634, CITY_DELTA) },
+  { value: "Wakiso", label: "Wakiso", center: { lat: 0.4044, lng: 32.4594 }, bounds: boundsAround(0.4044, 32.4594, CITY_DELTA) },
+  { value: "Mukono", label: "Mukono", center: { lat: 0.3533, lng: 32.7553 }, bounds: boundsAround(0.3533, 32.7553, CITY_DELTA) },
+  { value: "Mbarara", label: "Mbarara", center: { lat: -0.6167, lng: 30.65 }, bounds: boundsAround(-0.6167, 30.65, CITY_DELTA) },
+  { value: "Gulu", label: "Gulu", center: { lat: 2.7746, lng: 32.298 }, bounds: boundsAround(2.7746, 32.298, CITY_DELTA) },
+];
 
 /** Kampala neighbourhoods — extend as coverage grows. */
 export const AREA_PRESETS: SearchAreaPreset[] = [
@@ -50,18 +71,23 @@ export const AREA_PRESETS: SearchAreaPreset[] = [
   { value: "Kampala Central Division", label: "Central Kampala", center: { lat: 0.315, lng: 32.582 }, bounds: boundsAround(0.315, 32.582) },
 ];
 
+export const ALL_AREA_PRESETS: SearchAreaPreset[] = [
+  ...UGANDA_CITY_PRESETS,
+  ...AREA_PRESETS,
+];
+
 export type AreaSearchOption = {
   value: string;
   label: string;
   distanceKm?: number;
-  section?: "nearby" | "all";
+  section?: "nearby" | "cities" | "kampala" | "all";
 };
 
 export function rankAreaOptions(
   userLocation: GeoPoint | null,
   inUganda: boolean,
 ): AreaSearchOption[] {
-  const ranked = [...AREA_PRESETS]
+  const rankedKampala = [...AREA_PRESETS]
     .map((preset) => ({
       preset,
       distanceKm: userLocation
@@ -75,11 +101,28 @@ export function rankAreaOptions(
       return a.preset.label.localeCompare(b.preset.label);
     });
 
+  const rankedCities = [...UGANDA_CITY_PRESETS]
+    .map((preset) => ({
+      preset,
+      distanceKm: userLocation
+        ? distanceKm(userLocation, preset.center)
+        : undefined,
+    }))
+    .sort((a, b) => a.preset.label.localeCompare(b.preset.label));
+
   const options: AreaSearchOption[] = [
-    { value: "", label: "All Kampala", section: "all" },
+    { value: "", label: "Browse map area", section: "all" },
   ];
 
-  for (const entry of ranked) {
+  for (const entry of rankedCities) {
+    options.push({
+      value: entry.preset.value,
+      label: entry.preset.label,
+      section: "cities",
+    });
+  }
+
+  for (const entry of rankedKampala) {
     const nearby =
       inUganda &&
       userLocation &&
@@ -90,7 +133,7 @@ export function rankAreaOptions(
       value: entry.preset.value,
       label: entry.preset.label,
       distanceKm: entry.distanceKm,
-      section: nearby ? "nearby" : "all",
+      section: nearby ? "nearby" : "kampala",
     });
   }
 
@@ -106,7 +149,11 @@ export function filterAreaOptions(
 
   return options.filter((option) => {
     if (!option.value) {
-      return "all kampala".includes(normalized) || normalized.length <= 2;
+      return (
+        "browse map".includes(normalized) ||
+        "map area".includes(normalized) ||
+        normalized.length <= 2
+      );
     }
     return (
       option.label.toLowerCase().includes(normalized) ||
@@ -120,7 +167,7 @@ export function resolveSearchArea(query: string): SearchAreaPreset | null {
   if (!normalized) return null;
 
   return (
-    AREA_PRESETS.find((preset) => {
+    ALL_AREA_PRESETS.find((preset) => {
       const value = preset.value.toLowerCase();
       const label = preset.label.toLowerCase();
       return (
@@ -160,7 +207,11 @@ export function getMapFocusForSearch(
 
   if (userLocation && isInUganda(userLocation.lat, userLocation.lng)) {
     return {
-      bounds: boundsAround(userLocation.lat, userLocation.lng, 0.045),
+      bounds: boundsAround(
+        userLocation.lat,
+        userLocation.lng,
+        EXPLORE_NEAR_ME_RADIUS_DEG,
+      ),
       center: userLocation,
     };
   }

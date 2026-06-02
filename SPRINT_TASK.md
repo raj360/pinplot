@@ -55,7 +55,7 @@ Keep `ALLOW_DEV_UNLOCK=1` in dev/staging until Sprint 5.
 
 | ID | Task | Status | Notes |
 |----|------|--------|-------|
-| S4-13 | **Explore geo bootstrap** | Pending | On load: try browser geolocation → center map + initial bounds search; persist last viewport; fallback chain: profile `country_code` centroid → Kampala |
+| S4-13 | **Explore geo bootstrap** | In progress | **Phase A+B done:** debounced viewport search (default on), “Map area” chip, geo on load, Near me, place jump + geocode (Jinja, Wakiso, Entebbe…). **Remaining:** persist last viewport; profile `country_code` centroid fallback (→ S4-14 diaspora) |
 | S4-14 | **Country catalog** | Pending | Extend `countries`: default map center, bounds, `display_locale` (e.g. `en-GB`), currency; seed UG, US, GB, KE (+ EU later) |
 | S4-15 | **Currency display layer** | Pending | `formatMoney(amount, listingCurrency, viewerContext)` → primary + optional FX footnote; use ECB/Stripe rates cache (daily); rent stays in listing currency |
 | S4-16 | **Viewer context** | Pending | Derive from profile country → else `navigator.language` + timezone hint → else UG; store preference in profile or localStorage |
@@ -115,7 +115,9 @@ Keep `ALLOW_DEV_UNLOCK=1` in dev/staging until Sprint 5.
 | Tiered pricing quote API | ✅ |
 | Dynamic fees in UI | ✅ S4-07 |
 | Wallet / coupons / welcome bonus | ✅ S4-03, S4-04, S4-08 |
-| Map centers on user location | ❌ S4-13 |
+| Map centers on user location | 🟡 S4-13 (geo bootstrap + Near me; diaspora defaults → S4-14) |
+| Live map viewport search | ✅ S4-13 Phase A |
+| Place search (geocode + city presets) | ✅ S4-13 Phase B |
 | Dual-currency / viewer money display | ❌ S4-15 |
 | Featured launch (20 free) | ❌ S4-18 |
 | Stripe checkout | ❌ S5-01 |
