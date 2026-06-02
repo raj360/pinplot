@@ -1,5 +1,6 @@
 import type { BuildingSummary, PriceQuote } from "@plotpin/shared-types";
 import { apiFetch, getAccessToken } from "./client";
+import { readApiError } from "./http-errors";
 
 const API_URL =
   process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
@@ -71,7 +72,9 @@ export async function fetchBuildingsInBounds(
     headers,
     cache: "no-store",
   });
-  if (!res.ok) throw new Error("Failed to load buildings");
+  if (!res.ok) {
+    throw await readApiError(res, "Failed to load buildings");
+  }
   return res.json();
 }
 

@@ -46,8 +46,8 @@ Keep `ALLOW_DEV_UNLOCK=1` in dev/staging until Sprint 5.
 | S4-09 | Landlord multi-photo UI | Done | Gallery on create; photo manager on pending edit (landlord + admin) |
 | S4-09b | Image compression + thumbs | Done | Client JPEG compress; thumb/full variants; storage delete on row remove; explore cover thumbs; featured badge on cards |
 | S4-10 | Admin reject listing | Done | Migration `016`; `PATCH /admin/buildings/:id/reject`; landlord dashboard + resubmit |
-| S4-11 | Explore 429 UX | Pending | Friendly rate-limit message |
-| S4-12 | Auth guard DB resilience | Pending | Transient pg errors in guards |
+| S4-11 | Explore 429 UX | Done | `ThrottleExceptionFilter` + `ExploreSearchAlert` + `ApiHttpError` |
+| S4-12 | Auth guard DB resilience | Done | `withDbRetry` + `AuthProfileService`; optional auth degrades gracefully |
 | S4-UX | **Design tokens (Bondex-aligned)** | Done | Global `--border`, neutral scale, `--shadow-card*`, `.card-elevated`, `Skeleton` + explore row skeletons |
 
 ---
@@ -131,14 +131,13 @@ Keep `ALLOW_DEV_UNLOCK=1` in dev/staging until Sprint 5.
 ## Recommended build order (post–slice 1 merge)
 
 ```
-Now:     S4-11 → S4-12          (finish slice 2 — 429, auth resilience)
 Next:    S4-14 → S4-15 → S4-16          (country catalog + FX display + viewer context)
 Then:    S4-17 → S4-18 → S4-09 supply   (empty state, featured launch, more UG pins e.g. Bweyogere)
 Parallel: S4-19 → S4-20                 (landlord country + multi-country pricing seed)
          ── then Sprint 5 Stripe ──
 ```
 
-**Slice 2 close-out:** S4-11 friendly 429 on explore; S4-12 guard retries on transient DB. ~~S4-10 admin reject~~ done.
+**Slice 2 ✅ complete.** Next: S4-14 country catalog unlocks diaspora map default.
 
 **Slice 3 (next week):** S4-14 country catalog unlocks diaspora map default; S4-15 FX footnote on explore cards unlocks ad landing UX; S4-16 viewer context wires profile → display.
 

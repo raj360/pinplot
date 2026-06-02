@@ -63,7 +63,7 @@ Unlock API, privacy jitter, explore UX, profiles, Call/WhatsApp, gated media —
 | **Geo bootstrap**    | Near me + place jump ✅; country-aware defaults (S4-14); persist viewport       |
 | **Currency display** | Present rent + fees in viewer currency (FX hint); canonical storage unchanged |
 | **Featured launch**  | First ~20 verified listings featured free (admin grant / coupon / credit)     |
-| **Stability**        | Explore 429 UX; auth guard DB resilience                                      |
+| **Stability**        | Explore 429 UX ✅; auth guard DB resilience ✅                                      |
 
 ### Business model (display now → charge Sprint 5)
 

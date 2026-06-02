@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/client";
+import { readApiError } from "./http-errors";
 
 export async function getAccessToken(): Promise<string | null> {
   const supabase = createClient();
@@ -23,16 +24,7 @@ export async function apiFetch<T>(
   );
 
   if (!res.ok) {
-    const text = await res.text();
-    try {
-      const body = JSON.parse(text) as { message?: string | string[] };
-      const msg = body.message;
-      if (Array.isArray(msg)) throw new Error(msg.join(", "));
-      if (typeof msg === "string") throw new Error(msg);
-    } catch (err) {
-      if (err instanceof Error && err.message !== text) throw err;
-    }
-    throw new Error(text || `Request failed: ${res.status}`);
+    throw await readApiError(res, `Request failed: ${res.status}`);
   }
 
   return res.json() as Promise<T>;

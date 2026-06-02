@@ -49,6 +49,11 @@ import { useAuth } from "@/lib/auth/use-auth";
 import type { BuildingSummary } from "@plotpin/shared-types";
 import { useExplorePreview } from "./useExplorePreview";
 import { useIsMobile } from "@/lib/hooks/use-media-query";
+import { ExploreSearchAlert } from "@/components/explore/ExploreSearchAlert";
+import {
+  classifyExploreLoadError,
+  type ExploreLoadErrorKind,
+} from "@/lib/api/http-errors";
 import {
   buildExploreHref,
   exploreFiltersEqual,
@@ -56,6 +61,11 @@ import {
 } from "@/lib/explore/explore-url-filters";
 
 type DetailMode = "full" | "summary" | null;
+
+type SearchAlert = {
+  kind: ExploreLoadErrorKind;
+  message: string;
+} | null;
 
 const EMPTY_UNLOCKS: TenantUnlock[] = [];
 
@@ -84,7 +94,7 @@ export function ExploreClient() {
   const [selectedLoading, setSelectedLoading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [searching, setSearching] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [searchAlert, setSearchAlert] = useState<SearchAlert>(null);
   const [filters, setFilters] = useState<ExploreSearchFilters>(urlFilters);
   const [appliedFilters, setAppliedFilters] =
     useState<ExploreSearchFilters>(urlFilters);
@@ -410,9 +420,9 @@ export function ExploreClient() {
         setMapFitToken((token) => token + 1);
         consumeDeepLinkRef.current(data);
       })
-      .catch(() => {
+      .catch((err) => {
         if (cancelled || generation !== initialLoadGenerationRef.current) return;
-        setError("Could not load buildings. Is the API running?");
+        setSearchAlert(classifyExploreLoadError(err));
       })
       .finally(() => {
         if (cancelled || generation !== initialLoadGenerationRef.current) return;
@@ -471,7 +481,7 @@ export function ExploreClient() {
       const searchBounds = boundsForExploreSearch(next, mapBounds);
 
       setSearching(true);
-      setError(null);
+      setSearchAlert(null);
       try {
         const data = await loadExploreBuildings(next, mapBounds);
         if (generation !== searchGenerationRef.current) return null;
@@ -495,12 +505,12 @@ export function ExploreClient() {
           syncSearchToUrl(next, useMapBounds ? mapBounds : null, history);
         }
         return data;
-      } catch {
+      } catch (err) {
         if (generation !== searchGenerationRef.current) return null;
         if (syncUrl) {
           skipUrlSyncRef.current = false;
         }
-        setError("Could not load buildings. Is the API running?");
+        setSearchAlert(classifyExploreLoadError(err));
         return null;
       } finally {
         if (generation === searchGenerationRef.current) {
@@ -602,11 +612,14 @@ export function ExploreClient() {
       }
 
       setSearching(true);
-      setError(null);
+      setSearchAlert(null);
       try {
         const result = await geocodePlaceInUganda(trimmed);
         if (!result) {
-          setError(`Could not find “${trimmed}” in Uganda. Try a nearby city.`);
+          setSearchAlert({
+            kind: "generic",
+            message: `Could not find “${trimmed}” in Uganda. Try a nearby city.`,
+          });
           return;
         }
 
@@ -618,7 +631,10 @@ export function ExploreClient() {
         setFilters(next);
         await executeSearch(next, { mapBounds: result.bounds });
       } catch {
-        setError("Place search failed. Check your connection and try again.");
+        setSearchAlert({
+          kind: "generic",
+          message: "Place search failed. Check your connection and try again.",
+        });
       } finally {
         setSearching(false);
       }
@@ -627,13 +643,16 @@ export function ExploreClient() {
   );
 
   const handleNearMe = useCallback(async () => {
-    setError(null);
+    setSearchAlert(null);
     const { location: point, error: geoError } = await geo.requestLocation({
       highAccuracy: true,
     });
 
     if (!point) {
-      setError(geoError ?? "Could not get your location.");
+      setSearchAlert({
+        kind: "generic",
+        message: geoError ?? "Could not get your location.",
+      });
       return;
     }
 
@@ -647,9 +666,11 @@ export function ExploreClient() {
     setFilters(next);
     const data = await executeSearch(next, { mapBounds: bounds });
     if (data && data.length === 0) {
-      setError(
-        "No listings near you yet. Pan the map or try another area — filters still apply.",
-      );
+      setSearchAlert({
+        kind: "generic",
+        message:
+          "No listings near you yet. Pan the map or try another area — filters still apply.",
+      });
     }
   }, [executeSearch, geo, suppressMapInteraction]);
 
@@ -668,6 +689,14 @@ export function ExploreClient() {
     },
     [appliedFilters, executeSearch],
   );
+
+  const retryLastSearch = useCallback(() => {
+    void executeSearch(appliedFilters, {
+      mapBounds: appliedMapBounds,
+      syncUrl: false,
+      history: "replace",
+    });
+  }, [appliedFilters, appliedMapBounds, executeSearch]);
 
   const runReset = useCallback(async () => {
     geo.clearLocation();
@@ -879,9 +908,18 @@ export function ExploreClient() {
         </ContentBand>
       </div>
 
-      {error && (
+      {searchAlert && (
         <div className={cn(contentBandInnerClass("wide"), "shrink-0")}>
-          <p className="bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>
+          <ExploreSearchAlert
+            kind={searchAlert.kind}
+            message={searchAlert.message}
+            onRetry={
+              searchAlert.kind === "rate_limit" || searchAlert.kind === "server"
+                ? retryLastSearch
+                : undefined
+            }
+            retrying={searching}
+          />
         </div>
       )}
 
