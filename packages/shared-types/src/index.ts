@@ -13,6 +13,9 @@ export const PRICING = {
   unlockExclusiveHours: 72,
 } as const;
 
+/** Max building photos per listing (cover + gallery). */
+export const MAX_BUILDING_PHOTOS = 4;
+
 export type PriceQuote = {
   purpose: PaymentPurpose;
   amountUgx: number;

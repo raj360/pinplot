@@ -18,7 +18,7 @@ import {
   UpdateUnitDto,
 } from "./dto/building.dto";
 import type { BuildingSummary, BuildingType, UnitStatus } from "@plotpin/shared-types";
-import { PaymentPurpose } from "@plotpin/shared-types";
+import { MAX_BUILDING_PHOTOS, PaymentPurpose } from "@plotpin/shared-types";
 import { EXPLORE_BOUNDS_SQL } from "./explore-query";
 import { ExploreSearchCacheService } from "./explore-search-cache.service";
 import { PricingService } from "../pricing/pricing.service";
@@ -879,6 +879,62 @@ export class BuildingsService {
     dto: RegisterImageDto,
   ) {
     await this.assertLandlord(buildingId, landlordId);
+    return this.insertBuildingImage(buildingId, dto);
+  }
+
+  async listImages(buildingId: string, landlordId: string) {
+    await this.assertLandlord(buildingId, landlordId);
+    return this.fetchBuildingImages(buildingId);
+  }
+
+  async deleteImage(buildingId: string, landlordId: string, imageId: string) {
+    await this.assertLandlord(buildingId, landlordId);
+    return this.removeBuildingImage(buildingId, imageId);
+  }
+
+  async setPrimaryImage(
+    buildingId: string,
+    landlordId: string,
+    imageId: string,
+  ) {
+    await this.assertLandlord(buildingId, landlordId);
+    return this.promoteBuildingImage(buildingId, imageId);
+  }
+
+  async adminListImages(buildingId: string) {
+    await this.assertPendingBuilding(buildingId);
+    return this.fetchBuildingImages(buildingId);
+  }
+
+  async adminRegisterImage(buildingId: string, dto: RegisterImageDto) {
+    await this.assertPendingBuilding(buildingId);
+    return this.insertBuildingImage(buildingId, dto);
+  }
+
+  async adminDeleteImage(buildingId: string, imageId: string) {
+    await this.assertPendingBuilding(buildingId);
+    return this.removeBuildingImage(buildingId, imageId);
+  }
+
+  async adminSetPrimaryImage(buildingId: string, imageId: string) {
+    await this.assertPendingBuilding(buildingId);
+    return this.promoteBuildingImage(buildingId, imageId);
+  }
+
+  private async insertBuildingImage(
+    buildingId: string,
+    dto: RegisterImageDto,
+  ) {
+    const { rows: countRows } = await this.db.query<{ count: string }>(
+      `SELECT COUNT(*)::text AS count FROM unit_images WHERE building_id = $1`,
+      [buildingId],
+    );
+    const imageCount = Number(countRows[0]?.count ?? 0);
+    if (imageCount >= MAX_BUILDING_PHOTOS) {
+      throw new BadRequestException(
+        `A building can have at most ${MAX_BUILDING_PHOTOS} photos (including cover).`,
+      );
+    }
 
     if (dto.isPrimary) {
       await this.db.query(
@@ -891,13 +947,121 @@ export class BuildingsService {
       );
     }
 
-    const { rows } = await this.db.query(
+    const { rows } = await this.db.query<{
+      id: string;
+      storage_path: string;
+      is_primary: boolean;
+      sort_order: number;
+      created_at: Date;
+    }>(
       `INSERT INTO unit_images (building_id, storage_path, is_primary, sort_order)
        VALUES ($1, $2, $3, (SELECT COALESCE(MAX(sort_order), 0) + 1 FROM unit_images WHERE building_id = $1))
-       RETURNING *`,
+       RETURNING id, storage_path, is_primary, sort_order, created_at`,
       [buildingId, dto.storagePath, dto.isPrimary ?? false],
     );
-    return rows[0];
+    return this.mapImageRow(rows[0]);
+  }
+
+  private async fetchBuildingImages(buildingId: string) {
+    const { rows } = await this.db.query<{
+      id: string;
+      storage_path: string;
+      is_primary: boolean;
+      sort_order: number;
+      created_at: Date;
+    }>(
+      `SELECT id, storage_path, is_primary, sort_order, created_at
+       FROM unit_images
+       WHERE building_id = $1
+       ORDER BY is_primary DESC, sort_order ASC, created_at ASC`,
+      [buildingId],
+    );
+    return rows.map((row) => this.mapImageRow(row));
+  }
+
+  private mapImageRow(row: {
+    id: string;
+    storage_path: string;
+    is_primary: boolean;
+    sort_order: number;
+    created_at: Date;
+  }) {
+    return {
+      id: row.id,
+      storagePath: row.storage_path,
+      isPrimary: row.is_primary,
+      sortOrder: row.sort_order,
+      createdAt: row.created_at.toISOString(),
+    };
+  }
+
+  private async removeBuildingImage(buildingId: string, imageId: string) {
+    const { rows } = await this.db.query<{
+      id: string;
+      is_primary: boolean;
+    }>(
+      `SELECT id, is_primary
+       FROM unit_images
+       WHERE id = $1 AND building_id = $2`,
+      [imageId, buildingId],
+    );
+    if (!rows[0]) throw new NotFoundException("Image not found");
+
+    const wasPrimary = rows[0].is_primary;
+    await this.db.query(
+      "DELETE FROM unit_images WHERE id = $1 AND building_id = $2",
+      [imageId, buildingId],
+    );
+
+    if (wasPrimary) {
+      const { rows: nextRows } = await this.db.query<{
+        id: string;
+        storage_path: string;
+      }>(
+        `SELECT id, storage_path
+         FROM unit_images
+         WHERE building_id = $1
+         ORDER BY sort_order ASC, created_at ASC
+         LIMIT 1`,
+        [buildingId],
+      );
+      if (nextRows[0]) {
+        await this.promoteBuildingImage(buildingId, nextRows[0].id);
+      } else {
+        await this.db.query(
+          "UPDATE buildings SET cover_image_path = NULL, updated_at = NOW() WHERE id = $1",
+          [buildingId],
+        );
+      }
+    }
+
+    return { deleted: true };
+  }
+
+  private async promoteBuildingImage(buildingId: string, imageId: string) {
+    const { rows } = await this.db.query<{ storage_path: string }>(
+      `SELECT storage_path
+       FROM unit_images
+       WHERE id = $1 AND building_id = $2`,
+      [imageId, buildingId],
+    );
+    if (!rows[0]) throw new NotFoundException("Image not found");
+
+    await this.db.query(
+      "UPDATE unit_images SET is_primary = FALSE WHERE building_id = $1",
+      [buildingId],
+    );
+    await this.db.query(
+      "UPDATE unit_images SET is_primary = TRUE WHERE id = $1",
+      [imageId],
+    );
+    await this.db.query(
+      "UPDATE buildings SET cover_image_path = $2, updated_at = NOW() WHERE id = $1",
+      [buildingId, rows[0].storage_path],
+    );
+
+    const images = await this.fetchBuildingImages(buildingId);
+    return images.find((image) => image.id === imageId) ?? images[0];
   }
 
   private async insertUnit(buildingId: string, dto: CreateUnitDto) {

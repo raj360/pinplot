@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { DashboardSection } from "@/components/layout/DashboardSection";
+import { BuildingPhotoManager } from "@/components/buildings/BuildingPhotoManager";
 import { ManageBuildingSkeleton } from "@/components/landlord/LandlordPageSkeletons";
 import { Button } from "@/components/ui/button";
 import {
@@ -144,6 +145,15 @@ export default function ManageBuildingClient({
           {listingQuote.note}
         </p>
       )}
+
+      {!building.isVerified ? (
+        <DashboardSection
+          title="Photos"
+          description="Update cover and gallery photos while this listing is pending verification."
+        >
+          <BuildingPhotoManager buildingId={buildingId} variant="landlord" />
+        </DashboardSection>
+      ) : null}
 
       <DashboardSection
         title={building.name}

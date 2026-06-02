@@ -43,7 +43,7 @@ Keep `ALLOW_DEV_UNLOCK=1` in dev/staging until Sprint 5.
 | S4-04 | Coupon codes (admin) | Done | Migration `014`; `POST /wallet/redeem-coupon`; `/admin/coupons` |
 | S4-07 | Dynamic fee in unlock UX | Done | Quote API in unlock status + unlock panel (type + beds) |
 | S4-08 | Welcome bonus | Done | `POST /profiles/sync` → 1× unlock credit, 90-day expiry |
-| S4-09 | Landlord multi-photo UI | Pending | Cover + gallery on create/edit |
+| S4-09 | Landlord multi-photo UI | Done | Gallery on create; photo manager on pending edit (landlord + admin) |
 | S4-10 | Admin reject listing | Pending | Reason + landlord notification stub |
 | S4-11 | Explore 429 UX | Pending | Friendly rate-limit message |
 | S4-12 | Auth guard DB resilience | Pending | Transient pg errors in guards |
