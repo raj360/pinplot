@@ -56,7 +56,10 @@ export function useBuildingUnlocks(
       unit.status === UnitStatus.AVAILABLE && !unlockedUnitIds.has(unit.id),
   );
   const availableUnitKey = availableUnits.map((unit) => unit.id).join(",");
-  const shouldFetchQuotes = Boolean(pricingContext && availableUnits.length > 0);
+  const pricingContextKey = pricingContext
+    ? `${pricingContext.buildingType}:${pricingContext.countryCode}`
+    : "";
+  const shouldFetchQuotes = Boolean(pricingContextKey && availableUnits.length > 0);
 
   const reloadUnlocks = useCallback(async () => {
     try {
@@ -109,27 +112,42 @@ export function useBuildingUnlocks(
     return () => {
       cancelled = true;
     };
-  }, [isAuthenticated, loadedBuildingId]);
+  }, [isAuthenticated, buildingId]);
+
+  useEffect(() => {
+    setUnitQuotes({});
+  }, [buildingId]);
 
   useEffect(() => {
     if (!shouldFetchQuotes || !pricingContext) return;
 
     let cancelled = false;
+    const context = pricingContext;
+
+    const bedroomCounts = [
+      ...new Set(availableUnits.map((unit) => unit.bedrooms)),
+    ];
 
     Promise.all(
-      availableUnits.map(async (unit) => {
+      bedroomCounts.map(async (bedrooms) => {
         const quote = await fetchPriceQuote({
-          bedrooms: unit.bedrooms,
+          bedrooms,
           purpose: "UNLOCK",
-          buildingType: pricingContext.buildingType,
-          countryCode: pricingContext.countryCode,
+          buildingType: context.buildingType,
+          countryCode: context.countryCode,
         });
-        return [unit.id, quote] as const;
+        return [bedrooms, quote] as const;
       }),
     )
       .then((entries) => {
         if (cancelled) return;
-        setUnitQuotes(Object.fromEntries(entries));
+        const byBedrooms = Object.fromEntries(entries);
+        const next: Record<string, PriceQuote> = {};
+        for (const unit of availableUnits) {
+          const quote = byBedrooms[unit.bedrooms];
+          if (quote) next[unit.id] = quote;
+        }
+        setUnitQuotes(next);
       })
       .catch(() => {
         if (!cancelled) setUnitQuotes({});
@@ -138,12 +156,8 @@ export function useBuildingUnlocks(
     return () => {
       cancelled = true;
     };
-  }, [
-    availableUnitKey,
-    availableUnits,
-    pricingContext,
-    shouldFetchQuotes,
-  ]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- stable keys only; pricingContext object is recreated each render
+  }, [availableUnitKey, pricingContextKey, shouldFetchQuotes]);
 
   const visibleUnitQuotes = useMemo(
     () => (shouldFetchQuotes ? unitQuotes : {}),

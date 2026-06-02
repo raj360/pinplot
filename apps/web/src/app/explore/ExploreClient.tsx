@@ -77,6 +77,7 @@ export function ExploreClient() {
   const [allBuildings, setAllBuildings] = useState<BuildingSummary[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [selectedDetail, setSelectedDetail] = useState<BuildingDetail | null>(null);
+  const selectedDetailRef = useRef<BuildingDetail | null>(null);
   const [selectedLoading, setSelectedLoading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [searching, setSearching] = useState(false);
@@ -198,10 +199,20 @@ export function ExploreClient() {
     async (id: string) => {
       setSelectedId(id);
       setHover(id);
+
+      if (selectedDetailRef.current?.id === id) {
+        return;
+      }
+
       setSelectedLoading(true);
       setSelectedDetail(null);
+      selectedDetailRef.current = null;
+
       const detail = await loadSelectedDetail(id);
-      setSelectedDetail(detail);
+      if (detail) {
+        selectedDetailRef.current = detail;
+        setSelectedDetail(detail);
+      }
       setSelectedLoading(false);
     },
     [loadSelectedDetail, setHover],
