@@ -10,6 +10,7 @@ import { UnlocksModule } from "./unlocks/unlocks.module";
 import { PricingModule } from "./pricing/pricing.module";
 import { WalletModule } from "./wallet/wallet.module";
 import { CouponsModule } from "./coupons/coupons.module";
+import { CountriesModule } from "./countries/countries.module";
 
 @Module({
   imports: [
@@ -33,6 +34,7 @@ import { CouponsModule } from "./coupons/coupons.module";
     PricingModule,
     WalletModule,
     CouponsModule,
+    CountriesModule,
   ],
 })
 export class AppModule {}

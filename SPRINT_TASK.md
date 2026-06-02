@@ -12,58 +12,35 @@
 
 ## Sprint 4 — Supply, wallet & international foundations (current)
 
-**Slice 1 ✅ merged**
+**Slice 1 ✅ merged · Slice 2 ✅ complete**
 
 | ID | Task | Status |
 |----|------|--------|
-| S4-01 | Pricing rules schema | Done — `012_pricing_rules`, UG seed |
-| S4-02 | Quote API | Done — `GET /pricing/quote` |
-| S4-05 | Landlord unit status UI | Done |
-| S4-06 | Landlord unit status API | Done |
-| S4-E1–E5 | Explore filters, perf, auth skeleton | Done |
-| S4-A1 | Admin edit pending building | Done — pin, units, cover upload |
-| S4-A2 | Admin exact pin on review | Done |
-| S4-A3 | Admin loading UX | Done — `loading.tsx` + skeletons |
+| S4-01–S4-02, S4-E1–E5, S4-A1–A3 | Pricing, explore perf, admin edit | Done |
+| S4-03–S4-12, S4-UX | Wallet, photos, reject, 429, auth resilience, tokens | Done |
 
 **Prerequisites:**
 
 ```bash
-yarn db:migrate   # required on each env after merge (through 016)
+yarn db:migrate   # required on each env after merge (through 018)
 ```
 
 Keep `ALLOW_DEV_UNLOCK=1` in dev/staging until Sprint 5.
 
 ---
 
-### Sprint 4 — Slice 2 (wallet + UX) — **do next**
+### Sprint 4 — Slice 3 (international foundations) — **in progress**
 
 | ID | Task | Status | Notes |
 |----|------|--------|-------|
-| S4-03 | Wallet / credits foundation | Done | Migration `013`; `GET /wallet`; FIFO credit consume on unlock |
-| S4-04 | Coupon codes (admin) | Done | Migration `014`; `POST /wallet/redeem-coupon`; `/admin/coupons` |
-| S4-07 | Dynamic fee in unlock UX | Done | Quote API in unlock status + unlock panel (type + beds) |
-| S4-08 | Welcome bonus | Done | `POST /profiles/sync` → 1× unlock credit, 90-day expiry |
-| S4-09 | Landlord multi-photo UI | Done | Gallery on create; photo manager on pending edit (landlord + admin) |
-| S4-09b | Image compression + thumbs | Done | Client JPEG compress; thumb/full variants; storage delete on row remove; explore cover thumbs; featured badge on cards |
-| S4-10 | Admin reject listing | Done | Migration `016`; `PATCH /admin/buildings/:id/reject`; landlord dashboard + resubmit |
-| S4-11 | Explore 429 UX | Done | `ThrottleExceptionFilter` + `ExploreSearchAlert` + `ApiHttpError` |
-| S4-12 | Auth guard DB resilience | Done | `withDbRetry` + `AuthProfileService`; optional auth degrades gracefully |
-| S4-UX | **Design tokens (Bondex-aligned)** | Done | Global `--border`, neutral scale, `--shadow-card*`, `.card-elevated`, `Skeleton` + explore row skeletons |
+| S4-13 | **Explore geo bootstrap** | In progress | Phase A+B done; diaspora defaults via S4-14/16 ✅ wired in bootstrap |
+| S4-14 | **Country catalog** | Done | Migration `017`; `GET /countries`; seed UG + 10 diaspora corridors (GB, US, KE, TZ, RW, NG, ZA, AE, CA, DE) |
+| S4-15 | **Currency display layer** | Done | Migration `018`; `GET /fx/rates`; `formatMoney` + FX footnote on explore cards |
+| S4-16 | **Viewer context** | Done | Profile → localStorage → browser locale/tz → UG; `ViewerContextProvider` |
+| S4-17 | **Explore empty state** | Pending | “No listings here yet” + landlord CTA |
+| S4-18 | **Featured launch program** | Pending | Admin grant; first 20 verified featured |
 
----
-
-### Sprint 4 — Slice 3 (international foundations) — **parallel after S4-03**
-
-| ID | Task | Status | Notes |
-|----|------|--------|-------|
-| S4-13 | **Explore geo bootstrap** | In progress | **Phase A+B done:** viewport search, composed filters, Near me (GPS + errors), place jump/geocode. **Remaining:** persist viewport; S4-14 diaspora defaults |
-| S4-14 | **Country catalog** | Pending | Extend `countries`: default map center, bounds, `display_locale` (e.g. `en-GB`), currency; seed UG, US, GB, KE (+ EU later) |
-| S4-15 | **Currency display layer** | Pending | `formatMoney(amount, listingCurrency, viewerContext)` → primary + optional FX footnote; use ECB/Stripe rates cache (daily); rent stays in listing currency |
-| S4-16 | **Viewer context** | Pending | Derive from profile country → else `navigator.language` + timezone hint → else UG; store preference in profile or localStorage |
-| S4-17 | **Explore empty state** | Pending | No buildings in viewport: “No listings here yet” + CTA for landlords (English); don’t fake pins |
-| S4-18 | **Featured launch program** | Pending | Admin grant or auto rule: first 20 verified `is_featured`; optional `featured_until`; uses wallet FEATURED_GRANT |
-
-**Acceptance (S4-13 + S4-15):** Diaspora user in London opens `/explore` → map centers London → sees FX on UG listing if any in view; Ugandan user denied GPS → Kampala default.
+**Acceptance (S4-13 + S4-15):** Diaspora user in London opens `/explore` → map centers London when GPS denied → UG listing shows rent + `~£` footnote; Ugandan user with GPS → Near me in Kampala.
 
 ---
 
@@ -71,38 +48,19 @@ Keep `ALLOW_DEV_UNLOCK=1` in dev/staging until Sprint 5.
 
 | ID | Task | Status | Notes |
 |----|------|--------|-------|
-| S4-19 | Landlord country on create | Pending | Default from profile; explicit country selector; drives pricing quote country |
-| S4-20 | Pricing rules multi-country seed | Pending | US/GB fee rows (even if launch supply is UG-only) for diaspora checkout quotes |
+| S4-19 | Landlord country on create | Pending | Default from profile; explicit country selector |
+| S4-20 | Pricing rules multi-country seed | Pending | US/GB fee rows for diaspora checkout quotes |
 
 ---
 
 ## Sprint 5 — Payments (**Stripe-first**)
 
-**Do not start until:** S4-03 wallet schema + S4-15 display layer merged.
+**Gate:** S4-15 display layer ✅ merged — Stripe work can start after S4-17/18 or in parallel.
 
-| ID | Task | Status | Notes |
-|----|------|--------|-------|
-| S5-01 | **Stripe Checkout** | Pending | **First** — unlock + listing; presentment currency from viewer context; show localized amount on checkout page |
-| S5-02 | Payment webhooks + idempotency | Pending | Settle wallet; receipt email stub |
-| S5-03 | Enforce unlock fee | Pending | Credits first, then Stripe |
-| S5-04 | Enforce listing fee | Pending | Before unit AVAILABLE |
-| S5-05 | Flutterwave mobile money | Pending | Uganda MTN/Airtel |
-| S5-06 | USSD flow | Pending | Provider TBD |
-| S5-07 | SMS phone verification | Pending | Africa's Talking / Twilio |
-| S5-08 | Featured listing checkout | Pending | Paid boost beyond launch 20 |
-
----
-
-## Sprint 6 — Global launch & growth infra
-
-| ID | Task | Notes |
-|----|------|-------|
-| S6-01 | UTM + ad attribution | `utm_source` persist; explore entry |
-| S6-02 | Open Graph / share cards | Building + explore previews for social |
-| S6-03 | Featured monetization | Self-serve or admin-priced slots |
-| S6-04 | Superadmin pricing UI | Per-country rules without SQL |
-| S6-05 | PWA manifest | `/sw.js` |
-| S6-06 | Supply targets | 20–30 verified UG + diaspora corridor listings |
+| ID | Task | Status |
+|----|------|--------|
+| S5-01 | Stripe Checkout | Pending |
+| S5-02–S5-08 | Webhooks, enforce fees, MoMo, USSD, featured checkout | Pending |
 
 ---
 
@@ -111,67 +69,27 @@ Keep `ALLOW_DEV_UNLOCK=1` in dev/staging until Sprint 5.
 | Milestone | Status |
 |-----------|--------|
 | Tenant discover → unlock → contact (dev) | ✅ |
-| Landlord submit → admin approve/edit | ✅ |
-| Landlord unit status toggle | ✅ |
-| Tiered pricing quote API | ✅ |
-| Dynamic fees in UI | ✅ S4-07 |
-| Wallet / coupons / welcome bonus | ✅ S4-03, S4-04, S4-08 |
-| Map centers on user location | 🟡 S4-13 (geo bootstrap + Near me; diaspora defaults → S4-14) |
-| Live map viewport search | ✅ S4-13 Phase A |
-| Place search (geocode + city presets) | ✅ S4-13 Phase B |
-| Composed explore filters + design polish | ✅ S4-UX |
-| Dual-currency / viewer money display | ❌ S4-15 |
+| Landlord submit → admin approve/reject | ✅ |
+| Wallet / coupons / welcome bonus | ✅ |
+| Explore viewport search + filters + Near me | ✅ |
+| Slice 2 stability (429, auth DB retry) | ✅ |
+| Country catalog + diaspora map default | ✅ S4-14, S4-16 |
+| Dual-currency / viewer money display | ✅ S4-15 |
 | Featured launch (20 free) | ❌ S4-18 |
 | Stripe checkout | ❌ S5-01 |
-| MoMo / USSD | ❌ S5-05, S5-06 |
-| Social ad landing + UTM | ❌ S6-01 |
 
 ---
 
-## Recommended build order (post–slice 1 merge)
+## Recommended build order
 
 ```
-Next:    S4-14 → S4-15 → S4-16          (country catalog + FX display + viewer context)
-Then:    S4-17 → S4-18 → S4-09 supply   (empty state, featured launch, more UG pins e.g. Bweyogere)
-Parallel: S4-19 → S4-20                 (landlord country + multi-country pricing seed)
-         ── then Sprint 5 Stripe ──
-```
-
-**Slice 2 ✅ complete.** Next: S4-14 country catalog unlocks diaspora map default.
-
-**Slice 3 (next week):** S4-14 country catalog unlocks diaspora map default; S4-15 FX footnote on explore cards unlocks ad landing UX; S4-16 viewer context wires profile → display.
-
-**Supply gap:** Near me works but Bweyogere/Gulu may show 0 results — seed dev listings or landlord outreach (S6-06), not a geo bug.
-
----
-
-## Admin setup (manual)
-
-```sql
-UPDATE profiles SET role = 'ADMIN' WHERE id = 'your-auth-user-uuid';
+Now:     S4-17 → S4-18              (empty state, featured launch)
+Then:    S4-19 → S4-20               (landlord country + pricing seed)
+         ── Sprint 5 Stripe ──
+Parallel: S4-13 persist viewport     (optional polish)
+         S6-01 UTM + homepage         (after S4-18 / S4-22)
 ```
 
 ---
 
-## Commands
-
-```bash
-yarn workspace @plotpin/shared-types build
-yarn dev:api
-yarn dev:web
-yarn db:migrate
-```
-
----
-
-## Backlog (post–Sprint 6)
-
-- Explore pagination + virtual list
-- Saved searches
-- SEO district pages (English)
-- React Native
-- Full UI i18n (explicit future sprint—not current scope)
-
----
-
-*Last updated: 2026-06-02 — S4-UX design tokens; explore composed filters + Near me; slice 2/3 plan*
+*Last updated: 2026-06-02 — Slice 2 complete; S4-14/15/16 shipped*

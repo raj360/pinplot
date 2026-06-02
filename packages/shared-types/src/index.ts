@@ -120,6 +120,21 @@ export const BUILDING_TYPES = [
 
 export type BuildingType = (typeof BUILDING_TYPES)[number];
 
+export type CountryCatalog = {
+  code: string;
+  name: string;
+  currency: string;
+  displayLocale: string;
+  mapCenter: { lat: number; lng: number } | null;
+  mapBounds: {
+    north: number;
+    south: number;
+    east: number;
+    west: number;
+  } | null;
+  defaultMapZoom: number;
+};
+
 export type BuildingSummary = {
   id: string;
   name: string;

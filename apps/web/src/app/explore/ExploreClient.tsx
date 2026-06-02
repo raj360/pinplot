@@ -48,6 +48,7 @@ import { fetchMyUnlocks, type TenantUnlock } from "@/lib/api/unlocks";
 import { useAuth } from "@/lib/auth/use-auth";
 import type { BuildingSummary } from "@plotpin/shared-types";
 import { useExplorePreview } from "./useExplorePreview";
+import { useViewerContext } from "@/components/providers/ViewerContextProvider";
 import { useIsMobile } from "@/lib/hooks/use-media-query";
 import { ExploreSearchAlert } from "@/components/explore/ExploreSearchAlert";
 import {
@@ -109,6 +110,7 @@ export function ExploreClient() {
   const { isAuthenticated } = useAuth();
   const shouldAutoGeo = !urlMapBounds && !urlFilters.city;
   const geo = useExploreGeolocation({ autoRequest: shouldAutoGeo });
+  const { getDefaultMapBounds, countriesByCode, viewer } = useViewerContext();
   const [unlockedLocations, setUnlockedLocations] = useState<
     Map<string, { lat: number; lng: number }>
   >(new Map());
@@ -151,7 +153,14 @@ export function ExploreClient() {
   const geoLocationRef = useRef(geo.location);
   const geoInUgandaRef = useRef(geo.inUganda);
   const geoLoadingRef = useRef(geo.loading);
+  const getDefaultMapBoundsRef = useRef(getDefaultMapBounds);
+  const viewerCountryCodeRef = useRef(viewer.countryCode);
   const filtersRef = useRef(filters);
+
+  useEffect(() => {
+    getDefaultMapBoundsRef.current = getDefaultMapBounds;
+    viewerCountryCodeRef.current = viewer.countryCode;
+  }, [getDefaultMapBounds, viewer.countryCode]);
 
   useEffect(() => {
     geoLocationRef.current = geo.location;
@@ -569,13 +578,11 @@ export function ExploreClient() {
       bootstrapPendingRef.current = false;
       window.clearTimeout(bootstrapTimerRef.current);
 
-      const geoPoint =
-        geoInUgandaRef.current && geoLocationRef.current
-          ? geoLocationRef.current
-          : null;
+      const geoPoint = geoLocationRef.current;
+      const countryBounds = getDefaultMapBoundsRef.current();
       const bounds = geoPoint
         ? boundsAround(geoPoint.lat, geoPoint.lng, EXPLORE_NEAR_ME_RADIUS_DEG)
-        : viewportBounds;
+        : (countryBounds ?? viewportBounds);
 
       suppressMapInteraction();
       setMapFocusBounds(bounds);
@@ -583,7 +590,16 @@ export function ExploreClient() {
 
       const next = { ...EMPTY_EXPLORE_FILTERS, city: "" };
       setFilters(next);
-      setWhereSegmentLabel(geoPoint ? "Near you" : "Map area");
+
+      let segmentLabel = "Map area";
+      if (geoPoint) {
+        segmentLabel = "Near you";
+      } else if (countryBounds) {
+        const country = countriesByCode.get(viewerCountryCodeRef.current);
+        segmentLabel = country ? `${country.name} area` : "Map area";
+      }
+      setWhereSegmentLabel(segmentLabel);
+
       await executeSearch(next, {
         mapBounds: bounds,
         history: "replace",
@@ -591,7 +607,7 @@ export function ExploreClient() {
       setLoading(false);
       initialLoadDone.current = true;
     },
-    [executeSearch, suppressMapInteraction],
+    [countriesByCode, executeSearch, suppressMapInteraction],
   );
 
   const handlePlaceJump = useCallback(

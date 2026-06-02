@@ -45,6 +45,7 @@ type BuildingRow = {
   is_featured: boolean;
   available_unit_count: string;
   rent_from: string | null;
+  currency: string;
   cover_image_thumb_path?: string | null;
   my_unlock_count?: string;
 };
@@ -114,8 +115,10 @@ export class BuildingsService {
         b.is_featured,
         b.cover_image_thumb_path,
         COUNT(u.id) FILTER (WHERE u.status = 'AVAILABLE') AS available_unit_count,
-        MIN(u.rent_amount) FILTER (WHERE u.status = 'AVAILABLE') AS rent_from
+        MIN(u.rent_amount) FILTER (WHERE u.status = 'AVAILABLE') AS rent_from,
+        co.currency AS currency
       FROM buildings b
+      JOIN countries co ON co.code = b.country_code
       LEFT JOIN units u ON u.building_id = b.id
       WHERE b.is_verified = TRUE
         ${EXPLORE_BOUNDS_SQL}
@@ -132,7 +135,7 @@ export class BuildingsService {
     }
 
     sql += `
-      GROUP BY b.id
+      GROUP BY b.id, co.currency
       HAVING COUNT(u.id) FILTER (WHERE u.status = 'AVAILABLE') > 0
     `;
 
@@ -206,8 +209,10 @@ export class BuildingsService {
         b.cover_image_thumb_path,
         0 AS available_unit_count,
         NULL AS rent_from,
+        co.currency AS currency,
         COUNT(DISTINCT uu.id) AS my_unlock_count
       FROM buildings b
+      JOIN countries co ON co.code = b.country_code
       JOIN units u ON u.building_id = b.id
       JOIN unit_unlocks uu ON uu.unit_id = u.id
       WHERE b.is_verified = TRUE
@@ -233,7 +238,7 @@ export class BuildingsService {
     }
 
     sql += `
-      GROUP BY b.id
+      GROUP BY b.id, co.currency
       HAVING COUNT(u.id) FILTER (WHERE u.status = 'AVAILABLE') = 0
       ORDER BY b.is_featured DESC, b.created_at DESC
       LIMIT 200
@@ -457,12 +462,14 @@ export class BuildingsService {
     const { rows } = await this.db.query(
       `SELECT
         b.*,
+        co.currency AS currency,
         COUNT(u.id) FILTER (WHERE u.status = 'AVAILABLE') AS available_unit_count,
         MIN(u.rent_amount) FILTER (WHERE u.status = 'AVAILABLE') AS rent_from
       FROM buildings b
+      JOIN countries co ON co.code = b.country_code
       LEFT JOIN units u ON u.building_id = b.id
       WHERE b.id = $1 AND ($2::boolean OR b.is_verified = TRUE)
-      GROUP BY b.id`,
+      GROUP BY b.id, co.currency`,
       [id, includeExact],
     );
 
@@ -527,6 +534,7 @@ export class BuildingsService {
           : undefined,
       availableUnitCount: Number(building.available_unit_count),
       rentFrom: building.rent_from ? Number(building.rent_from) : null,
+      currency: building.currency as string,
       units,
     };
   }
@@ -1293,6 +1301,7 @@ export class BuildingsService {
       isFeatured: row.is_featured,
       availableUnitCount: Number(row.available_unit_count),
       rentFrom: row.rent_from ? Number(row.rent_from) : null,
+      currency: row.currency,
       coverThumbUrl: row.cover_image_thumb_path ?? undefined,
       myUnlockCount: row.my_unlock_count
         ? Number(row.my_unlock_count)
