@@ -35,6 +35,11 @@ export function writeStoredViewerCountry(code: string) {
   localStorage.setItem(VIEWER_COUNTRY_STORAGE_KEY, normalized);
 }
 
+export function clearStoredViewerCountry() {
+  if (typeof window === "undefined") return;
+  localStorage.removeItem(VIEWER_COUNTRY_STORAGE_KEY);
+}
+
 function inferViewerCountryFromTimeZone(timeZone: string): string | null {
   if (timeZone.includes("London") || timeZone.startsWith("Europe/London")) {
     return "GB";

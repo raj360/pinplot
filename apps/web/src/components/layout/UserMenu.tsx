@@ -66,7 +66,7 @@ export function UserMenu({ initials, displayName, onSignOut }: UserMenuProps) {
       {open ? (
         <div
           role="menu"
-          className="absolute right-0 top-[calc(100%+0.375rem)] z-50 min-w-[220px] border border-border bg-surface py-1 text-foreground shadow-lg"
+          className="absolute right-0 top-[calc(100%+0.375rem)] z-[70] min-w-[220px] border border-border bg-surface py-1 text-foreground shadow-lg"
         >
           <Link
             href="/tenant/unlocks"

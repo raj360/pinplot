@@ -28,6 +28,7 @@ import {
   readStoredViewerCountry,
   resolveViewerCountryCode,
   writeStoredViewerCountry,
+  clearStoredViewerCountry,
 } from "@/lib/intl/resolve-viewer-country";
 import type { Bounds } from "@/lib/api/buildings";
 
@@ -38,6 +39,7 @@ type ViewerContextValue = {
   countriesByCode: Map<string, CountryCatalog>;
   fxRates: FxRateMap;
   setViewerCountryCode: (code: string) => void;
+  resetViewerCountryOverride: () => Promise<void>;
   getDefaultMapBounds: () => Bounds | null;
   formatListingMoney: (
     amount: number,
@@ -182,6 +184,25 @@ export function ViewerContextProvider({
     setViewerCountryCodeState(code.toUpperCase());
   }, []);
 
+  const resetViewerCountryOverride = useCallback(async () => {
+    clearStoredViewerCountry();
+    let profileCountry: string | null = null;
+    if (isAuthenticated) {
+      try {
+        const profile = await fetchMyProfile();
+        profileCountry = profile?.country_code ?? null;
+      } catch {
+        profileCountry = null;
+      }
+    }
+    setViewerCountryCodeState(
+      resolveViewerCountryCode({
+        storedCountry: null,
+        profileCountry,
+      }),
+    );
+  }, [isAuthenticated]);
+
   const getDefaultMapBounds = useCallback((): Bounds | null => {
     const bounds = activeCountry?.mapBounds;
     if (!bounds) return null;
@@ -221,6 +242,7 @@ export function ViewerContextProvider({
       countriesByCode,
       fxRates,
       setViewerCountryCode,
+      resetViewerCountryOverride,
       getDefaultMapBounds,
       formatListingMoney,
       formatListingRentPerMonth,
@@ -232,6 +254,7 @@ export function ViewerContextProvider({
       countriesByCode,
       fxRates,
       setViewerCountryCode,
+      resetViewerCountryOverride,
       getDefaultMapBounds,
       formatListingMoney,
       formatListingRentPerMonth,
