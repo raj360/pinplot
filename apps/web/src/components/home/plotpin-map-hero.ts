@@ -189,14 +189,29 @@ function buildContactCard(
   return { card, inner };
 }
 
+const CONTACT_CARD_W = 150;
+const CONTACT_CARD_H = 52;
+
 function positionContactCard(
   inner: d3.Selection<SVGGElement, unknown, null, undefined>,
   pinX: number,
   pinY: number,
   viewWidth: number,
+  viewHeight: number,
 ) {
-  const cardX = Math.min(pinX + 24, viewWidth - 168);
-  const cardY = pinY - 88;
+  const margin = 10;
+  const gap = 14;
+
+  // Place card to the right of the pin by default; flip left when near the edge.
+  let cardX = pinX + gap;
+  if (cardX + CONTACT_CARD_W > viewWidth - margin) {
+    cardX = pinX - CONTACT_CARD_W - gap;
+  }
+  cardX = Math.max(margin, Math.min(cardX, viewWidth - CONTACT_CARD_W - margin));
+
+  let cardY = pinY - 88;
+  cardY = Math.max(margin, Math.min(cardY, viewHeight - CONTACT_CARD_H - margin));
+
   inner.attr("transform", `translate(${cardX},${cardY})`);
 }
 
@@ -460,7 +475,7 @@ export function renderPlotPinMapHero(
     });
 
     if (showCard) {
-      positionContactCard(inner, activeX, activeY, width);
+      positionContactCard(inner, activeX, activeY, width, height);
       card.attr("opacity", Math.min(1, elapsed / 500));
     } else {
       card.attr("opacity", 0);

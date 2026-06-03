@@ -15,13 +15,13 @@ export type HeroPin = {
 export const HERO_VIEWBOX = { width: 640, height: 420 } as const;
 
 export const HERO_PINS: HeroPin[] = [
-  { id: "pin-1", x: 150, y: 150, label: "3", jitter: 5, phase: 0 },
+  { id: "pin-1", x: 148, y: 150, label: "3", jitter: 5, phase: 0 },
   { id: "pin-2", x: 250, y: 110, label: "1", jitter: 4, phase: 1.2 },
   { id: "pin-3", x: 360, y: 220, label: "5", jitter: 6, phase: 2.4 },
-  { id: "pin-4", x: 470, y: 150, label: "2", jitter: 4, phase: 0.8 },
-  { id: "pin-5", x: 540, y: 250, label: "4", jitter: 5, phase: 1.9 },
+  { id: "pin-4", x: 395, y: 148, label: "2", jitter: 4, phase: 0.8 },
+  { id: "pin-5", x: 385, y: 58, label: "4", jitter: 5, phase: 1.9 },
   { id: "pin-6", x: 210, y: 290, label: "1", jitter: 4, phase: 2.1 },
-  { id: "pin-7", x: 430, y: 320, label: "2", jitter: 5, phase: 0.5 },
+  { id: "pin-7", x: 372, y: 310, label: "2", jitter: 5, phase: 0.5 },
 ];
 
 /** Distance the selected pin "snaps" from approximate → exact on unlock. */
