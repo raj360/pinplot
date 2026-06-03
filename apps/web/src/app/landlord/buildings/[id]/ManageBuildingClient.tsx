@@ -9,6 +9,7 @@ import { ManageBuildingSkeleton } from "@/components/landlord/LandlordPageSkelet
 import { Button } from "@/components/ui/button";
 import {
   fetchMyBuilding,
+  resubmitBuildingForReview,
   updateUnitStatus,
   type LandlordBuildingDetail,
 } from "@/lib/api/buildings";
@@ -52,6 +53,8 @@ export default function ManageBuildingClient({
     null,
   );
   const [listingQuote, setListingQuote] = useState<PriceQuote | null>(null);
+  const [resubmitting, setResubmitting] = useState(false);
+  const [resubmitMessage, setResubmitMessage] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -112,6 +115,25 @@ export default function ManageBuildingClient({
     }
   }
 
+  async function resubmitForReview() {
+    setResubmitting(true);
+    setError(null);
+    setResubmitMessage(null);
+    try {
+      await resubmitBuildingForReview(buildingId);
+      await load();
+      setResubmitMessage(
+        "Listing resubmitted — an admin will review it again soon.",
+      );
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Could not resubmit for review.",
+      );
+    } finally {
+      setResubmitting(false);
+    }
+  }
+
   if (loading) {
     return <ManageBuildingSkeleton />;
   }
@@ -136,7 +158,36 @@ export default function ManageBuildingClient({
         ← Back to dashboard
       </Link>
 
-      {!building.isVerified && (
+      {building.rejectedAt ? (
+        <div className="border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-950">
+          <p className="font-medium">Listing rejected by admin</p>
+          {building.rejectionReason ? (
+            <p className="mt-2 whitespace-pre-wrap text-red-900/95">
+              {building.rejectionReason}
+            </p>
+          ) : null}
+          <p className="mt-2 text-red-900/90">
+            Update photos or details below, then resubmit when you are ready.
+          </p>
+          <Button
+            type="button"
+            className="mt-3 bg-red-700 text-white hover:bg-red-800"
+            loading={resubmitting}
+            loadingLabel="Resubmitting listing"
+            onClick={() => void resubmitForReview()}
+          >
+            Resubmit for review
+          </Button>
+        </div>
+      ) : null}
+
+      {resubmitMessage ? (
+        <p className="border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-900">
+          {resubmitMessage}
+        </p>
+      ) : null}
+
+      {!building.isVerified && !building.rejectedAt && (
         <p className="border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
           Pending admin review — you can edit photos while waiting. Units cannot
           go on the map until approved.
@@ -166,7 +217,11 @@ export default function ManageBuildingClient({
       {!building.isVerified ? (
         <DashboardSection
           title="Photos"
-          description="Update cover and gallery photos while this listing is pending verification."
+          description={
+            building.rejectedAt
+              ? "Fix cover and gallery photos before resubmitting for review."
+              : "Update cover and gallery photos while this listing is pending verification."
+          }
         >
           <BuildingPhotoManager buildingId={buildingId} variant="landlord" />
         </DashboardSection>

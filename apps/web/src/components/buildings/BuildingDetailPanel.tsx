@@ -1,3 +1,5 @@
+"use client";
+
 import Link from "next/link";
 import { exploreBuildingUrl } from "@/lib/explore/urls";
 import { PRICING, UnitStatus } from "@plotpin/shared-types";
@@ -8,8 +10,10 @@ import {
   groupAvailableUnits,
   listAvailableUnits,
   summarizeAvailableUnits,
+  type RentFormatter,
 } from "@/lib/buildings/unit-summary";
-import { formatCurrency, formatRentPerMonth } from "@/lib/intl/format";
+import { useViewerContext } from "@/components/providers/ViewerContextProvider";
+import { formatCurrency } from "@/lib/intl/format";
 
 function unitGridColumns(count: number) {
   if (count <= 4) return "grid-cols-2 sm:grid-cols-4";
@@ -38,7 +42,13 @@ function UnitGridLegend() {
   );
 }
 
-function UnitGrid({ building }: { building: BuildingDetail }) {
+function UnitGrid({
+  building,
+  formatRent,
+}: {
+  building: BuildingDetail;
+  formatRent: RentFormatter;
+}) {
   const gridClass = unitGridColumns(building.units.length);
 
   return (
@@ -47,7 +57,7 @@ function UnitGrid({ building }: { building: BuildingDetail }) {
         {building.units.map((unit) => (
           <div
             key={unit.id}
-            title={`Unit ${unit.unitNumber} · ${formatUnitDetail(unit)} · ${unit.status}`}
+            title={`Unit ${unit.unitNumber} · ${formatUnitDetail(unit, formatRent)} · ${unit.status}`}
             className={`flex aspect-square items-center justify-center border text-xs font-semibold ${
               unit.status === UnitStatus.AVAILABLE
                 ? "border-primary bg-primary/10 text-primary"
@@ -78,8 +88,13 @@ export function BuildingDetailPanel({
   /** Suppress title block when a parent already shows the building name. */
   hideHeader?: boolean;
 }) {
+  const { formatListingRentPerMonth } = useViewerContext();
+  const listingCurrency = building.currency ?? "UGX";
+  const formatRent: RentFormatter = (amount) =>
+    formatListingRentPerMonth(amount, listingCurrency, building.countryCode);
+
   const unitGroups = groupAvailableUnits(building.units);
-  const unitSummary = summarizeAvailableUnits(building.units);
+  const unitSummary = summarizeAvailableUnits(building.units, formatRent);
 
   const unlockNotice = (
     <p className="text-sm text-muted">
@@ -101,13 +116,17 @@ export function BuildingDetailPanel({
     <div className="border border-border bg-surface px-3 py-2.5 text-sm">
       <p className="font-medium">
         {building.availableUnitCount} available · from{" "}
-        {formatRentPerMonth(building.rentFrom)}
+        {formatListingRentPerMonth(
+          building.rentFrom,
+          listingCurrency,
+          building.countryCode,
+        )}
       </p>
       {unitGroups.length > 0 ? (
         <ul className="mt-2 space-y-1 text-xs text-muted">
           {unitGroups.map((group) => (
             <li key={`${group.bedrooms}-${group.bathrooms}-${group.rentAmount}`}>
-              {formatUnitGroup(group)}
+              {formatUnitGroup(group, formatRent)}
             </li>
           ))}
         </ul>
@@ -146,7 +165,7 @@ export function BuildingDetailPanel({
               </span>
             </summary>
             <div className="mt-2">
-              <UnitGrid building={building} />
+              <UnitGrid building={building} formatRent={formatRent} />
             </div>
           </details>
         ) : null}
@@ -165,7 +184,9 @@ export function BuildingDetailPanel({
 
       {summaryBox}
 
-      {building.units.length > 0 ? <UnitGrid building={building} /> : null}
+      {building.units.length > 0 ? (
+        <UnitGrid building={building} formatRent={formatRent} />
+      ) : null}
 
       {listAvailableUnits(building.units).length > 0 ? (
         <ul className="space-y-1.5 text-sm">
@@ -175,7 +196,7 @@ export function BuildingDetailPanel({
                 Unit {unit.unitNumber}
               </span>
               {" · "}
-              {formatUnitDetail(unit)}
+              {formatUnitDetail(unit, formatRent)}
             </li>
           ))}
         </ul>

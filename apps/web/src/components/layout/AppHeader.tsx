@@ -105,7 +105,7 @@ export function AppHeader({
   );
 
   return (
-    <header className="app-header border-b border-border bg-primary text-primary-foreground">
+    <header className="app-header relative z-[60] border-b border-border bg-primary text-primary-foreground">
       {variant === "sidebar" ? (
         <div className={headerSidebarShellClass()}>
           <div className={sidebarColumnClass("flex items-center")}>{brand}</div>

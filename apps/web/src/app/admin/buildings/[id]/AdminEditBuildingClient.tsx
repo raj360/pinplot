@@ -16,6 +16,7 @@ import {
   adminUpdatePendingUnit,
   fetchAdminPendingBuilding,
   getAdminLandlordDisplayName,
+  rejectBuilding,
   updateAdminPendingBuilding,
   verifyBuilding,
   type AdminPendingBuildingDetail,
@@ -59,6 +60,9 @@ export default function AdminEditBuildingClient({
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
   const [savingBuilding, setSavingBuilding] = useState(false);
   const [approving, setApproving] = useState(false);
+  const [showRejectForm, setShowRejectForm] = useState(false);
+  const [rejectReason, setRejectReason] = useState("");
+  const [rejecting, setRejecting] = useState(false);
 
   const [name, setName] = useState("");
   const [city, setCity] = useState("");
@@ -230,6 +234,26 @@ export default function AdminEditBuildingClient({
     }
   }
 
+  async function reject() {
+    const reason = rejectReason.trim();
+    if (reason.length < 10) {
+      setError("Rejection reason must be at least 10 characters.");
+      return;
+    }
+
+    setRejecting(true);
+    setError(null);
+    try {
+      await rejectBuilding(buildingId, reason);
+      router.push("/admin/buildings");
+      router.refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Reject failed");
+    } finally {
+      setRejecting(false);
+    }
+  }
+
   async function approve() {
     setApproving(true);
     setError(null);
@@ -284,6 +308,17 @@ export default function AdminEditBuildingClient({
           </Button>
           <Button
             type="button"
+            variant="outline"
+            className="border-red-200 text-red-700 hover:bg-red-50"
+            onClick={() => {
+              setShowRejectForm((open) => !open);
+              setError(null);
+            }}
+          >
+            {showRejectForm ? "Cancel reject" : "Reject listing"}
+          </Button>
+          <Button
+            type="button"
             loading={approving}
             loadingLabel="Approving building"
             onClick={() => void approve()}
@@ -292,6 +327,45 @@ export default function AdminEditBuildingClient({
           </Button>
         </div>
       </div>
+
+      {showRejectForm ? (
+        <section className="mb-4 border border-red-200 bg-red-50 p-4">
+          <h2 className="text-sm font-medium text-red-950">Reject listing</h2>
+          <p className="mt-1 text-sm text-red-900/90">
+            Explain what the landlord should fix. They will see this reason on
+            their dashboard (email notification is stubbed in dev).
+          </p>
+          <label className="mt-3 block text-sm text-red-950">
+            Reason for rejection
+            <textarea
+              value={rejectReason}
+              onChange={(event) => setRejectReason(event.target.value)}
+              rows={4}
+              className="mt-1 w-full border border-red-200 bg-white px-3 py-2 text-sm text-foreground"
+              placeholder="Example: Cover photo is not of the actual building. Please upload a clear exterior photo and resubmit."
+            />
+          </label>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <Button
+              type="button"
+              className="bg-red-700 text-white hover:bg-red-800"
+              loading={rejecting}
+              loadingLabel="Rejecting listing"
+              onClick={() => void reject()}
+            >
+              Confirm reject
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={rejecting}
+              onClick={() => setShowRejectForm(false)}
+            >
+              Cancel
+            </Button>
+          </div>
+        </section>
+      ) : null}
 
       {error ? <p className="mb-4 text-sm text-red-600">{error}</p> : null}
       {saveMessage ? (

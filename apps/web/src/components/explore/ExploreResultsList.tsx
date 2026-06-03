@@ -8,7 +8,7 @@ import type { ExploreSearchFilters } from "@/components/explore/ExploreFilters";
 import { ExploreResultRowSkeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import type { Bounds } from "@/lib/api/buildings";
-import { formatRentPerMonth } from "@/lib/intl/format";
+import { useViewerContext } from "@/components/providers/ViewerContextProvider";
 import { hasAccessOnly } from "@/lib/unlocks/display";
 import { cn } from "@/lib/utils/cn";
 import type { BuildingSummary } from "@plotpin/shared-types";
@@ -28,6 +28,7 @@ type ExploreResultsListProps = {
   onRemoveFilter: (key: keyof ExploreSearchFilters) => void;
   onRemoveMapBounds: () => void;
   onReset: () => void;
+  onBrowseSupply?: () => void;
 };
 
 export function ExploreResultsList({
@@ -45,7 +46,10 @@ export function ExploreResultsList({
   onRemoveFilter,
   onRemoveMapBounds,
   onReset,
+  onBrowseSupply,
 }: ExploreResultsListProps) {
+  const { formatListingRentPerMonth } = useViewerContext();
+
   return (
     <ul
       ref={listRef}
@@ -143,7 +147,11 @@ export function ExploreResultsList({
                     <>
                       {building.availableUnitCount} available · from{" "}
                       <span className="font-medium text-foreground/90">
-                        {formatRentPerMonth(building.rentFrom)}
+                        {formatListingRentPerMonth(
+                          building.rentFrom,
+                          building.currency,
+                          building.countryCode,
+                        )}
                       </span>
                     </>
                   ) : unlocked ? (
@@ -176,6 +184,7 @@ export function ExploreResultsList({
             onRemoveFilter={onRemoveFilter}
             onRemoveMapBounds={onRemoveMapBounds}
             onReset={onReset}
+            onBrowseSupply={onBrowseSupply}
           />
         </li>
       ) : null}

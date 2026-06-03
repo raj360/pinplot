@@ -16,7 +16,11 @@ import {
   BuildingBoundsQueryDto,
   CreateBuildingDto,
   CreateUnitDto,
+  FeaturedBuildingsQueryDto,
+  LaunchFeaturedGrantDto,
   RegisterImageDto,
+  RejectBuildingDto,
+  SetBuildingFeaturedDto,
   UpdateUnitDto,
   VerifyBuildingDto,
 } from "./dto/building.dto";
@@ -42,6 +46,13 @@ export class BuildingsController {
     return this.buildings.findInBounds(query, user?.id);
   }
 
+  @Get("featured")
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ default: { limit: 60, ttl: 60_000 } })
+  findFeatured(@Query() query: FeaturedBuildingsQueryDto) {
+    return this.buildings.findFeatured(query.limit ?? 12);
+  }
+
   @Get("mine/list")
   @UseGuards(SupabaseAuthGuard)
   findMine(@CurrentUser() user: AuthUser) {
@@ -52,6 +63,12 @@ export class BuildingsController {
   @UseGuards(SupabaseAuthGuard)
   findMineOne(@Param("id") id: string, @CurrentUser() user: AuthUser) {
     return this.buildings.findMineById(id, user.id);
+  }
+
+  @Patch("mine/:id/resubmit-review")
+  @UseGuards(SupabaseAuthGuard)
+  resubmitForReview(@Param("id") id: string, @CurrentUser() user: AuthUser) {
+    return this.buildings.resubmitForReview(id, user.id);
   }
 
   @Patch(":id/units/:unitId/status")
@@ -182,6 +199,28 @@ export class AdminBuildingsController {
     return this.buildings.setVerified(id, dto.verified);
   }
 
+  @Patch(":id/reject")
+  reject(
+    @Param("id") id: string,
+    @CurrentUser() user: AuthUser,
+    @Body() dto: RejectBuildingDto,
+  ) {
+    return this.buildings.rejectBuilding(id, user.id, dto.reason);
+  }
+
+  @Patch(":id/featured")
+  setFeatured(
+    @Param("id") id: string,
+    @CurrentUser() user: AuthUser,
+    @Body() dto: SetBuildingFeaturedDto,
+  ) {
+    return this.buildings.setBuildingFeatured(id, user.id, {
+      featured: dto.featured,
+      durationDays: dto.durationDays,
+      source: "ADMIN_GRANT",
+    });
+  }
+
   @Get(":id/images")
   listImages(@Param("id") id: string) {
     return this.buildings.adminListImages(id);
@@ -200,5 +239,29 @@ export class AdminBuildingsController {
   @Patch(":id/images/:imageId/primary")
   setPrimaryImage(@Param("id") id: string, @Param("imageId") imageId: string) {
     return this.buildings.adminSetPrimaryImage(id, imageId);
+  }
+}
+
+@Controller("admin/featured")
+@UseGuards(SupabaseAuthGuard, RolesGuard)
+@RequireRoles("ADMIN", "SUPERADMIN")
+export class AdminFeaturedController {
+  constructor(private readonly buildings: BuildingsService) {}
+
+  @Get("launch-stats")
+  launchStats() {
+    return this.buildings.getLaunchFeaturedStats();
+  }
+
+  @Post("launch-grant")
+  launchGrant(
+    @CurrentUser() user: AuthUser,
+    @Body() dto: LaunchFeaturedGrantDto,
+  ) {
+    return this.buildings.runLaunchFeaturedGrant(
+      user.id,
+      dto.limit,
+      dto.durationDays,
+    );
   }
 }

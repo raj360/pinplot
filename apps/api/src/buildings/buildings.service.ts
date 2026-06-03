@@ -19,8 +19,13 @@ import {
 } from "./dto/building.dto";
 import type { BuildingSummary, BuildingType, UnitStatus } from "@plotpin/shared-types";
 import { MAX_BUILDING_PHOTOS, PaymentPurpose } from "@plotpin/shared-types";
-import { EXPLORE_BOUNDS_SQL } from "./explore-query";
+import {
+  EXPLORE_BOUNDS_SQL,
+  EXPLORE_FEATURED_ACTIVE_SQL,
+  EXPLORE_FEATURED_ORDER_SQL,
+} from "./explore-query";
 import { ExploreSearchCacheService } from "./explore-search-cache.service";
+import { LandlordNotificationsService } from "./landlord-notifications.service";
 import { PricingService } from "../pricing/pricing.service";
 import { SupabaseAdminService } from "../auth/supabase-admin.service";
 import {
@@ -42,8 +47,10 @@ type BuildingRow = {
   total_units: number;
   is_verified: boolean;
   is_featured: boolean;
+  featured_until: Date | null;
   available_unit_count: string;
   rent_from: string | null;
+  currency: string;
   cover_image_thumb_path?: string | null;
   my_unlock_count?: string;
 };
@@ -55,6 +62,7 @@ export class BuildingsService {
     private readonly exploreCache: ExploreSearchCacheService,
     private readonly pricing: PricingService,
     private readonly supabaseAdmin: SupabaseAdminService,
+    private readonly landlordNotifications: LandlordNotificationsService,
   ) {}
 
   async findInBounds(query: BuildingBoundsQueryDto, tenantId?: string) {
@@ -88,6 +96,42 @@ export class BuildingsService {
     return result;
   }
 
+  async findFeatured(limit = 12) {
+    const capped = Math.min(Math.max(limit, 1), 24);
+    const { rows } = await this.db.query<BuildingRow>(
+      `SELECT
+        b.id,
+        b.name,
+        b.city,
+        b.district,
+        b.country_code,
+        b.building_type,
+        b.approximate_lat,
+        b.approximate_lng,
+        b.exact_lat,
+        b.exact_lng,
+        b.total_units,
+        b.is_verified,
+        b.is_featured,
+        b.featured_until,
+        b.cover_image_thumb_path,
+        COUNT(u.id) FILTER (WHERE u.status = 'AVAILABLE') AS available_unit_count,
+        MIN(u.rent_amount) FILTER (WHERE u.status = 'AVAILABLE') AS rent_from,
+        co.currency AS currency
+      FROM buildings b
+      JOIN countries co ON co.code = b.country_code
+      LEFT JOIN units u ON u.building_id = b.id
+      WHERE b.is_verified = TRUE
+        AND ${EXPLORE_FEATURED_ACTIVE_SQL}
+      GROUP BY b.id, co.currency, b.is_featured, b.featured_until
+      HAVING COUNT(u.id) FILTER (WHERE u.status = 'AVAILABLE') > 0
+      ORDER BY b.featured_until DESC NULLS LAST, b.featured_granted_at DESC NULLS LAST, b.created_at DESC
+      LIMIT $1`,
+      [capped],
+    );
+    return rows.map((row) => this.toSummary(row));
+  }
+
   private async queryAvailableInBounds(query: BuildingBoundsQueryDto) {
     const params: unknown[] = [
       query.south,
@@ -110,10 +154,13 @@ export class BuildingsService {
         b.total_units,
         b.is_verified,
         b.is_featured,
+        b.featured_until,
         b.cover_image_thumb_path,
         COUNT(u.id) FILTER (WHERE u.status = 'AVAILABLE') AS available_unit_count,
-        MIN(u.rent_amount) FILTER (WHERE u.status = 'AVAILABLE') AS rent_from
+        MIN(u.rent_amount) FILTER (WHERE u.status = 'AVAILABLE') AS rent_from,
+        co.currency AS currency
       FROM buildings b
+      JOIN countries co ON co.code = b.country_code
       LEFT JOIN units u ON u.building_id = b.id
       WHERE b.is_verified = TRUE
         ${EXPLORE_BOUNDS_SQL}
@@ -130,7 +177,7 @@ export class BuildingsService {
     }
 
     sql += `
-      GROUP BY b.id
+      GROUP BY b.id, co.currency, b.is_featured, b.featured_until
       HAVING COUNT(u.id) FILTER (WHERE u.status = 'AVAILABLE') > 0
     `;
 
@@ -169,7 +216,7 @@ export class BuildingsService {
       sql += ` AND b.building_type = $${params.length}::building_type`;
     }
 
-    sql += ` ORDER BY b.is_featured DESC, b.created_at DESC LIMIT 200`;
+    sql += ` ORDER BY ${EXPLORE_FEATURED_ORDER_SQL} LIMIT 200`;
 
     const { rows } = await this.db.query<BuildingRow>(sql, params);
     return rows;
@@ -204,8 +251,10 @@ export class BuildingsService {
         b.cover_image_thumb_path,
         0 AS available_unit_count,
         NULL AS rent_from,
+        co.currency AS currency,
         COUNT(DISTINCT uu.id) AS my_unlock_count
       FROM buildings b
+      JOIN countries co ON co.code = b.country_code
       JOIN units u ON u.building_id = b.id
       JOIN unit_unlocks uu ON uu.unit_id = u.id
       WHERE b.is_verified = TRUE
@@ -231,9 +280,9 @@ export class BuildingsService {
     }
 
     sql += `
-      GROUP BY b.id
+      GROUP BY b.id, co.currency
       HAVING COUNT(u.id) FILTER (WHERE u.status = 'AVAILABLE') = 0
-      ORDER BY b.is_featured DESC, b.created_at DESC
+      ORDER BY ${EXPLORE_FEATURED_ORDER_SQL}
       LIMIT 200
     `;
 
@@ -287,6 +336,8 @@ export class BuildingsService {
       city: b.city,
       district: b.district,
       isVerified: b.is_verified,
+      rejectedAt: b.rejected_at ?? null,
+      rejectionReason: b.rejection_reason ?? null,
       totalUnits: b.total_units,
       availableUnitCount: Number(b.available_unit_count ?? 0),
       createdAt: b.created_at,
@@ -321,6 +372,8 @@ export class BuildingsService {
       buildingType: building.building_type,
       totalUnits: building.total_units,
       isVerified: building.is_verified,
+      rejectedAt: building.rejected_at ?? null,
+      rejectionReason: building.rejection_reason ?? null,
       availableUnitCount: Number(building.available_unit_count ?? 0),
       units,
     };
@@ -415,6 +468,7 @@ export class BuildingsService {
        LEFT JOIN profiles p ON p.id = b.landlord_id
        LEFT JOIN auth.users u ON u.id = b.landlord_id
        WHERE b.is_verified = FALSE
+         AND b.rejected_at IS NULL
        ORDER BY b.created_at ASC`,
     );
     return rows.map((row: Record<string, unknown>) => {
@@ -450,12 +504,14 @@ export class BuildingsService {
     const { rows } = await this.db.query(
       `SELECT
         b.*,
+        co.currency AS currency,
         COUNT(u.id) FILTER (WHERE u.status = 'AVAILABLE') AS available_unit_count,
         MIN(u.rent_amount) FILTER (WHERE u.status = 'AVAILABLE') AS rent_from
       FROM buildings b
+      JOIN countries co ON co.code = b.country_code
       LEFT JOIN units u ON u.building_id = b.id
       WHERE b.id = $1 AND ($2::boolean OR b.is_verified = TRUE)
-      GROUP BY b.id`,
+      GROUP BY b.id, co.currency`,
       [id, includeExact],
     );
 
@@ -520,6 +576,7 @@ export class BuildingsService {
           : undefined,
       availableUnitCount: Number(building.available_unit_count),
       rentFrom: building.rent_from ? Number(building.rent_from) : null,
+      currency: building.currency as string,
       units,
     };
   }
@@ -634,13 +691,133 @@ export class BuildingsService {
 
   async setVerified(buildingId: string, verified: boolean) {
     const { rows } = await this.db.query(
-      `UPDATE buildings SET is_verified = $2, updated_at = NOW()
-       WHERE id = $1 RETURNING id, name, is_verified`,
+      `UPDATE buildings
+       SET is_verified = $2,
+           verified_at = CASE WHEN $2 THEN NOW() ELSE verified_at END,
+           rejected_at = NULL,
+           rejection_reason = NULL,
+           updated_at = NOW()
+       WHERE id = $1
+       RETURNING id, name, is_verified`,
       [buildingId, verified],
     );
     if (!rows[0]) throw new NotFoundException("Building not found");
     this.exploreCache.clear();
     return rows[0];
+  }
+
+  async rejectBuilding(buildingId: string, adminId: string, reason: string) {
+    const trimmed = reason.trim();
+    if (!trimmed) {
+      throw new BadRequestException("Rejection reason is required.");
+    }
+
+    const { rows } = await this.db.query<{
+      id: string;
+      name: string;
+      landlord_id: string | null;
+      landlord_email: string | null;
+    }>(
+      `UPDATE buildings b
+       SET rejected_at = NOW(),
+           rejection_reason = $2,
+           managed_by_admin_id = $3,
+           updated_at = NOW()
+       WHERE b.id = $1
+         AND b.is_verified = FALSE
+         AND b.rejected_at IS NULL
+       RETURNING b.id,
+                 b.name,
+                 b.landlord_id,
+                 (SELECT u.email FROM auth.users u WHERE u.id = b.landlord_id) AS landlord_email`,
+      [buildingId, trimmed, adminId],
+    );
+
+    if (!rows[0]) {
+      const { rows: existing } = await this.db.query<{
+        is_verified: boolean;
+        rejected_at: Date | null;
+      }>(
+        "SELECT is_verified, rejected_at FROM buildings WHERE id = $1",
+        [buildingId],
+      );
+      if (!existing[0]) throw new NotFoundException("Building not found");
+      if (existing[0].is_verified) {
+        throw new BadRequestException("Approved listings cannot be rejected.");
+      }
+      if (existing[0].rejected_at) {
+        throw new BadRequestException("This listing was already rejected.");
+      }
+      throw new BadRequestException(
+        "Could not reject this listing. It may be missing a landlord account.",
+      );
+    }
+
+    const row = rows[0];
+    const notification = await this.landlordNotifications.notifyListingRejected({
+      landlordId: row.landlord_id ?? "",
+      landlordEmail: row.landlord_email,
+      buildingId: row.id,
+      buildingName: row.name,
+      reason: trimmed,
+    });
+
+    this.exploreCache.clear();
+
+    return {
+      id: row.id,
+      name: row.name,
+      rejectedAt: new Date().toISOString(),
+      rejectionReason: trimmed,
+      notification,
+    };
+  }
+
+  async resubmitForReview(buildingId: string, landlordId: string) {
+    const { rows } = await this.db.query(
+      `UPDATE buildings
+       SET rejected_at = NULL,
+           rejection_reason = NULL,
+           updated_at = NOW()
+       WHERE id = $1
+         AND landlord_id = $2
+         AND is_verified = FALSE
+         AND rejected_at IS NOT NULL
+       RETURNING id, name, is_verified, rejected_at, rejection_reason`,
+      [buildingId, landlordId],
+    );
+
+    if (!rows[0]) {
+      const { rows: existing } = await this.db.query<{
+        is_verified: boolean;
+        rejected_at: Date | null;
+        landlord_id: string | null;
+      }>(
+        "SELECT is_verified, rejected_at, landlord_id FROM buildings WHERE id = $1",
+        [buildingId],
+      );
+      if (!existing[0]) throw new NotFoundException("Building not found");
+      if (existing[0].landlord_id !== landlordId) {
+        throw new NotFoundException("Building not found");
+      }
+      if (existing[0].is_verified) {
+        throw new BadRequestException("Approved listings are already live.");
+      }
+      if (!existing[0].rejected_at) {
+        throw new BadRequestException(
+          "Only rejected listings can be resubmitted for review.",
+        );
+      }
+      throw new BadRequestException("Could not resubmit this listing.");
+    }
+
+    return {
+      id: rows[0].id,
+      name: rows[0].name,
+      isVerified: rows[0].is_verified,
+      rejectedAt: null,
+      rejectionReason: null,
+    };
   }
 
   async findPendingById(buildingId: string) {
@@ -1163,14 +1340,163 @@ export class BuildingsService {
       approximateLng: coords.lng,
       totalUnits: row.total_units,
       isVerified: row.is_verified,
-      isFeatured: row.is_featured,
+      isFeatured: this.isFeaturedActive(row),
       availableUnitCount: Number(row.available_unit_count),
       rentFrom: row.rent_from ? Number(row.rent_from) : null,
+      currency: row.currency,
       coverThumbUrl: row.cover_image_thumb_path ?? undefined,
       myUnlockCount: row.my_unlock_count
         ? Number(row.my_unlock_count)
         : undefined,
     };
+  }
+
+  private static readonly LAUNCH_FEATURED_MAX = 20;
+  private static readonly LAUNCH_FEATURED_DAYS = 90;
+
+  async getLaunchFeaturedStats() {
+    const { rows } = await this.db.query<{ active: string }>(
+      `SELECT COUNT(*)::text AS active
+       FROM buildings b
+       WHERE b.featured_source = 'LAUNCH_GRANT'
+         AND ${EXPLORE_FEATURED_ACTIVE_SQL}`,
+    );
+    const activeLaunchGrants = Number(rows[0]?.active ?? 0);
+    const maxSlots = BuildingsService.LAUNCH_FEATURED_MAX;
+    return {
+      maxSlots,
+      activeLaunchGrants,
+      remainingSlots: Math.max(0, maxSlots - activeLaunchGrants),
+    };
+  }
+
+  async runLaunchFeaturedGrant(
+    adminId: string,
+    limit = BuildingsService.LAUNCH_FEATURED_MAX,
+    durationDays = BuildingsService.LAUNCH_FEATURED_DAYS,
+  ) {
+    const stats = await this.getLaunchFeaturedStats();
+    if (stats.remainingSlots <= 0) {
+      return {
+        ...stats,
+        granted: [] as Array<{
+          id: string;
+          name: string;
+          featuredUntil: string;
+        }>,
+        message: "All launch featured slots are in use.",
+      };
+    }
+
+    const grantCount = Math.min(limit, stats.remainingSlots);
+    const { rows } = await this.db.query<{ id: string; name: string }>(
+      `SELECT b.id, b.name
+       FROM buildings b
+       WHERE b.is_verified = TRUE
+         AND b.rejected_at IS NULL
+         AND NOT (${EXPLORE_FEATURED_ACTIVE_SQL})
+       ORDER BY b.created_at ASC
+       LIMIT $1`,
+      [grantCount],
+    );
+
+    const granted = [];
+    for (const row of rows) {
+      const result = await this.setBuildingFeatured(row.id, adminId, {
+        featured: true,
+        durationDays,
+        source: "LAUNCH_GRANT",
+      });
+      granted.push(result);
+    }
+
+    return {
+      ...(await this.getLaunchFeaturedStats()),
+      granted,
+    };
+  }
+
+  async setBuildingFeatured(
+    buildingId: string,
+    adminId: string,
+    options: {
+      featured: boolean;
+      durationDays?: number;
+      source?: "LAUNCH_GRANT" | "ADMIN_GRANT";
+    },
+  ) {
+    if (!options.featured) {
+      const { rows } = await this.db.query<{ id: string; name: string }>(
+        `UPDATE buildings
+         SET is_featured = FALSE,
+             featured_until = NULL,
+             featured_granted_at = NULL,
+             featured_source = NULL,
+             updated_at = NOW()
+         WHERE id = $1 AND is_verified = TRUE
+         RETURNING id, name`,
+        [buildingId],
+      );
+      if (!rows[0]) throw new NotFoundException("Verified building not found");
+      this.exploreCache.clear();
+      return { id: rows[0].id, name: rows[0].name, isFeatured: false };
+    }
+
+    if (options.source === "LAUNCH_GRANT") {
+      const stats = await this.getLaunchFeaturedStats();
+      if (stats.remainingSlots <= 0) {
+        throw new BadRequestException(
+          "All launch featured slots are in use. Revoke one or wait for expiry.",
+        );
+      }
+    }
+
+    const durationDays =
+      options.durationDays ?? BuildingsService.LAUNCH_FEATURED_DAYS;
+    const source = options.source ?? "ADMIN_GRANT";
+
+    const { rows } = await this.db.query<{
+      id: string;
+      name: string;
+      featured_until: Date;
+    }>(
+      `UPDATE buildings
+       SET is_featured = TRUE,
+           featured_granted_at = NOW(),
+           featured_until = NOW() + ($2 * INTERVAL '1 day'),
+           featured_source = $3,
+           updated_at = NOW()
+       WHERE id = $1
+         AND is_verified = TRUE
+         AND rejected_at IS NULL
+       RETURNING id, name, featured_until`,
+      [buildingId, durationDays, source],
+    );
+    if (!rows[0]) throw new NotFoundException("Verified building not found");
+
+    await this.db.query(
+      `INSERT INTO featured_grants (building_id, admin_id, source, expires_at)
+       VALUES ($1, $2, $3, $4)`,
+      [buildingId, adminId, source, rows[0].featured_until],
+    );
+
+    this.exploreCache.clear();
+    return {
+      id: rows[0].id,
+      name: rows[0].name,
+      isFeatured: true,
+      featuredUntil: rows[0].featured_until.toISOString(),
+      source,
+    };
+  }
+
+  private isFeaturedActive(row: {
+    is_featured: boolean;
+    featured_until?: Date | null;
+  }) {
+    if (!row.is_featured) return false;
+    if (!row.featured_until) return true;
+    return row.featured_until.getTime() > Date.now();
   }
 
   private async assertLandlord(buildingId: string, landlordId: string) {
@@ -1182,14 +1508,21 @@ export class BuildingsService {
   }
 
   private async assertPendingBuilding(buildingId: string) {
-    const { rows } = await this.db.query<{ is_verified: boolean }>(
-      "SELECT is_verified FROM buildings WHERE id = $1",
-      [buildingId],
-    );
+    const { rows } = await this.db.query<{
+      is_verified: boolean;
+      rejected_at: Date | null;
+    }>("SELECT is_verified, rejected_at FROM buildings WHERE id = $1", [
+      buildingId,
+    ]);
     if (!rows[0]) throw new NotFoundException("Building not found");
     if (rows[0].is_verified) {
       throw new BadRequestException(
         "This building is already live. Pending edits are only allowed before approval.",
+      );
+    }
+    if (rows[0].rejected_at) {
+      throw new BadRequestException(
+        "This listing was rejected. The landlord must resubmit before admin review.",
       );
     }
   }

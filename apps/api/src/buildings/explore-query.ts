@@ -1,5 +1,10 @@
 import type { BuildingBoundsQueryDto } from "./dto/building.dto";
 
+/** Featured boost — honour expiry when featured_until is set. */
+export const EXPLORE_FEATURED_ACTIVE_SQL = `(b.is_featured = TRUE AND (b.featured_until IS NULL OR b.featured_until > NOW()))`;
+
+export const EXPLORE_FEATURED_ORDER_SQL = `(CASE WHEN ${EXPLORE_FEATURED_ACTIVE_SQL} THEN 1 ELSE 0 END) DESC, b.created_at DESC`;
+
 /** PostGIS viewport filter — uses buildings.location GIST index ($1=south $2=west $3=north $4=east). */
 export const EXPLORE_BOUNDS_SQL = `
   AND b.location IS NOT NULL

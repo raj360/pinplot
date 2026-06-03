@@ -1,5 +1,6 @@
 import type { BuildingSummary, PriceQuote } from "@plotpin/shared-types";
 import { apiFetch, getAccessToken } from "./client";
+import { readApiError } from "./http-errors";
 
 const API_URL =
   process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
@@ -71,7 +72,22 @@ export async function fetchBuildingsInBounds(
     headers,
     cache: "no-store",
   });
-  if (!res.ok) throw new Error("Failed to load buildings");
+  if (!res.ok) {
+    throw await readApiError(res, "Failed to load buildings");
+  }
+  return res.json();
+}
+
+export async function fetchFeaturedBuildings(
+  limit = 12,
+): Promise<BuildingSummary[]> {
+  const params = new URLSearchParams({ limit: String(limit) });
+  const res = await fetch(`${API_URL}/api/v1/buildings/featured?${params}`, {
+    next: { revalidate: 60 },
+  });
+  if (!res.ok) {
+    throw await readApiError(res, "Failed to load featured listings");
+  }
   return res.json();
 }
 
@@ -103,6 +119,8 @@ export type LandlordBuilding = {
   city: string;
   district: string | null;
   isVerified: boolean;
+  rejectedAt: string | null;
+  rejectionReason: string | null;
   totalUnits: number;
   availableUnitCount: number;
 };
@@ -142,6 +160,8 @@ export type LandlordBuildingDetail = {
   buildingType: string;
   totalUnits: number;
   isVerified: boolean;
+  rejectedAt: string | null;
+  rejectionReason: string | null;
   availableUnitCount: number;
   units: Array<{
     id: string;
@@ -231,6 +251,31 @@ export async function verifyBuilding(id: string, verified: boolean) {
   return apiFetch(`/admin/buildings/${id}/verify`, {
     method: "PATCH",
     body: JSON.stringify({ verified }),
+  });
+}
+
+export async function rejectBuilding(id: string, reason: string) {
+  return apiFetch<{
+    id: string;
+    name: string;
+    rejectedAt: string;
+    rejectionReason: string;
+    notification: { delivered: boolean; channel: string };
+  }>(`/admin/buildings/${id}/reject`, {
+    method: "PATCH",
+    body: JSON.stringify({ reason }),
+  });
+}
+
+export async function resubmitBuildingForReview(id: string) {
+  return apiFetch<{
+    id: string;
+    name: string;
+    isVerified: boolean;
+    rejectedAt: null;
+    rejectionReason: null;
+  }>(`/buildings/mine/${id}/resubmit-review`, {
+    method: "PATCH",
   });
 }
 

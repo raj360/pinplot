@@ -8,7 +8,9 @@ import {
   IsString,
   Matches,
   Max,
+  MaxLength,
   Min,
+  MinLength,
   ValidateNested,
 } from "class-validator";
 import { Type } from "class-transformer";
@@ -67,6 +69,15 @@ export class BuildingBoundsQueryDto {
   @IsOptional()
   @IsIn([...BUILDING_TYPES])
   buildingType?: string;
+}
+
+export class FeaturedBuildingsQueryDto {
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(24)
+  limit?: number;
 }
 
 export class CreateBuildingDto {
@@ -152,6 +163,13 @@ export class CreateUnitDto {
 export class VerifyBuildingDto {
   @IsBoolean()
   verified!: boolean;
+}
+
+export class RejectBuildingDto {
+  @IsString()
+  @MinLength(10, { message: "Rejection reason must be at least 10 characters" })
+  @MaxLength(2000)
+  reason!: string;
 }
 
 export class AdminUpdateBuildingDto {
@@ -247,4 +265,32 @@ export class RegisterImageDto {
 export class UpdateProfileRoleDto {
   @IsString()
   role!: "LANDLORD" | "TENANT";
+}
+
+export class SetBuildingFeaturedDto {
+  @IsBoolean()
+  featured!: boolean;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(365)
+  durationDays?: number;
+}
+
+export class LaunchFeaturedGrantDto {
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(20)
+  limit?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(365)
+  durationDays?: number;
 }

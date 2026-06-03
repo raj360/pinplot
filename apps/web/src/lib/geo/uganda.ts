@@ -22,6 +22,20 @@ export function isInUganda(lat: number, lng: number): boolean {
   );
 }
 
+export function boundsOverlapUganda(bounds: {
+  north: number;
+  south: number;
+  east: number;
+  west: number;
+}): boolean {
+  return !(
+    bounds.north < UGANDA_BOUNDS.south ||
+    bounds.south > UGANDA_BOUNDS.north ||
+    bounds.east < UGANDA_BOUNDS.west ||
+    bounds.west > UGANDA_BOUNDS.east
+  );
+}
+
 const EARTH_RADIUS_KM = 6371;
 
 export function distanceKm(a: GeoPoint, b: GeoPoint): number {

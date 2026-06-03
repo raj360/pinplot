@@ -11,7 +11,10 @@ import { LandlordDashboardSkeleton } from "@/components/landlord/LandlordPageSke
 import { fetchMyBuildings, type LandlordBuilding } from "@/lib/api/buildings";
 import { getAccessToken } from "@/lib/api/client";
 import {
+  buildingWasRejected,
   countBuildingsNeedingSetup,
+  countBuildingsPendingReview,
+  countBuildingsRejected,
   countBuildingsVisibleOnExplore,
   getLandlordBuildingStatus,
 } from "@/lib/landlord/building-status";
@@ -25,7 +28,8 @@ export default function LandlordDashboardClient() {
   const created = params.get("created") === "1";
   const needsSetupCount = countBuildingsNeedingSetup(buildings);
   const visibleCount = countBuildingsVisibleOnExplore(buildings);
-  const pendingCount = buildings.filter((b) => !b.isVerified).length;
+  const pendingCount = countBuildingsPendingReview(buildings);
+  const rejectedCount = countBuildingsRejected(buildings);
 
   useEffect(() => {
     let cancelled = false;
@@ -62,6 +66,20 @@ export default function LandlordDashboardClient() {
           can find it on the map.
         </p>
       )}
+
+      {!loading && rejectedCount > 0 ? (
+        <div className="border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-950">
+          <p className="font-medium">
+            {rejectedCount === 1
+              ? "1 listing was rejected"
+              : `${rejectedCount} listings were rejected`}
+          </p>
+          <p className="mt-1 text-red-900/90">
+            Open the building to read the admin reason, fix photos or details,
+            then resubmit for review.
+          </p>
+        </div>
+      ) : null}
 
       {!loading && needsSetupCount > 0 ? (
         <div className="border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-950">
@@ -109,6 +127,14 @@ export default function LandlordDashboardClient() {
                   <StatCard
                     label="Pending review"
                     value={pendingCount}
+                    className="sm:col-span-3"
+                  />
+                ) : null}
+                {rejectedCount > 0 ? (
+                  <StatCard
+                    label="Rejected"
+                    value={rejectedCount}
+                    highlight
                     className="sm:col-span-3"
                   />
                 ) : null}
@@ -163,7 +189,11 @@ export default function LandlordDashboardClient() {
                         : "border border-border bg-surface text-foreground hover:bg-background"
                     }`}
                   >
-                    {status.actionRequired ? "Mark units available" : "Manage units"}
+                    {status.actionRequired && buildingWasRejected(b)
+                      ? "Review & resubmit"
+                      : status.actionRequired
+                        ? "Mark units available"
+                        : "Manage units"}
                   </Link>
                 </li>
               );

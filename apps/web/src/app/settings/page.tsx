@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { AppHeader } from "@/components/layout/AppHeader";
 import { ProfileCompletionForm } from "@/components/profile/ProfileCompletionForm";
+import { ViewerCountrySettings } from "@/components/settings/ViewerCountrySettings";
 import { useAuth } from "@/lib/auth/use-auth";
 import { getUserDisplayLabel } from "@/lib/auth/display-name";
 import { LoadingState } from "@/components/ui/loading-state";
@@ -67,6 +68,13 @@ export default function SettingsPage() {
               {saved ? (
                 <p className="mt-3 text-sm text-lime-700">Profile saved.</p>
               ) : null}
+            </div>
+          </div>
+
+          <div className="border border-border bg-surface p-4">
+            <h2 className="font-semibold">Display country</h2>
+            <div className="mt-4">
+              <ViewerCountrySettings />
             </div>
           </div>
 

@@ -65,3 +65,20 @@ export function AdminEditBuildingSkeleton() {
     </div>
   );
 }
+
+/** Featured launch stats + action placeholders. */
+export function AdminFeaturedSkeleton() {
+  return (
+    <div className="space-y-4" aria-busy="true" aria-label="Loading featured listings">
+      <dl className="grid gap-3 sm:grid-cols-3">
+        {["cap", "active", "remaining"].map((key) => (
+          <div key={key} className="card-elevated px-4 py-3">
+            <Skeleton className="h-3 w-24" />
+            <Skeleton className="mt-2 h-8 w-10" />
+          </div>
+        ))}
+      </dl>
+      <Skeleton className="h-10 w-52" />
+    </div>
+  );
+}

@@ -17,6 +17,10 @@ export type UnitGroup = {
   rentAmount: number;
 };
 
+export type RentFormatter = (amount: number) => string;
+
+const defaultFormatRent: RentFormatter = (amount) => formatRentPerMonth(amount);
+
 const DETAIL_LIST_THRESHOLD = 4;
 
 export function groupAvailableUnits(units: UnitLike[]): UnitGroup[] {
@@ -44,14 +48,17 @@ export function groupAvailableUnits(units: UnitLike[]): UnitGroup[] {
 }
 
 /** One-line summary for compact panels and list subtitles. */
-export function summarizeAvailableUnits(units: UnitLike[]) {
+export function summarizeAvailableUnits(
+  units: UnitLike[],
+  formatRent: RentFormatter = defaultFormatRent,
+) {
   const groups = groupAvailableUnits(units);
   if (groups.length === 0) return null;
 
   return groups
     .map((group) => {
       const label = `${group.bedrooms} bed / ${group.bathrooms} bath`;
-      const rent = formatRentPerMonth(group.rentAmount);
+      const rent = formatRent(group.rentAmount);
       return group.count > 1
         ? `${group.count}× ${label} · ${rent}`
         : `1× ${label} · ${rent}`;
@@ -68,15 +75,21 @@ export function shouldShowUnitDetailList(units: UnitLike[]) {
   return listAvailableUnits(units).length <= DETAIL_LIST_THRESHOLD;
 }
 
-export function formatUnitGroup(group: UnitGroup) {
+export function formatUnitGroup(
+  group: UnitGroup,
+  formatRent: RentFormatter = defaultFormatRent,
+) {
   const label = `${group.bedrooms} bed / ${group.bathrooms} bath`;
-  const rent = formatRentPerMonth(group.rentAmount);
+  const rent = formatRent(group.rentAmount);
   return group.count > 1
     ? `${group.count} units · ${label} · ${rent}`
     : `1 unit · ${label} · ${rent}`;
 }
 
 /** Single unit — bed/bath and monthly rent for unlock cards and tooltips. */
-export function formatUnitDetail(unit: UnitLike) {
-  return `${unit.bedrooms} bed / ${unit.bathrooms} bath · ${formatRentPerMonth(unit.rentAmount)}`;
+export function formatUnitDetail(
+  unit: UnitLike,
+  formatRent: RentFormatter = defaultFormatRent,
+) {
+  return `${unit.bedrooms} bed / ${unit.bathrooms} bath · ${formatRent(unit.rentAmount)}`;
 }

@@ -16,6 +16,19 @@ export function buildingVisibleOnExplore(building: {
   return building.isVerified && building.availableUnitCount > 0;
 }
 
+export function buildingWasRejected(building: {
+  rejectedAt?: string | null;
+}): boolean {
+  return Boolean(building.rejectedAt);
+}
+
+export function buildingPendingReview(building: {
+  isVerified: boolean;
+  rejectedAt?: string | null;
+}): boolean {
+  return !building.isVerified && !buildingWasRejected(building);
+}
+
 export type LandlordBuildingStatus = {
   label: string;
   hint?: string;
@@ -28,7 +41,20 @@ export function getLandlordBuildingStatus(building: {
   isVerified: boolean;
   availableUnitCount: number;
   totalUnits: number;
+  rejectedAt?: string | null;
+  rejectionReason?: string | null;
 }): LandlordBuildingStatus {
+  if (buildingWasRejected(building)) {
+    return {
+      label: "Rejected",
+      hint:
+        building.rejectionReason ??
+        "Admin rejected this listing. Fix issues and resubmit for review.",
+      className: "bg-red-100 text-red-900",
+      actionRequired: true,
+    };
+  }
+
   if (!building.isVerified) {
     return {
       label: "Pending review",
@@ -65,4 +91,16 @@ export function countBuildingsVisibleOnExplore(
   buildings: Pick<LandlordBuilding, "isVerified" | "availableUnitCount">[],
 ): number {
   return buildings.filter(buildingVisibleOnExplore).length;
+}
+
+export function countBuildingsPendingReview(
+  buildings: Pick<LandlordBuilding, "isVerified" | "rejectedAt">[],
+): number {
+  return buildings.filter(buildingPendingReview).length;
+}
+
+export function countBuildingsRejected(
+  buildings: Pick<LandlordBuilding, "rejectedAt">[],
+): number {
+  return buildings.filter(buildingWasRejected).length;
 }

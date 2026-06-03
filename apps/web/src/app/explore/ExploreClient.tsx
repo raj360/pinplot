@@ -21,6 +21,7 @@ import { Spinner } from "@/components/ui/spinner";
 import {
   type BuildingDetail,
   type Bounds,
+  KAMPALA_BOUNDS,
 } from "@/lib/api/buildings";
 import {
   boundsAround,
@@ -48,7 +49,13 @@ import { fetchMyUnlocks, type TenantUnlock } from "@/lib/api/unlocks";
 import { useAuth } from "@/lib/auth/use-auth";
 import type { BuildingSummary } from "@plotpin/shared-types";
 import { useExplorePreview } from "./useExplorePreview";
+import { useViewerContext } from "@/components/providers/ViewerContextProvider";
 import { useIsMobile } from "@/lib/hooks/use-media-query";
+import { ExploreSearchAlert } from "@/components/explore/ExploreSearchAlert";
+import {
+  classifyExploreLoadError,
+  type ExploreLoadErrorKind,
+} from "@/lib/api/http-errors";
 import {
   buildExploreHref,
   exploreFiltersEqual,
@@ -56,6 +63,11 @@ import {
 } from "@/lib/explore/explore-url-filters";
 
 type DetailMode = "full" | "summary" | null;
+
+type SearchAlert = {
+  kind: ExploreLoadErrorKind;
+  message: string;
+} | null;
 
 const EMPTY_UNLOCKS: TenantUnlock[] = [];
 
@@ -84,7 +96,7 @@ export function ExploreClient() {
   const [selectedLoading, setSelectedLoading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [searching, setSearching] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [searchAlert, setSearchAlert] = useState<SearchAlert>(null);
   const [filters, setFilters] = useState<ExploreSearchFilters>(urlFilters);
   const [appliedFilters, setAppliedFilters] =
     useState<ExploreSearchFilters>(urlFilters);
@@ -99,6 +111,7 @@ export function ExploreClient() {
   const { isAuthenticated } = useAuth();
   const shouldAutoGeo = !urlMapBounds && !urlFilters.city;
   const geo = useExploreGeolocation({ autoRequest: shouldAutoGeo });
+  const { getDefaultMapBounds, countriesByCode, viewer } = useViewerContext();
   const [unlockedLocations, setUnlockedLocations] = useState<
     Map<string, { lat: number; lng: number }>
   >(new Map());
@@ -141,7 +154,14 @@ export function ExploreClient() {
   const geoLocationRef = useRef(geo.location);
   const geoInUgandaRef = useRef(geo.inUganda);
   const geoLoadingRef = useRef(geo.loading);
+  const getDefaultMapBoundsRef = useRef(getDefaultMapBounds);
+  const viewerCountryCodeRef = useRef(viewer.countryCode);
   const filtersRef = useRef(filters);
+
+  useEffect(() => {
+    getDefaultMapBoundsRef.current = getDefaultMapBounds;
+    viewerCountryCodeRef.current = viewer.countryCode;
+  }, [getDefaultMapBounds, viewer.countryCode]);
 
   useEffect(() => {
     geoLocationRef.current = geo.location;
@@ -410,9 +430,9 @@ export function ExploreClient() {
         setMapFitToken((token) => token + 1);
         consumeDeepLinkRef.current(data);
       })
-      .catch(() => {
+      .catch((err) => {
         if (cancelled || generation !== initialLoadGenerationRef.current) return;
-        setError("Could not load buildings. Is the API running?");
+        setSearchAlert(classifyExploreLoadError(err));
       })
       .finally(() => {
         if (cancelled || generation !== initialLoadGenerationRef.current) return;
@@ -471,7 +491,7 @@ export function ExploreClient() {
       const searchBounds = boundsForExploreSearch(next, mapBounds);
 
       setSearching(true);
-      setError(null);
+      setSearchAlert(null);
       try {
         const data = await loadExploreBuildings(next, mapBounds);
         if (generation !== searchGenerationRef.current) return null;
@@ -495,12 +515,12 @@ export function ExploreClient() {
           syncSearchToUrl(next, useMapBounds ? mapBounds : null, history);
         }
         return data;
-      } catch {
+      } catch (err) {
         if (generation !== searchGenerationRef.current) return null;
         if (syncUrl) {
           skipUrlSyncRef.current = false;
         }
-        setError("Could not load buildings. Is the API running?");
+        setSearchAlert(classifyExploreLoadError(err));
         return null;
       } finally {
         if (generation === searchGenerationRef.current) {
@@ -559,13 +579,11 @@ export function ExploreClient() {
       bootstrapPendingRef.current = false;
       window.clearTimeout(bootstrapTimerRef.current);
 
-      const geoPoint =
-        geoInUgandaRef.current && geoLocationRef.current
-          ? geoLocationRef.current
-          : null;
+      const geoPoint = geoLocationRef.current;
+      const countryBounds = getDefaultMapBoundsRef.current();
       const bounds = geoPoint
         ? boundsAround(geoPoint.lat, geoPoint.lng, EXPLORE_NEAR_ME_RADIUS_DEG)
-        : viewportBounds;
+        : (countryBounds ?? viewportBounds);
 
       suppressMapInteraction();
       setMapFocusBounds(bounds);
@@ -573,7 +591,16 @@ export function ExploreClient() {
 
       const next = { ...EMPTY_EXPLORE_FILTERS, city: "" };
       setFilters(next);
-      setWhereSegmentLabel(geoPoint ? "Near you" : "Map area");
+
+      let segmentLabel = "Map area";
+      if (geoPoint) {
+        segmentLabel = "Near you";
+      } else if (countryBounds) {
+        const country = countriesByCode.get(viewerCountryCodeRef.current);
+        segmentLabel = country ? `${country.name} area` : "Map area";
+      }
+      setWhereSegmentLabel(segmentLabel);
+
       await executeSearch(next, {
         mapBounds: bounds,
         history: "replace",
@@ -581,7 +608,7 @@ export function ExploreClient() {
       setLoading(false);
       initialLoadDone.current = true;
     },
-    [executeSearch, suppressMapInteraction],
+    [countriesByCode, executeSearch, suppressMapInteraction],
   );
 
   const handlePlaceJump = useCallback(
@@ -602,11 +629,14 @@ export function ExploreClient() {
       }
 
       setSearching(true);
-      setError(null);
+      setSearchAlert(null);
       try {
         const result = await geocodePlaceInUganda(trimmed);
         if (!result) {
-          setError(`Could not find “${trimmed}” in Uganda. Try a nearby city.`);
+          setSearchAlert({
+            kind: "generic",
+            message: `Could not find “${trimmed}” in Uganda. Try a nearby city.`,
+          });
           return;
         }
 
@@ -618,7 +648,10 @@ export function ExploreClient() {
         setFilters(next);
         await executeSearch(next, { mapBounds: result.bounds });
       } catch {
-        setError("Place search failed. Check your connection and try again.");
+        setSearchAlert({
+          kind: "generic",
+          message: "Place search failed. Check your connection and try again.",
+        });
       } finally {
         setSearching(false);
       }
@@ -627,13 +660,16 @@ export function ExploreClient() {
   );
 
   const handleNearMe = useCallback(async () => {
-    setError(null);
+    setSearchAlert(null);
     const { location: point, error: geoError } = await geo.requestLocation({
       highAccuracy: true,
     });
 
     if (!point) {
-      setError(geoError ?? "Could not get your location.");
+      setSearchAlert({
+        kind: "generic",
+        message: geoError ?? "Could not get your location.",
+      });
       return;
     }
 
@@ -647,9 +683,11 @@ export function ExploreClient() {
     setFilters(next);
     const data = await executeSearch(next, { mapBounds: bounds });
     if (data && data.length === 0) {
-      setError(
-        "No listings near you yet. Pan the map or try another area — filters still apply.",
-      );
+      setSearchAlert({
+        kind: "generic",
+        message:
+          "No listings near you yet. Pan the map or try another area — filters still apply.",
+      });
     }
   }, [executeSearch, geo, suppressMapInteraction]);
 
@@ -669,6 +707,14 @@ export function ExploreClient() {
     [appliedFilters, executeSearch],
   );
 
+  const retryLastSearch = useCallback(() => {
+    void executeSearch(appliedFilters, {
+      mapBounds: appliedMapBounds,
+      syncUrl: false,
+      history: "replace",
+    });
+  }, [appliedFilters, appliedMapBounds, executeSearch]);
+
   const runReset = useCallback(async () => {
     geo.clearLocation();
     setFilters(EMPTY_EXPLORE_FILTERS);
@@ -679,6 +725,29 @@ export function ExploreClient() {
       mapBounds: null,
     });
   }, [executeSearch, geo]);
+
+  const handleBrowseSupply = useCallback(async () => {
+    const ugBounds = countriesByCode.get("UG")?.mapBounds;
+    const bounds: Bounds = ugBounds
+      ? {
+          north: ugBounds.north,
+          south: ugBounds.south,
+          east: ugBounds.east,
+          west: ugBounds.west,
+        }
+      : KAMPALA_BOUNDS;
+    suppressMapInteraction();
+    setMapFocusBounds(bounds);
+    setMapFitToken((token) => token + 1);
+    setWhereSegmentLabel("Uganda area");
+
+    const next = { ...EMPTY_EXPLORE_FILTERS, city: "" };
+    setFilters(next);
+    await executeSearch(next, {
+      mapBounds: bounds,
+      history: "replace",
+    });
+  }, [countriesByCode, executeSearch, suppressMapInteraction]);
 
   const handleFiltersApply = useCallback((next: ExploreSearchFilters) => {
     setFilters(next);
@@ -879,9 +948,18 @@ export function ExploreClient() {
         </ContentBand>
       </div>
 
-      {error && (
+      {searchAlert && (
         <div className={cn(contentBandInnerClass("wide"), "shrink-0")}>
-          <p className="bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>
+          <ExploreSearchAlert
+            kind={searchAlert.kind}
+            message={searchAlert.message}
+            onRetry={
+              searchAlert.kind === "rate_limit" || searchAlert.kind === "server"
+                ? retryLastSearch
+                : undefined
+            }
+            retrying={searching}
+          />
         </div>
       )}
 
@@ -935,6 +1013,7 @@ export function ExploreClient() {
               onRemoveFilter={(key) => void removeAppliedFilter(key)}
               onRemoveMapBounds={() => void removeMapBounds()}
               onReset={() => void runReset()}
+              onBrowseSupply={() => void handleBrowseSupply()}
             />
 
             {showMapSummary ? (

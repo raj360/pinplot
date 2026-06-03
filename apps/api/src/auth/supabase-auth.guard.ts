@@ -7,7 +7,7 @@ import {
 import { ConfigService } from "@nestjs/config";
 import { createClient } from "@supabase/supabase-js";
 import { Request } from "express";
-import { DatabaseService } from "../database/database.service";
+import { AuthProfileService } from "./auth-profile.service";
 import { AuthUser } from "./auth.types";
 
 @Injectable()
@@ -16,7 +16,7 @@ export class SupabaseAuthGuard implements CanActivate {
 
   constructor(
     config: ConfigService,
-    private readonly db: DatabaseService,
+    private readonly authProfile: AuthProfileService,
   ) {
     this.supabase = createClient(
       config.getOrThrow<string>("NEXT_PUBLIC_SUPABASE_URL"),
@@ -42,16 +42,8 @@ export class SupabaseAuthGuard implements CanActivate {
       throw new UnauthorizedException("Invalid or expired token");
     }
 
-    const { rows } = await this.db.query<{ role: string }>(
-      "SELECT role FROM profiles WHERE id = $1",
-      [user.id],
-    );
-
-    (request as Request & { user: AuthUser }).user = {
-      id: user.id,
-      email: user.email,
-      role: rows[0]?.role ?? "TENANT",
-    };
+    (request as Request & { user: AuthUser }).user =
+      await this.authProfile.loadAuthUser(user.id, user.email);
 
     return true;
   }

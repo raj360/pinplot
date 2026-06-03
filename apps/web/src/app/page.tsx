@@ -1,76 +1,27 @@
-import Link from "next/link";
-import { DEFAULT_COUNTRY, PRICING } from "@plotpin/shared-types";
 import { AppHeader } from "@/components/layout/AppHeader";
 import { PageMain } from "@/components/layout/PageShell";
-import { contentBandInnerClass } from "@/lib/layout/shell";
+import { HeroSection } from "@/components/home/HeroSection";
+import { FeaturedListingsSection } from "@/components/home/FeaturedListingsSection";
+import { HomeValueProps } from "@/components/home/HomeValueProps";
+import { HomeLandlordCta } from "@/components/home/HomeLandlordCta";
+import { HomeFooter } from "@/components/home/HomeFooter";
+import { fetchFeaturedBuildings } from "@/lib/api/buildings";
 
-export default function HomePage() {
+export default async function HomePage() {
+  let featured = await fetchFeaturedBuildings(12).catch(() => []);
+
   return (
     <div className="flex min-h-screen flex-col bg-background">
       <AppHeader />
 
-      <PageMain className="flex flex-1 flex-col gap-8">
-        <section className="max-w-2xl">
-          <p className="mb-2 text-sm font-medium uppercase tracking-wide text-muted">
-            {DEFAULT_COUNTRY.name} · Launch preview
-          </p>
-          <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">
-            Find apartments on the map. Pay to unlock the landlord contact.
-          </h1>
-          <p className="mt-4 text-base text-muted">
-            PlotPin is a map-first rental discovery platform. Browse buildings
-            for free, unlock exact location and owner contact for{" "}
-            {PRICING.tenantUnlockFeeUgx.toLocaleString()} UGX. Landlords pay{" "}
-            {PRICING.landlordListingFeeUgx.toLocaleString()} UGX to mark units
-            available.
-          </p>
-          <div className="mt-6 flex flex-wrap gap-3">
-            <Link
-              href="/explore"
-              className="bg-primary px-4 py-2 text-sm font-medium text-primary-foreground"
-            >
-              Open map explorer
-            </Link>
-            <Link
-              href="/landlord"
-              className="border border-border bg-surface px-4 py-2 text-sm font-medium"
-            >
-              List a building
-            </Link>
-          </div>
-        </section>
-
-        <section className="grid gap-4 sm:grid-cols-3">
-          {[
-            {
-              title: "Map-first search",
-              body: "Cluster markers, filters, and list/map split inspired by SchoolSpring.",
-            },
-            {
-              title: "Building → units",
-              body: "Each property shows a unit grid — see what is empty before you pay.",
-            },
-            {
-              title: "First unlock wins",
-              body: "The first tenant to pay secures exclusive contact access for 72 hours.",
-            },
-          ].map((card) => (
-            <article
-              key={card.title}
-              className="border border-border bg-surface p-4"
-            >
-              <h2 className="font-semibold">{card.title}</h2>
-              <p className="mt-2 text-sm text-muted">{card.body}</p>
-            </article>
-          ))}
-        </section>
+      <PageMain className="flex flex-1 flex-col gap-12 sm:gap-14">
+        <HeroSection />
+        <FeaturedListingsSection buildings={featured} />
+        <HomeValueProps />
+        <HomeLandlordCta />
       </PageMain>
 
-      <footer className="border-t border-border">
-        <div className={`${contentBandInnerClass()} py-6 text-center text-xs text-muted`}>
-          PlotPin monorepo · Sprint 1 · Next.js 16 + NestJS REST + Supabase
-        </div>
-      </footer>
+      <HomeFooter />
     </div>
   );
 }
