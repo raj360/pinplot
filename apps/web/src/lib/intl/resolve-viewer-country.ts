@@ -123,13 +123,25 @@ export function inferViewerCountryFromBrowser(): string {
   return DEFAULT_COUNTRY.code;
 }
 
+/**
+ * Resolve the viewer's country using an enterprise precedence chain:
+ *
+ *   1. storedCountry  — explicit user choice (Settings → localStorage); intent wins.
+ *   2. profileCountry — authenticated account country.
+ *   3. ipCountry      — edge IP geolocation (most accurate signal for anonymous viewers).
+ *   4. timezone       — `Intl` timezone inference.
+ *   5. language       — `navigator.language` region tag.
+ *   6. default        — Uganda (primary supply market).
+ */
 export function resolveViewerCountryCode(input: {
   storedCountry?: string | null;
   profileCountry?: string | null;
+  ipCountry?: string | null;
 }): string {
   return (
     normalizeCountryCode(input.storedCountry) ??
     normalizeCountryCode(input.profileCountry) ??
+    normalizeCountryCode(input.ipCountry) ??
     inferViewerCountryFromBrowser()
   );
 }

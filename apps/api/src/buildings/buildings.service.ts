@@ -96,6 +96,42 @@ export class BuildingsService {
     return result;
   }
 
+  async findFeatured(limit = 12) {
+    const capped = Math.min(Math.max(limit, 1), 24);
+    const { rows } = await this.db.query<BuildingRow>(
+      `SELECT
+        b.id,
+        b.name,
+        b.city,
+        b.district,
+        b.country_code,
+        b.building_type,
+        b.approximate_lat,
+        b.approximate_lng,
+        b.exact_lat,
+        b.exact_lng,
+        b.total_units,
+        b.is_verified,
+        b.is_featured,
+        b.featured_until,
+        b.cover_image_thumb_path,
+        COUNT(u.id) FILTER (WHERE u.status = 'AVAILABLE') AS available_unit_count,
+        MIN(u.rent_amount) FILTER (WHERE u.status = 'AVAILABLE') AS rent_from,
+        co.currency AS currency
+      FROM buildings b
+      JOIN countries co ON co.code = b.country_code
+      LEFT JOIN units u ON u.building_id = b.id
+      WHERE b.is_verified = TRUE
+        AND ${EXPLORE_FEATURED_ACTIVE_SQL}
+      GROUP BY b.id, co.currency, b.is_featured, b.featured_until
+      HAVING COUNT(u.id) FILTER (WHERE u.status = 'AVAILABLE') > 0
+      ORDER BY b.featured_until DESC NULLS LAST, b.featured_granted_at DESC NULLS LAST, b.created_at DESC
+      LIMIT $1`,
+      [capped],
+    );
+    return rows.map((row) => this.toSummary(row));
+  }
+
   private async queryAvailableInBounds(query: BuildingBoundsQueryDto) {
     const params: unknown[] = [
       query.south,

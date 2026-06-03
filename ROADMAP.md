@@ -17,48 +17,56 @@ PlotPin should work for **any visitor** landing from social ads anywhere in the 
 
 ## Where we stand (product snapshot)
 
-**Phase:** Sprint 4 — **Slice 3 complete** → Slice 4 (landlord polish)
+**Phase:** Sprint 4 — **Slice 3 done** → **Slice 4 homepage v2** → Sprint 5 Stripe (S4-19/20 paired with checkout)
 
 | Persona | Can do today | Next |
 |---------|--------------|------|
-| **Tenant** | Explore, FX footnotes, diaspora empty state, unlock (dev) | Stripe |
-| **Landlord** | Submit, photos, unit status, reject + resubmit | Country on create |
-| **Admin** | Approve/reject, coupons, **featured launch grant** | Multi-country pricing |
+| **Tenant** | Explore, FX hints, diaspora empty state, display country in Settings, unlock (dev) | Homepage featured grid + ad landing |
+| **Landlord** | Submit, photos, unit status, reject + resubmit | Paid featured (S5-08) |
+| **Admin** | Approve/reject, coupons, featured launch grant (20 slots) | — |
 
-**Core loop:** Discover → unlock (simulated) → contact **works**. Payments **Stripe-first** in Sprint 5.
+**Core loop:** Discover → unlock (simulated) → contact **works**. **Homepage v2** converts ad traffic; **Stripe** follows.
 
 ---
 
-## Phase 4 — Supply, wallet & international foundations 🔄
+## Phase 4 — Supply, wallet & international foundations
 
-### Done
+### Done (Slice 1–3)
 
-- [x] Slice 1–2: pricing, wallet, reject, 429, auth resilience
+- [x] Wallet, coupons, reject flow, 429 UX, auth DB resilience
 - [x] **S4-14** Country catalog (`017`) — UG + 10 diaspora corridors
-- [x] **S4-15** FX display (`018`, explore + building detail, API listing `currency`)
-- [x] **S4-16** Viewer context — timezone before language for browser inference
+- [x] **S4-15** FX display (`018`) — explore cards + building detail; API listing `currency`
+- [x] **S4-16** Viewer context — timezone → language; **Settings → Display country** override
 - [x] **S4-17** Explore empty state — diaspora copy, browse Uganda, landlord CTA
-- [x] **S4-18** Featured launch (`019`) — admin batch grant, 20 slots × 90 days, audit log
+- [x] **S4-18** Featured launch (`019`) — `/admin/featured`, 20 × 90 days, audit log
 
-### In progress / next
+### Next (Slice 4 — homepage)
+
+| Theme              | Deliverables                                                       |
+| ------------------ | ------------------------------------------------------------------ |
+| **Homepage**       | Featured grid + D3 hero + diaspora copy (S4-22 / PRD)              |
+| **Explore polish** | Viewport persist + bootstrap GPS only on Near me (S4-13 remainder) |
+
+### Before Stripe (Slice 5 prep)
 
 | Theme | Deliverables |
 |-------|--------------|
-| **Explore UX** | Viewport persist (S4-13 remainder); bootstrap GPS polish |
-| **Landlord polish** | Country on create (S4-19); multi-country pricing seed (S4-20) |
-| **Homepage** | Featured grid + D3 hero (S4-22 / PRD — after Stripe or parallel) |
+| **Landlord** | Country on create (S4-19) |
+| **Pricing** | Multi-country `pricing_rules` seed for US/GB/corridors (S4-20) |
 
 ---
 
 ## Phase 5 — Payments (Stripe-first)
 
-Stripe Checkout for diaspora; Flutterwave MoMo for Uganda — after S4-20 pricing seed (recommended).
+Stripe Checkout for diaspora (presentment currency follows viewer context); Flutterwave MoMo for Uganda.
+
+**Recommended gate:** S4-20 pricing rules seeded so `/pricing/quote` returns correct fees per viewer country (can ship in same sprint as S5-01).
 
 ---
 
 ## Phase 6 — Global soft launch
 
-Social ad landing + UTM, Open Graph, supply in UG + diaspora corridors, PWA, featured monetization.
+Social ad landing + UTM, Open Graph, supply in UG + diaspora corridors, PWA, paid featured monetization.
 
 ---
 
@@ -68,9 +76,9 @@ Social ad landing + UTM, Open Graph, supply in UG + diaspora corridors, PWA, fea
 |-------|------|
 | **Data** | Listing currency on units/buildings; fees per `country_code` in `pricing_rules` |
 | **Display** | `formatMoney` — canonical rent + optional `(~£X)` hint via `fx_rates` |
-| **Map** | GPS → Near me; deny → viewer country bounds → Kampala |
-| **Viewer** | `ViewerContextProvider` — profile, localStorage, **timezone**, language |
+| **Map** | Near me → GPS; deny → viewer country bounds; supply search always UG for now |
+| **Viewer** | Settings override → localStorage → profile → timezone → language → UG |
 
 ---
 
-*Last updated: 2026-06-03 — Slice 3 complete; S4-19/20 next*
+*Last updated: 2026-06-03 — Homepage v2 (S4-22) in progress; S4-19/20 deferred until Stripe*

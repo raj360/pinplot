@@ -78,6 +78,19 @@ export async function fetchBuildingsInBounds(
   return res.json();
 }
 
+export async function fetchFeaturedBuildings(
+  limit = 12,
+): Promise<BuildingSummary[]> {
+  const params = new URLSearchParams({ limit: String(limit) });
+  const res = await fetch(`${API_URL}/api/v1/buildings/featured?${params}`, {
+    next: { revalidate: 60 },
+  });
+  if (!res.ok) {
+    throw await readApiError(res, "Failed to load featured listings");
+  }
+  return res.json();
+}
+
 export async function fetchBuilding(id: string): Promise<BuildingDetail> {
   const token = await getAccessToken();
   const headers = new Headers();

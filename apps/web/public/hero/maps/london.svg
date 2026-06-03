@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 420" fill="none">
+  <rect width="640" height="420" fill="#f0ede8"/>
+  <!-- Thames -->
+  <path d="M0 260 Q200 240 400 270 Q520 290 640 250 L640 310 Q480 330 320 300 Q120 280 0 320Z" fill="#aad3df" opacity="0.9"/>
+  <!-- Parks -->
+  <ellipse cx="120" cy="100" rx="65" ry="50" fill="#b8d4b0" opacity="0.9"/>
+  <ellipse cx="500" cy="140" rx="50" ry="35" fill="#b8d4b0" opacity="0.85"/>
+  <rect x="380" y="320" width="90" height="60" rx="8" fill="#b8d4b0" opacity="0.8"/>
+  <!-- Major roads -->
+  <path d="M0 180 H640" stroke="#fff" stroke-width="16" stroke-linecap="round"/>
+  <path d="M0 180 H640" stroke="#ddd6cb" stroke-width="9"/>
+  <path d="M320 0 V420" stroke="#fff" stroke-width="14" stroke-linecap="round"/>
+  <path d="M320 0 V420" stroke="#ddd6cb" stroke-width="8"/>
+  <path d="M0 80 Q320 100 640 70" stroke="#fff" stroke-width="10" stroke-linecap="round"/>
+  <path d="M60 420 Q200 350 340 380 Q480 400 640 360" stroke="#fff" stroke-width="11" stroke-linecap="round"/>
+  <!-- Minor grid -->
+  <path d="M0 120 H640" stroke="#ebe4d8" stroke-width="2.5" opacity="0.65"/>
+  <path d="M0 340 H640" stroke="#ebe4d8" stroke-width="2.5" opacity="0.65"/>
+  <path d="M160 0 V420" stroke="#ebe4d8" stroke-width="2" opacity="0.55"/>
+  <path d="M480 0 V420" stroke="#ebe4d8" stroke-width="2" opacity="0.55"/>
+  <!-- Blocks -->
+  <rect x="30" y="200" width="80" height="45" rx="2" fill="#e4ddd2" opacity="0.8"/>
+  <rect x="200" y="40" width="95" height="55" rx="2" fill="#e4ddd2" opacity="0.75"/>
+  <rect x="400" y="200" width="70" height="50" rx="2" fill="#e4ddd2" opacity="0.8"/>
+  <rect x="520" y="60" width="85" height="60" rx="2" fill="#e4ddd2" opacity="0.7"/>
+</svg>

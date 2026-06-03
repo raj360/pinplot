@@ -71,6 +71,15 @@ export class BuildingBoundsQueryDto {
   buildingType?: string;
 }
 
+export class FeaturedBuildingsQueryDto {
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(24)
+  limit?: number;
+}
+
 export class CreateBuildingDto {
   @IsString()
   name!: string;

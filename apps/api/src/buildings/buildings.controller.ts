@@ -16,6 +16,7 @@ import {
   BuildingBoundsQueryDto,
   CreateBuildingDto,
   CreateUnitDto,
+  FeaturedBuildingsQueryDto,
   LaunchFeaturedGrantDto,
   RegisterImageDto,
   RejectBuildingDto,
@@ -43,6 +44,13 @@ export class BuildingsController {
     @CurrentUser() user?: AuthUser,
   ) {
     return this.buildings.findInBounds(query, user?.id);
+  }
+
+  @Get("featured")
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ default: { limit: 60, ttl: 60_000 } })
+  findFeatured(@Query() query: FeaturedBuildingsQueryDto) {
+    return this.buildings.findFeatured(query.limit ?? 12);
   }
 
   @Get("mine/list")

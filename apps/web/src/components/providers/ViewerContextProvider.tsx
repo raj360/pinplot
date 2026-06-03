@@ -30,6 +30,7 @@ import {
   writeStoredViewerCountry,
   clearStoredViewerCountry,
 } from "@/lib/intl/resolve-viewer-country";
+import { fetchIpCountry } from "@/lib/intl/geo-ip";
 import type { Bounds } from "@/lib/api/buildings";
 
 type ViewerContextValue = {
@@ -123,20 +124,25 @@ export function ViewerContextProvider({
     async function resolveViewer() {
       let profileCountry: string | null = null;
 
-      if (isAuthenticated) {
-        try {
-          const profile = await fetchMyProfile();
-          profileCountry = profile?.country_code ?? null;
-        } catch {
-          profileCountry = null;
-        }
-      }
+      const profilePromise = isAuthenticated
+        ? fetchMyProfile()
+            .then((profile) => profile?.country_code ?? null)
+            .catch(() => null)
+        : Promise.resolve<string | null>(null);
+
+      // Resolve account + edge IP signals in parallel.
+      const [resolvedProfile, ipCountry] = await Promise.all([
+        profilePromise,
+        fetchIpCountry().catch(() => null),
+      ]);
+      profileCountry = resolvedProfile;
 
       if (cancelled) return;
 
       const resolved = resolveViewerCountryCode({
         storedCountry: readStoredViewerCountry(),
         profileCountry,
+        ipCountry,
       });
 
       setViewerCountryCodeState(resolved);
@@ -151,16 +157,19 @@ export function ViewerContextProvider({
 
   useEffect(() => {
     const onProfileUpdated = () => {
-      void fetchMyProfile()
-        .then((profile) => {
-          if (!profile?.country_code) return;
-          const resolved = resolveViewerCountryCode({
-            storedCountry: readStoredViewerCountry(),
-            profileCountry: profile.country_code,
-          });
-          setViewerCountryCodeState(resolved);
-        })
-        .catch(() => undefined);
+      void Promise.all([
+        fetchMyProfile()
+          .then((profile) => profile?.country_code ?? null)
+          .catch(() => null),
+        fetchIpCountry().catch(() => null),
+      ]).then(([profileCountry, ipCountry]) => {
+        const resolved = resolveViewerCountryCode({
+          storedCountry: readStoredViewerCountry(),
+          profileCountry,
+          ipCountry,
+        });
+        setViewerCountryCodeState(resolved);
+      });
     };
 
     window.addEventListener("plotpin:profile-updated", onProfileUpdated);
@@ -186,19 +195,19 @@ export function ViewerContextProvider({
 
   const resetViewerCountryOverride = useCallback(async () => {
     clearStoredViewerCountry();
-    let profileCountry: string | null = null;
-    if (isAuthenticated) {
-      try {
-        const profile = await fetchMyProfile();
-        profileCountry = profile?.country_code ?? null;
-      } catch {
-        profileCountry = null;
-      }
-    }
+    const [profileCountry, ipCountry] = await Promise.all([
+      isAuthenticated
+        ? fetchMyProfile()
+            .then((profile) => profile?.country_code ?? null)
+            .catch(() => null)
+        : Promise.resolve<string | null>(null),
+      fetchIpCountry().catch(() => null),
+    ]);
     setViewerCountryCodeState(
       resolveViewerCountryCode({
         storedCountry: null,
         profileCountry,
+        ipCountry,
       }),
     );
   }, [isAuthenticated]);
