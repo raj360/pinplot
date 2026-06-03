@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { EXPLORE_MAP_PIN_COLORS } from "@/lib/maps/config";
 import { HERO_MAP_URL } from "@/components/home/hero-map-scenes";
 
@@ -13,6 +13,7 @@ export function PlotPinMapHero({ className }: PlotPinMapHeroProps) {
   const svgRef = useRef<SVGSVGElement>(null);
   const destroyRef = useRef<(() => void) | null>(null);
   const [visible, setVisible] = useState(false);
+  const [renderEpoch, setRenderEpoch] = useState(0);
   const [reducedMotion, setReducedMotion] = useState(
     () =>
       typeof window !== "undefined" &&
@@ -21,6 +22,10 @@ export function PlotPinMapHero({ className }: PlotPinMapHeroProps) {
   const [pinCount, setPinCount] = useState(() =>
     typeof window !== "undefined" && window.innerWidth < 640 ? 5 : 7,
   );
+
+  const remountRenderer = useCallback(() => {
+    setRenderEpoch((n) => n + 1);
+  }, []);
 
   useEffect(() => {
     const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
@@ -33,13 +38,35 @@ export function PlotPinMapHero({ className }: PlotPinMapHeroProps) {
     const el = containerRef.current;
     if (!el) return;
 
+    const syncVisible = () => {
+      const rect = el.getBoundingClientRect();
+      const inView =
+        rect.width > 0 &&
+        rect.height > 0 &&
+        rect.bottom > 0 &&
+        rect.top < window.innerHeight;
+      setVisible(inView);
+    };
+
     const observer = new IntersectionObserver(
       ([entry]) => setVisible(entry?.isIntersecting ?? false),
       { rootMargin: "80px" },
     );
     observer.observe(el);
-    return () => observer.disconnect();
-  }, []);
+    syncVisible();
+
+    const onVisibility = () => {
+      if (document.hidden) return;
+      syncVisible();
+      remountRenderer();
+    };
+
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      observer.disconnect();
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
+  }, [remountRenderer]);
 
   useEffect(() => {
     const updatePinCount = () => {
@@ -62,7 +89,6 @@ export function PlotPinMapHero({ className }: PlotPinMapHeroProps) {
 
       const { width, height } = container.getBoundingClientRect();
       if (width < 1 || height < 1) return;
-      if (document.hidden) return;
 
       const { renderPlotPinMapHero } = await import("./plotpin-map-hero");
       if (cancelled) return;
@@ -99,18 +125,7 @@ export function PlotPinMapHero({ className }: PlotPinMapHeroProps) {
       destroyRef.current?.();
       destroyRef.current = null;
     };
-  }, [visible, reducedMotion, pinCount]);
-
-  useEffect(() => {
-    const onVisibility = () => {
-      if (document.hidden) {
-        destroyRef.current?.();
-        destroyRef.current = null;
-      }
-    };
-    document.addEventListener("visibilitychange", onVisibility);
-    return () => document.removeEventListener("visibilitychange", onVisibility);
-  }, []);
+  }, [visible, reducedMotion, pinCount, renderEpoch]);
 
   return (
     <div ref={containerRef} className={className} aria-hidden="true">
