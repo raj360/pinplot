@@ -400,8 +400,11 @@ export function AreaSearchCombobox({
                     {searchDraft.trim()}&rdquo;.
                   </li>
                 ) : (
-                  groups.map((group) => (
-                    <li key={group.header ?? "default"} role="presentation">
+                  groups.map((group, groupIndex) => (
+                    <li
+                      key={group.header ?? `ungrouped-${groupIndex}`}
+                      role="presentation"
+                    >
                       {group.header ? (
                         <p className="px-2.5 pb-1 pt-1.5 text-[10px] font-semibold uppercase tracking-wide text-muted">
                           {group.header}
