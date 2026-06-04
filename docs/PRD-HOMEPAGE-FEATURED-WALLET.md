@@ -1,14 +1,17 @@
 # PlotPin PRD — Homepage, Featured Listings, Wallet & Monetization
 
-**Version:** 1.0 · **Status:** Approved for build planning  
-**Owner:** Product · **Last updated:** 2026-06-01  
-**Related:** [ROADMAP.md](../ROADMAP.md), [SPRINT_TASK.md](../SPRINT_TASK.md), [PLAN-HOMEPAGE-D3-HERO.md](./PLAN-HOMEPAGE-D3-HERO.md)
+**Version:** 1.1 · **Status:** Partially superseded  
+**Owner:** Product · **Last updated:** 2026-06-03  
+
+> **Business model update:** Landlord **listing is free** (verified). Revenue = **tenant unlock** + optional **featured/badge** later. See [BUSINESS-MODEL.md](./BUSINESS-MODEL.md) and [IMPLEMENTATION-PLAN.md](./IMPLEMENTATION-PLAN.md).
+
+**Related:** [docs/README.md](./README.md), [ROADMAP.md](../ROADMAP.md), [SPRINT_TASK.md](../SPRINT_TASK.md), [PLAN-HOMEPAGE-D3-HERO.md](./PLAN-HOMEPAGE-D3-HERO.md)
 
 ---
 
 ## 1. Summary
 
-PlotPin monetizes map-first rental discovery through **three fee streams** (unlock, listing, featured), surfaced on a **redesigned homepage** that combines a **D3 hero animation**, **featured listing grid**, and clear CTAs into explore and landlord onboarding.
+PlotPin monetizes map-first rental discovery primarily through **tenant unlock fees**, with **free verified landlord listings** and optional **featured boosts** (monetized ~3 months post-launch). Homepage combines **D3 hero**, **featured grid**, and CTAs into explore and landlord onboarding.
 
 This PRD covers product requirements for:
 
@@ -66,9 +69,9 @@ This PRD covers product requirements for:
 
 ### Landlord
 
-- List building → pay listing fee → mark units available
+- List building **free** → admin verify → mark units available
 - Receive **launch featured grant** if in first 20 verified
-- Purchase 7 / 14 / 30-day featured boost after promo
+- Purchase 7 / 14 / 30-day featured boost **~3 months post-launch** (optional)
 
 ### Admin
 
