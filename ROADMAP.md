@@ -2,7 +2,7 @@
 
 > Map-first rental discovery for tenants and landlords. **Uganda-first supply, globally open discovery.** English UI only; prices shown in the viewer’s familiar currency where possible.
 
-**Planning docs:** [docs/README.md](./docs/README.md)
+**Planning docs:** [docs/README.md](./docs/README.md) · **Payments:** [docs/PAYMENTS-STRATEGY.md](./docs/PAYMENTS-STRATEGY.md)
 
 ---
 
@@ -20,15 +20,16 @@ PlotPin should work for **any visitor** landing from social ads anywhere in the 
 
 ## Where we stand (product snapshot)
 
-**Phase:** Sprint 4 **complete** → **Sprint 5A trust & access** → **5B Stripe unlock**
+**Phase:** Sprint 4 **complete** → **Sprint 5A trust & access** → **5B unlock payments (FW + Lemon Squeezy)**
 
 | Persona | Can do today | Next |
 |---------|--------------|------|
-| **Tenant** | Homepage v2, explore, FX, unlock (dev) | Terms gate + Stripe unlock (5B) |
+| **Tenant** | Homepage v2, explore, FX, unlock (dev) | Terms gate + paid unlock (5B) |
 | **Landlord** | Submit, photos, unit status, reject + resubmit | Phone gate, attestation, notifications (5A) |
 | **Admin** | Approve/reject, coupons, featured launch (20) | Verification checklist, reports (5A) |
 
-**Monetization:** [docs/BUSINESS-MODEL.md](./docs/BUSINESS-MODEL.md) — **free listing**, paid unlock, featured ~month 3+.
+**Monetization:** [docs/BUSINESS-MODEL.md](./docs/BUSINESS-MODEL.md) — free listing, paid unlock.  
+**Payments:** [docs/PAYMENTS-STRATEGY.md](./docs/PAYMENTS-STRATEGY.md) — **Flutterwave + Lemon Squeezy** now; **Stripe when US LLC exists**.
 
 ---
 
@@ -56,22 +57,23 @@ Full task list: [docs/IMPLEMENTATION-PLAN.md](./docs/IMPLEMENTATION-PLAN.md)
 
 ---
 
-## Phase 5B — Payments (Stripe unlock) — **after 5A**
+## Phase 5B — Unlock payments — **after 5A**
+
+**Rails:** Lemon Squeezy (international) + Flutterwave (Uganda). **Not Stripe** until entity formation.
 
 | Priority | Deliverable |
 |----------|-------------|
 | **P0** | S4-20 multi-country unlock pricing seed |
-| **P0** | S5-01 Stripe Checkout — **tenant unlock only** |
-| **P0** | S5-02 Webhooks + S5-03 enforce unlock payment |
-| **P1** | S5-07 wallet reconciliation; unlock notification emails |
-
-**Not in 5B:** Landlord listing fee · Paid featured (deferred)
+| **P0** | Checkout routing + shared webhook settlement |
+| **P0** | Lemon Squeezy + Flutterwave integrations |
+| **P0** | S5-03 enforce unlock payment |
+| **P1** | Wallet reconciliation; unlock notification emails |
 
 ---
 
-## Phase 5C — Uganda local rails
+## Phase 5C — Uganda rails polish
 
-Flutterwave MoMo / USSD for unlock; SMS landlord alerts.
+MoMo UX, USSD (TBD), SMS landlord alerts on unlock.
 
 ---
 
@@ -80,7 +82,7 @@ Flutterwave MoMo / USSD for unlock; SMS landlord alerts.
 - Social ad landing + UTM, Open Graph, PWA  
 - **S5-08 paid featured** (~3 months post-launch)  
 - Optional **verify badge** (one-time)  
-- S4-19 landlord country on create at scale  
+- **US LLC + Stripe** for diaspora if Lemon Squeezy economics warrant ([PAYMENTS-STRATEGY.md](./docs/PAYMENTS-STRATEGY.md) §8)
 
 ---
 
@@ -91,10 +93,11 @@ Flutterwave MoMo / USSD for unlock; SMS landlord alerts.
 | **Data** | Listing currency on units; unlock fees per `country_code` in `pricing_rules` |
 | **Display** | `formatMoney` — canonical rent + optional `(~£X)` hint |
 | **Listing** | **Free** after admin verification |
+| **Payments** | One unlock flow; route to FW or Lemon Squeezy |
 | **Map** | Near me → GPS; deny → viewer country bounds |
 | **Trust** | Admin verify; phone; attestation; reports |
 | **Homepage** | Kampala D3 hero; no live Maps API on `/` |
 
 ---
 
-*Last updated: 2026-06-03 — Sprint 5A trust & access is next*
+*Last updated: 2026-06-03 — Payments: Flutterwave + Lemon Squeezy; Stripe deferred*

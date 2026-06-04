@@ -10,6 +10,7 @@ Central index for strategy, trust, legal outlines, and implementation order.
 | Doc | Purpose |
 |-----|---------|
 | [BUSINESS-MODEL.md](./BUSINESS-MODEL.md) | **Current** revenue model: free listing, paid unlock, deferred featured/badge |
+| [PAYMENTS-STRATEGY.md](./PAYMENTS-STRATEGY.md) | **Flutterwave + Lemon Squeezy** now; US LLC + Stripe later |
 | [PRD-HOMEPAGE-FEATURED-WALLET.md](./PRD-HOMEPAGE-FEATURED-WALLET.md) | Homepage, featured, wallet (note: listing fee superseded by BUSINESS-MODEL) |
 | [PLAN-HOMEPAGE-D3-HERO.md](./PLAN-HOMEPAGE-D3-HERO.md) | D3 hero spec (implemented S4-24) |
 
@@ -21,7 +22,7 @@ Central index for strategy, trust, legal outlines, and implementation order.
 |-----|---------|
 | [TRUST-ANTI-SCAM.md](./TRUST-ANTI-SCAM.md) | Uganda blocker problem, verification, anti-fraud layers |
 | [NOTIFICATIONS.md](./NOTIFICATIONS.md) | Landlord/tenant notification events and channels |
-| [IMPLEMENTATION-PLAN.md](./IMPLEMENTATION-PLAN.md) | **Build order** — guardrails first, then Stripe |
+| [IMPLEMENTATION-PLAN.md](./IMPLEMENTATION-PLAN.md) | **Build order** — guardrails first, then FW + Lemon Squeezy |
 
 ---
 

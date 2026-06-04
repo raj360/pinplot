@@ -3,7 +3,9 @@
 **Version:** 1.1 · **Status:** Partially superseded  
 **Owner:** Product · **Last updated:** 2026-06-03  
 
-> **Business model update:** Landlord **listing is free** (verified). Revenue = **tenant unlock** + optional **featured/badge** later. See [BUSINESS-MODEL.md](./BUSINESS-MODEL.md) and [IMPLEMENTATION-PLAN.md](./IMPLEMENTATION-PLAN.md).
+> **Business model update:** Landlord **listing is free** (verified). Revenue = **tenant unlock** + optional **featured/badge** later.  
+> **Payments:** **Flutterwave + Lemon Squeezy** now; **Stripe deferred** — [PAYMENTS-STRATEGY.md](./PAYMENTS-STRATEGY.md).  
+> See also [BUSINESS-MODEL.md](./BUSINESS-MODEL.md), [IMPLEMENTATION-PLAN.md](./IMPLEMENTATION-PLAN.md).
 
 **Related:** [docs/README.md](./README.md), [ROADMAP.md](../ROADMAP.md), [SPRINT_TASK.md](../SPRINT_TASK.md), [PLAN-HOMEPAGE-D3-HERO.md](./PLAN-HOMEPAGE-D3-HERO.md)
 
@@ -18,7 +20,7 @@ This PRD covers product requirements for:
 - Homepage v2 (hero + featured + value props)
 - Featured listings (launch promo + paid boost)
 - Wallet & promotional credits (non-refundable, in-app only)
-- Payment rails (Stripe diaspora + Flutterwave Uganda)
+- Payment rails ([PAYMENTS-STRATEGY.md](./PAYMENTS-STRATEGY.md): Lemon Squeezy international + Flutterwave Uganda; Stripe deferred)
 
 **Out of scope:** Full i18n, rent escrow, React Native, USSD (separate PRDs).
 
@@ -36,7 +38,7 @@ This PRD covers product requirements for:
 
 ## 3. Goals & success metrics
 
-### 3.1 Goals (90 days post–Stripe live)
+### 3.1 Goals (90 days post–live unlock payments)
 
 1. Homepage → explore CTR ≥ **15%**
 2. Featured card → building view ≥ **40%**
@@ -65,7 +67,7 @@ This PRD covers product requirements for:
 
 - Receive **1 welcome unlock credit** on first profile sync
 - Redeem coupons for unlock credits (campaign / referral)
-- Pay Stripe (diaspora card) or Flutterwave (MoMo) when credits exhausted
+- Pay via Lemon Squeezy (international) or Flutterwave (Uganda) when credits exhausted
 
 ### Landlord
 
@@ -99,14 +101,14 @@ This PRD covers product requirements for:
 
 1. Compute list price from quote API  
 2. Apply eligible wallet credits (FIFO, purpose-matched)  
-3. Charge **remainder** via Stripe or Flutterwave  
+3. Charge **remainder** via Lemon Squeezy or Flutterwave (routed by country)  
 4. If fully covered by credits → internal settlement only (no PSP charge)
 
 ### 5.3 Refund policy (avoid refund burden)
 
 | Scenario | Policy |
 |----------|--------|
-| User paid **cash** via Stripe/Flutterwave, unlock failed (bug) | **Full PSP refund** to original payment method |
+| User paid **cash** via Lemon Squeezy/Flutterwave, unlock failed (bug) | **Full PSP refund** per provider policy |
 | User paid with **credits only** | **Restore credits** to wallet; no cash movement |
 | User paid **mixed** (credits + card) | Refund **card portion** to PSP; **restore credits** used |
 | User unlocked successfully, regrets purchase | **No refund** (digital access delivered) — state in ToS |
@@ -125,23 +127,31 @@ This PRD covers product requirements for:
 
 ## 6. Payment rails
 
-### 6.1 Stripe (merchant-of-record)
+**Canonical doc:** [PAYMENTS-STRATEGY.md](./PAYMENTS-STRATEGY.md)
 
-**Who pays:** Diaspora + anyone with Visa/Mastercard (including many Ugandan bank cards — see FAQ in main doc).  
-**Who gets paid:** PlotPin entity in **Stripe-supported country** (US LLC / UK Ltd / etc.).  
-**Products:** Unlock, listing fee, featured boost.  
-**Not:** Rent, escrow, landlord payouts.
+### 6.1 Lemon Squeezy (international — Sprint 5B)
 
-### 6.2 Flutterwave (Uganda local)
+**Who pays:** Diaspora and international card users.  
+**Role:** Merchant of Record for many markets (VAT/GST handled by LS).  
+**Products:** Tenant unlock (and later featured/badge).  
+**No US LLC required.**
 
-**Who pays:** MTN / Airtel MoMo users without cards.  
-**Required** for Uganda-local monetization at scale.
+### 6.2 Flutterwave (Uganda — Sprint 5B)
 
-### 6.3 Rail selection UX
+**Who pays:** Uganda tenants — MoMo and local cards.  
+**Settlement:** Uganda business KYC + local bank.
 
-- Viewer in UG + no card on file → prefer Flutterwave when live  
-- Diaspora / international → Stripe with presentment currency (S4-15)  
-- Credits applied before rail selection
+### 6.3 Stripe (deferred)
+
+**When:** US LLC + bank exist and volume justifies admin — see PAYMENTS-STRATEGY §8.  
+**Not blocking** Sprint 5B.
+
+### 6.4 Rail selection UX
+
+- Uganda / MoMo preference → **Flutterwave**  
+- Diaspora / international → **Lemon Squeezy** (presentment currency via S4-15 + LS checkout)  
+- Credits applied before hosted checkout  
+- One internal `settleUnlock()` after any webhook
 
 ---
 
@@ -233,7 +243,7 @@ UNLOCK | LISTING | FEATURED
 | GET | `/pricing/quote?purpose=FEATURED&…` | Public / landlord | Featured price |
 | GET | `/wallet` | User | Balance + credits breakdown |
 | POST | `/wallet/redeem-coupon` | User | Apply coupon |
-| POST | `/buildings/:id/featured/checkout` | Landlord | Stripe/Flutterwave session |
+| POST | `/buildings/:id/featured/checkout` | Landlord | Lemon Squeezy / Flutterwave (Phase 6) |
 | POST | `/admin/buildings/:id/featured` | Admin | Grant/revoke |
 | POST | `/admin/featured/launch-grant` | Admin | Batch first 20 |
 
@@ -266,8 +276,8 @@ UNLOCK | LISTING | FEATURED
 - [ ] ToS: unlock = digital access to contact/location; no rent guarantee
 - [ ] Refund policy published (table §5.3)
 - [ ] Wallet terms: non-transferable, non-cash, expiry
-- [ ] Stripe account: US/UK entity if founders UG-based
-- [ ] Product description in Stripe dashboard accurate
+- [ ] Lemon Squeezy + Flutterwave accounts; product description accurate
+- [ ] Stripe / US LLC only when PAYMENTS-STRATEGY §8 triggers
 - [ ] URA VAT advisory before scale (non-resident digital services to UG)
 
 ---
@@ -281,7 +291,7 @@ UNLOCK | LISTING | FEATURED
 | **C** | Featured fields, admin grant, launch batch | S4-18, S4-21 |
 | **D** | Homepage featured grid + public API | S4-22 |
 | **E** | D3 hero (parallel, non-blocking) | S4-24 (new) |
-| **F** | Stripe unlock + listing | S5-01–S5-04 |
+| **F** | Lemon Squeezy + Flutterwave unlock | S5-01a–c, S5-02–S5-03 |
 | **G** | Featured checkout | S5-08 |
 | **H** | Flutterwave MoMo | S5-05 |
 
@@ -307,9 +317,9 @@ UNLOCK | LISTING | FEATURED
 
 ### Payments
 
-- [ ] Stripe checkout for unlock, listing, featured
+- [ ] Lemon Squeezy + Flutterwave checkout for unlock
 - [ ] Webhook idempotent; ledger + building state consistent
-- [ ] Flutterwave path documented / stubbed until S5-05
+- [ ] Stripe deferred per [PAYMENTS-STRATEGY.md](./PAYMENTS-STRATEGY.md)
 
 ---
 
@@ -319,7 +329,7 @@ UNLOCK | LISTING | FEATURED
 |---|----------|-------|---------|
 | 1 | Launch featured duration | Product | 90 days |
 | 2 | Welcome credit expiry | Product | 90 days |
-| 3 | US LLC vs UK Ltd for Stripe | Founders | TBD |
+| 3 | US LLC for Stripe (later) | Founders | Defer until PAYMENTS-STRATEGY §8 |
 | 4 | Featured requires cover photo? | Product | Yes (admin QA) |
 | 5 | Homepage country filter for featured? | Product | Global v1 |
 

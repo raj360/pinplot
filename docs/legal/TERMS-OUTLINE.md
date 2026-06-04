@@ -88,7 +88,7 @@
 
 ## 9. Payments
 
-- Processed by third parties (Stripe, Flutterwave, etc.)  
+- Processed by third parties (Lemon Squeezy, Flutterwave, etc.)  
 - Subject to their terms  
 - Prices may change with notice  
 

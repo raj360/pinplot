@@ -58,8 +58,10 @@ export enum UnitStatus {
 }
 
 export enum PaymentProvider {
+  /** Deferred until US LLC exists — see docs/PAYMENTS-STRATEGY.md */
   STRIPE = "STRIPE",
   FLUTTERWAVE = "FLUTTERWAVE",
+  LEMON_SQUEEZY = "LEMON_SQUEEZY",
 }
 
 export enum PaymentPurpose {

@@ -38,7 +38,7 @@
 
 ### Payment data
 
-- Processed by **Stripe / Flutterwave** — we receive transaction IDs, amounts, status — **not** full card numbers  
+- Processed by **Lemon Squeezy / Flutterwave** (and Stripe if added later) — transaction IDs, amounts, status — **not** full card numbers  
 
 ### Technical
 
@@ -85,7 +85,7 @@
 | Recipient | Purpose |
 |-----------|---------|
 | Supabase | Auth, database, storage |
-| Stripe / Flutterwave | Payments |
+| Lemon Squeezy / Flutterwave | Payments |
 | Postmark (or equivalent) | Email |
 | SMS provider (future) | Landlord alerts |
 | Vercel / hosting | Application delivery |

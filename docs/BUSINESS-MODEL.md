@@ -18,7 +18,7 @@ PlotPin is **map-first rental discovery with paid landlord contact** — not ren
 | Stream | Who pays | When | Launch |
 |--------|----------|------|--------|
 | **Listing on map** | Landlord | **Free** after admin verification | Now |
-| **Tenant unlock** | Tenant | Pay (or wallet credit) to unlock contact for 72h exclusive on one unit | Sprint 5B |
+| **Tenant unlock** | Tenant | Pay (or wallet credit) to unlock contact for 72h exclusive on one unit | Sprint 5B — [PAYMENTS-STRATEGY.md](./PAYMENTS-STRATEGY.md) |
 | **Featured boost** | Landlord | Optional 7/14/30-day homepage + sort priority | **~3 months post-launch** (S5-08 deferred) |
 | **Verified landlord badge** | Landlord | Optional one-time fee → trust badge on profile/listings | Phase 6+ (after supply proof) |
 
@@ -48,7 +48,9 @@ Listing is free but **guarded**:
 - Tiered fee by building type + bedrooms + country (`pricing_rules`)  
 - **72 hours** exclusive contact window for first payer on a unit  
 - Welcome credit + coupons reduce checkout (promotional credits, not cash wallet)  
-- Diaspora: Stripe presentment currency; Uganda locals: Flutterwave MoMo later  
+- Diaspora / international cards: **Lemon Squeezy** (MoR checkout)  
+- Uganda locals: **Flutterwave** (MoMo + local cards)  
+- **Stripe:** deferred until US LLC + bank exist — see [PAYMENTS-STRATEGY.md](./PAYMENTS-STRATEGY.md)  
 
 ---
 
@@ -77,7 +79,7 @@ Listing is free but **guarded**:
 
 - **Supply:** Free verified listing in any supported country (S4-19 country on create + S4-20 pricing seeds)  
 - **Demand:** Global explore + diaspora unlock in viewer currency  
-- **Payments:** Stripe (cards/diaspora) + local rails per country (Flutterwave UG first)  
+- **Payments:** Lemon Squeezy (intl) + Flutterwave (UG); Stripe when entity exists  
 - **Trust:** Same admin verification bar; local scam patterns documented in [TRUST-ANTI-SCAM.md](./TRUST-ANTI-SCAM.md)  
 
 ---
@@ -87,7 +89,8 @@ Listing is free but **guarded**:
 - Keep `listing_fee_ugx` in DB for now — **do not enforce** at AVAILABLE toggle  
 - Remove or hide `listingQuote` UI on landlord manage page when going live  
 - `PaymentPurpose.LISTING` — retain for admin/coupon credits only until badge SKU exists  
-- Sprint 5 checkout scope: **`UNLOCK` only** (+ webhook); featured in Phase 5B late  
+- Sprint 5B checkout: **`UNLOCK` only** via **Flutterwave + Lemon Squeezy** (not Stripe until LLC)  
+- See [PAYMENTS-STRATEGY.md](./PAYMENTS-STRATEGY.md)  
 
 ---
 

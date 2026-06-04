@@ -1,8 +1,8 @@
 # PlotPin — Implementation plan (Sprint 5+)
 
-**Order:** **Guard product (trust, legal, access)** → **Stripe unlock** → **local rails & featured later**
+**Order:** **Guard product (trust, legal, access)** → **Flutterwave + Lemon Squeezy unlock** → **featured later** · **Stripe deferred** (US LLC)
 
-Aligns with [BUSINESS-MODEL.md](./BUSINESS-MODEL.md), [TRUST-ANTI-SCAM.md](./TRUST-ANTI-SCAM.md), [NOTIFICATIONS.md](./NOTIFICATIONS.md).
+Aligns with [BUSINESS-MODEL.md](./BUSINESS-MODEL.md), [PAYMENTS-STRATEGY.md](./PAYMENTS-STRATEGY.md), [TRUST-ANTI-SCAM.md](./TRUST-ANTI-SCAM.md), [NOTIFICATIONS.md](./NOTIFICATIONS.md).
 
 ---
 
@@ -10,8 +10,9 @@ Aligns with [BUSINESS-MODEL.md](./BUSINESS-MODEL.md), [TRUST-ANTI-SCAM.md](./TRU
 
 ```
 Sprint 5A — Trust, access & engagement     ← START HERE
-Sprint 5B — Stripe unlock payments
-Sprint 5C — Uganda MoMo (Flutterwave)
+Sprint 5B — Unlock payments (Flutterwave + Lemon Squeezy)
+Sprint 5C — MoMo / USSD polish + SMS (optional merge with 5B)
+Phase 6+ — US LLC + Stripe (when traction)
 Phase 6   — Paid featured (~3 mo), badge, growth
 ```
 
@@ -57,39 +58,44 @@ Day 4–5: N-01 → N-03 (Postmark approve/reject)
 
 ---
 
-## Sprint 5B — Stripe unlock payments (P0)
+## Sprint 5B — Unlock payments (P0)
 
-**Goal:** Monetize tenants only; free listing unchanged.
+**Goal:** Monetize tenants only; free listing unchanged. **No US LLC required.**
+
+See [PAYMENTS-STRATEGY.md](./PAYMENTS-STRATEGY.md).
 
 | ID | Task | Notes |
 |----|------|-------|
-| **S4-20** | Multi-country `pricing_rules` seed (UG + US/GB/corridors) | Unlock quotes only |
-| **S5-01** | Stripe Checkout — **`PaymentPurpose.UNLOCK` only** | No listing checkout |
-| **S5-02** | Webhooks — idempotent unlock settlement | |
-| **S5-03** | Enforce unlock payment — remove `ALLOW_DEV_UNLOCK` prod/staging | **Not** listing gate |
-| **S5-07** | Wallet + Stripe reconciliation | Credits before card |
-| **N-04** | Landlord email on unlock | Wire to unlocks service |
+| **P-00** | Migration: add `LEMON_SQUEEZY` to `payment_provider` | Keep `STRIPE` for future |
+| **S4-20** | Multi-country `pricing_rules` seed | Unlock quotes for LS + FW |
+| **S5-01a** | `POST /unlocks/checkout` + provider routing | UG → FW; intl → LS |
+| **S5-01b** | Lemon Squeezy checkout + webhook | Diaspora / international cards |
+| **S5-01c** | Flutterwave checkout + webhook | UG MoMo + local |
+| **S5-02** | Shared `settleUnlock()` — idempotent by provider payment id | One code path |
+| **S5-03** | Enforce unlock payment — remove `ALLOW_DEV_UNLOCK` prod/staging | |
+| **S5-07** | Wallet + payment reconciliation | Credits before hosted checkout |
+| **N-04** | Landlord email on unlock | |
 | **N-05** | Tenant unlock receipt email | |
 
 **5B exit criteria**
 
-- [ ] Diaspora can pay unlock via Stripe  
+- [ ] International unlock via **Lemon Squeezy**  
+- [ ] Uganda unlock via **Flutterwave**  
 - [ ] Welcome credit + coupon apply before checkout  
-- [ ] Webhook idempotent; unlock + LOCKED unit consistent  
+- [ ] Webhooks idempotent; unlock + LOCKED unit consistent  
 - [ ] Landlord + tenant notified on unlock  
 
-**Deferred from old Sprint 5**
+**Deferred**
 
-- ~~Landlord listing fee checkout~~  
-- ~~Gate AVAILABLE on listing payment~~  
+- ~~US LLC / Stripe~~ · ~~Landlord listing fee~~  
 
 ---
 
-## Sprint 5C — Uganda local rails (P1)
+## Sprint 5C — Uganda rails polish (P1)
 
 | ID | Task |
 |----|------|
-| S5-04 | Flutterwave MoMo unlock |
+| S5-04 | MoMo UX polish if not done in 5B |
 | S5-05 | USSD (TBD provider) |
 | N-06 | SMS unlock alert to landlord |
 
@@ -103,6 +109,7 @@ Day 4–5: N-01 → N-03 (Postmark approve/reject)
 | T-14 | Optional verify badge (one-time fee) | New `PaymentPurpose` or SKU |
 | S4-19 | Landlord country on create | International supply |
 | S6-* | UTM, Open Graph, PWA | ROADMAP Phase 6 |
+| **P-LLC** | US LLC + Stripe migration | PAYMENTS-STRATEGY §8 |
 | N-07–N-10 | Stale listing, digest, in-app | NOTIFICATIONS Phase 2–3 |
 
 ---
@@ -115,6 +122,7 @@ Day 4–5: N-01 → N-03 (Postmark approve/reject)
 | `021_profile_terms.sql` | `profiles.terms_accepted_at`, `privacy_accepted_at` |
 | `022_listing_reports.sql` | `listing_reports` table |
 | `023_profile_suspension.sql` | `profiles.suspended_at`, `suspension_reason` |
+| `024_payment_provider_lemon_squeezy.sql` | Extend `payment_provider` enum |
 
 *(Numbers tentative — apply in order after 019.)*
 
