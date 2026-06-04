@@ -12,6 +12,8 @@ export type UserProfile = {
   country_code: string;
   is_verified: boolean;
   created_at?: string;
+  landlord_terms_accepted_at?: string | null;
+  tenant_unlock_terms_accepted_at?: string | null;
 };
 
 export type UpdateProfilePayload = {

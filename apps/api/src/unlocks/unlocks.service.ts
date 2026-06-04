@@ -189,7 +189,32 @@ export class UnlocksService {
     };
   }
 
-  async unlockUnit(tenantId: string, unitId: string, paymentId?: string) {
+  async unlockUnit(
+    tenantId: string,
+    unitId: string,
+    options?: { paymentId?: string; acceptTerms?: boolean },
+  ) {
+    const { rows: profileRows } = await this.db.query<{
+      tenant_unlock_terms_accepted_at: Date | null;
+    }>(
+      `SELECT tenant_unlock_terms_accepted_at FROM profiles WHERE id = $1`,
+      [tenantId],
+    );
+    const termsAccepted = profileRows[0]?.tenant_unlock_terms_accepted_at;
+    if (!termsAccepted) {
+      if (!options?.acceptTerms) {
+        throw new BadRequestException(
+          "You must accept the Terms of Service and Privacy Policy before unlocking.",
+        );
+      }
+      await this.db.query(
+        `UPDATE profiles
+         SET tenant_unlock_terms_accepted_at = NOW(), updated_at = NOW()
+         WHERE id = $1`,
+        [tenantId],
+      );
+    }
+
     await this.db.query("BEGIN");
     try {
       const unit = await this.lockUnit(unitId);
@@ -216,7 +241,7 @@ export class UnlocksService {
       const resolvedPayment = await this.resolveUnlockPayment(
         tenantId,
         unit,
-        paymentId,
+        options?.paymentId,
       );
 
       const expiresAt = new Date(

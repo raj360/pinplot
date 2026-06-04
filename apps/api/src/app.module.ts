@@ -11,6 +11,8 @@ import { PricingModule } from "./pricing/pricing.module";
 import { WalletModule } from "./wallet/wallet.module";
 import { CouponsModule } from "./coupons/coupons.module";
 import { CountriesModule } from "./countries/countries.module";
+import { NotificationsModule } from "./notifications/notifications.module";
+import { ReportsModule } from "./reports/reports.module";
 
 @Module({
   imports: [
@@ -35,6 +37,8 @@ import { CountriesModule } from "./countries/countries.module";
     WalletModule,
     CouponsModule,
     CountriesModule,
+    NotificationsModule,
+    ReportsModule,
   ],
 })
 export class AppModule {}

@@ -32,6 +32,7 @@ import {
 } from "@/lib/maps/address-hints";
 import { cn } from "@/lib/utils/cn";
 import { NewBuildingPreview } from "@/components/landlord/NewBuildingPreview";
+import { TermsAcceptanceField } from "@/components/legal/TermsAcceptanceField";
 
 type UnitRow = {
   unitNumber: string;
@@ -96,6 +97,8 @@ export default function NewBuildingPage() {
   const [buildingType, setBuildingType] = useState("apartment");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [acceptTerms, setAcceptTerms] = useState(false);
+  const [ownershipAttestation, setOwnershipAttestation] = useState(false);
 
   const coverPreviewUrl = useMemo(() => {
     const primary =
@@ -251,6 +254,14 @@ export default function NewBuildingPage() {
   async function submitBuilding() {
     if (stepRef.current !== STEP_COUNT) return;
     if (!validateCurrentStep(STEP_COUNT)) return;
+    if (!acceptTerms) {
+      setError("Accept the Terms of Service and Privacy Policy to continue.");
+      return;
+    }
+    if (!ownershipAttestation) {
+      setError("Confirm you have authority to list this property.");
+      return;
+    }
 
     setError(null);
     setLoading(true);
@@ -261,6 +272,8 @@ export default function NewBuildingPage() {
       await setProfileRole("LANDLORD");
 
       const building = await createBuilding({
+        acceptTerms: true,
+        ownershipAttestation: true,
         name: buildingName.trim(),
         city: city.trim() || "Kampala",
         district: district.trim(),
@@ -556,6 +569,25 @@ export default function NewBuildingPage() {
           ) : null}
         </section>
 
+        {step === STEP_COUNT ? (
+          <div className="mt-6 border border-border bg-surface p-4">
+            <p className="text-sm font-medium text-foreground">
+              Listing is free after verification
+            </p>
+            <p className="mt-1 text-sm text-muted">
+              Tenants pay only to unlock your contact. PlotPin does not charge
+              landlords a listing fee.
+            </p>
+            <TermsAcceptanceField
+              className="mt-4"
+              checked={acceptTerms}
+              onCheckedChange={setAcceptTerms}
+              ownershipAttestation={ownershipAttestation}
+              onOwnershipChange={setOwnershipAttestation}
+            />
+          </div>
+        ) : null}
+
         {error ? (
           <p className="mt-4 text-sm text-red-600" role="alert">
             {error}
@@ -577,6 +609,7 @@ export default function NewBuildingPage() {
               type="button"
               loading={loading}
               loadingLabel="Submitting building"
+              disabled={!acceptTerms || !ownershipAttestation}
               onClick={() => void submitBuilding()}
             >
               Submit for verification

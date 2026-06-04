@@ -15,7 +15,6 @@ import {
 } from "@/lib/api/buildings";
 import { getAccessToken } from "@/lib/api/client";
 import { formatCurrency } from "@/lib/intl/format";
-import type { PriceQuote } from "@plotpin/shared-types";
 
 type UnitAction = "AVAILABLE" | "UNAVAILABLE" | "RENTED";
 
@@ -52,7 +51,6 @@ export default function ManageBuildingClient({
   const [pendingAction, setPendingAction] = useState<PendingUnitAction | null>(
     null,
   );
-  const [listingQuote, setListingQuote] = useState<PriceQuote | null>(null);
   const [resubmitting, setResubmitting] = useState(false);
   const [resubmitMessage, setResubmitMessage] = useState<string | null>(null);
 
@@ -103,9 +101,6 @@ export default function ManageBuildingClient({
             .length,
         };
       });
-      if (result.listingQuote) {
-        setListingQuote(result.listingQuote);
-      }
     } catch (err) {
       const message =
         err instanceof Error ? err.message : "Could not update unit status.";
@@ -205,14 +200,13 @@ export default function ManageBuildingClient({
         </div>
       ) : null}
 
-      {listingQuote && (
-        <p className="border border-primary/30 bg-primary/5 px-4 py-3 text-sm">
-          Unit is live. Listing fee:{" "}
-          <strong>{formatCurrency(listingQuote.amountUgx)}</strong>
-          {listingQuote.label ? ` (${listingQuote.label})` : ""}.{" "}
-          {listingQuote.note}
+      {building.isVerified && building.availableUnitCount > 0 ? (
+        <p className="border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-900">
+          <strong>Listing is free.</strong> Your units are visible on explore.
+          Tenants pay PlotPin only to unlock your contact — you are not charged
+          a listing fee.
         </p>
-      )}
+      ) : null}
 
       {!building.isVerified ? (
         <DashboardSection

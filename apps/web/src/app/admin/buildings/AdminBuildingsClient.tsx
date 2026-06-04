@@ -4,7 +4,6 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import {
   fetchPendingBuildings,
-  verifyBuilding,
   getLandlordDisplayName,
   type PendingBuilding,
 } from "@/lib/api/buildings";
@@ -12,7 +11,6 @@ import { getAccessToken } from "@/lib/api/client";
 import { useRouter } from "next/navigation";
 import { AdminPendingBuildingsSkeleton } from "@/components/admin/AdminPageSkeletons";
 import { DashboardSection } from "@/components/layout/DashboardSection";
-import { Button } from "@/components/ui/button";
 import { LocationPinPicker } from "@/components/maps/LocationPinPicker";
 
 function mapsLink(lat: number, lng: number) {
@@ -24,7 +22,6 @@ export default function AdminBuildingsClient() {
   const [pending, setPending] = useState<PendingBuilding[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [loadingId, setLoadingId] = useState<string | null>(null);
 
   async function load() {
     try {
@@ -56,18 +53,6 @@ export default function AdminBuildingsClient() {
     };
   }, [router]);
 
-  async function approve(id: string) {
-    setLoadingId(id);
-    try {
-      await verifyBuilding(id, true);
-      await load();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Verify failed");
-    } finally {
-      setLoadingId(null);
-    }
-  }
-
   return (
     <DashboardSection
       title="Pending buildings"
@@ -92,7 +77,7 @@ export default function AdminBuildingsClient() {
                   </p>
                   <p className="mt-1 text-xs text-muted">
                     Landlord: {getLandlordDisplayName(b)}
-                    {b.phone ? ` · ${b.phone}` : ""}
+                    {b.phone ? ` · ${b.phone}` : " · no phone on profile"}
                   </p>
                   <p className="mt-1 text-xs text-muted">
                     {b.unit_count}{" "}
@@ -109,14 +94,12 @@ export default function AdminBuildingsClient() {
                   >
                     Edit
                   </Link>
-                  <Button
-                    type="button"
-                    loading={loadingId === b.id}
-                    loadingLabel="Approving building"
-                    onClick={() => approve(b.id)}
+                  <Link
+                    href={`/admin/buildings/${b.id}`}
+                    className="inline-flex items-center justify-center bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:opacity-90"
                   >
-                    Approve
-                  </Button>
+                    Review & approve
+                  </Link>
                 </div>
               </div>
 

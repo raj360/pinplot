@@ -14,7 +14,10 @@ import {
   ValidateNested,
 } from "class-validator";
 import { Type } from "class-transformer";
-import { BUILDING_TYPES } from "@plotpin/shared-types";
+import {
+  BUILDING_TYPES,
+  type AdminVerificationChecklist,
+} from "@plotpin/shared-types";
 
 export class BuildingBoundsQueryDto {
   @Type(() => Number)
@@ -138,6 +141,35 @@ export class CreateBuildingDto {
   @ValidateNested({ each: true })
   @Type(() => CreateUnitDto)
   units?: CreateUnitDto[];
+
+  @IsBoolean()
+  acceptTerms!: boolean;
+
+  @IsBoolean()
+  ownershipAttestation!: boolean;
+}
+
+export class VerificationChecklistDto implements AdminVerificationChecklist {
+  @IsBoolean()
+  phoneMatchesListing!: boolean;
+
+  @IsBoolean()
+  photosAuthentic!: boolean;
+
+  @IsBoolean()
+  pinPlausible!: boolean;
+
+  @IsBoolean()
+  rentConsistent!: boolean;
+
+  @IsBoolean()
+  duplicatePinReviewed!: boolean;
+
+  @IsBoolean()
+  landlordNotSuspended!: boolean;
+
+  @IsBoolean()
+  ownershipAttestationRecorded!: boolean;
 }
 
 export class CreateUnitDto {
@@ -163,6 +195,16 @@ export class CreateUnitDto {
 export class VerifyBuildingDto {
   @IsBoolean()
   verified!: boolean;
+
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => VerificationChecklistDto)
+  checklist?: VerificationChecklistDto;
+
+  /** Required when duplicate verified pins exist within 50m. */
+  @IsOptional()
+  @IsBoolean()
+  acknowledgeDuplicatePin?: boolean;
 }
 
 export class RejectBuildingDto {

@@ -1,4 +1,7 @@
-import type { BuildingSummary, PriceQuote } from "@plotpin/shared-types";
+import type {
+  AdminVerificationChecklist,
+  BuildingSummary,
+} from "@plotpin/shared-types";
 import { apiFetch, getAccessToken } from "./client";
 import { readApiError } from "./http-errors";
 
@@ -126,6 +129,8 @@ export type LandlordBuilding = {
 };
 
 export type CreateBuildingPayload = {
+  acceptTerms: boolean;
+  ownershipAttestation: boolean;
   name: string;
   description?: string;
   city: string;
@@ -180,7 +185,6 @@ export async function fetchMyBuilding(id: string) {
 
 export type UpdateUnitStatusResult = {
   unit: LandlordBuildingDetail["units"][number];
-  listingQuote?: PriceQuote;
 };
 
 export async function updateUnitStatus(
@@ -247,10 +251,17 @@ export async function fetchPendingBuildings() {
   return apiFetch<PendingBuilding[]>("/admin/buildings/pending");
 }
 
-export async function verifyBuilding(id: string, verified: boolean) {
+export async function verifyBuilding(
+  id: string,
+  payload: {
+    verified: boolean;
+    checklist?: AdminVerificationChecklist;
+    acknowledgeDuplicatePin?: boolean;
+  },
+) {
   return apiFetch(`/admin/buildings/${id}/verify`, {
     method: "PATCH",
-    body: JSON.stringify({ verified }),
+    body: JSON.stringify(payload),
   });
 }
 
@@ -289,6 +300,13 @@ export type AdminPendingUnit = {
   status: string;
 };
 
+export type DuplicatePinWarning = {
+  id: string;
+  name: string;
+  landlordId: string | null;
+  distanceM: number;
+};
+
 export type AdminPendingBuildingDetail = {
   id: string;
   name: string;
@@ -303,6 +321,9 @@ export type AdminPendingBuildingDetail = {
   pinLat: number;
   pinLng: number;
   isVerified: boolean;
+  ownershipAttestedAt: string | null;
+  duplicatePinWarnings: DuplicatePinWarning[];
+  landlordPhoneRequired: boolean;
   units: AdminPendingUnit[];
   landlord: {
     id: string | null;
@@ -310,6 +331,7 @@ export type AdminPendingBuildingDetail = {
     lastName: string | null;
     phone: string | null;
     email: string | null;
+    suspendedAt: string | null;
   };
 };
 

@@ -195,8 +195,12 @@ export class AdminBuildingsController {
   }
 
   @Patch(":id/verify")
-  verify(@Param("id") id: string, @Body() dto: VerifyBuildingDto) {
-    return this.buildings.setVerified(id, dto.verified);
+  verify(
+    @Param("id") id: string,
+    @CurrentUser() user: AuthUser,
+    @Body() dto: VerifyBuildingDto,
+  ) {
+    return this.buildings.setVerified(id, dto, user.id);
   }
 
   @Patch(":id/reject")

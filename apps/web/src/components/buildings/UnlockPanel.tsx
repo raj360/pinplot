@@ -52,7 +52,10 @@ export function UnlockPanel({
           isAuthenticated={unlocks.isAuthenticated}
           onUnlock={unlocks.handleUnlock}
           unlockingId={unlocks.unlockingId}
-        unlockCredits={unlocks.unlockCredits}
+          unlockCredits={unlocks.unlockCredits}
+          needsUnlockTerms={unlocks.needsUnlockTerms}
+          acceptUnlockTerms={unlocks.acceptUnlockTerms}
+          onAcceptUnlockTermsChange={unlocks.setAcceptUnlockTerms}
         />
       ) : null}
     </section>

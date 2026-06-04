@@ -13,6 +13,39 @@ export const PRICING = {
   unlockExclusiveHours: 72,
 } as const;
 
+/** Max pending/unverified buildings per landlord account (Sprint 5A). */
+export const MAX_UNVERIFIED_BUILDINGS_PER_LANDLORD = 3;
+
+/** Admin duplicate-pin warning radius (meters). */
+export const DUPLICATE_PIN_RADIUS_METERS = 50;
+
+export type AdminVerificationChecklist = {
+  phoneMatchesListing: boolean;
+  photosAuthentic: boolean;
+  pinPlausible: boolean;
+  rentConsistent: boolean;
+  duplicatePinReviewed: boolean;
+  landlordNotSuspended: boolean;
+  ownershipAttestationRecorded: boolean;
+};
+
+export const REJECT_REASON_PRESETS = [
+  "Cannot verify ownership or authority to list this property.",
+  "Duplicate or conflicting listing at this location.",
+  "Photos are misleading, stock images, or missing the actual building.",
+  "Map pin does not match the stated district or city.",
+  "Rent information is inconsistent across units.",
+  "Suspected broker or third-party listing without authorization.",
+] as const;
+
+export const LISTING_REPORT_REASONS = [
+  "Suspected scam or unauthorized blockage/viewing fees",
+  "Wrong location or misleading map pin",
+  "Misleading photos or not the actual property",
+  "Already rented / not available",
+  "Other",
+] as const;
+
 /** Max building photos per listing (cover + gallery). */
 export const MAX_BUILDING_PHOTOS = 4;
 

@@ -74,9 +74,15 @@ export async function fetchUnlockStatus(unitId: string) {
   return apiFetch<UnlockStatus>(`/units/${unitId}/unlock`);
 }
 
-export async function unlockUnit(unitId: string) {
+export async function unlockUnit(
+  unitId: string,
+  options?: { acceptTerms?: boolean },
+) {
   return apiFetch<TenantUnlock & { status: string; feeUgx: number }>(
     `/units/${unitId}/unlock`,
-    { method: "POST", body: JSON.stringify({}) },
+    {
+      method: "POST",
+      body: JSON.stringify({ acceptTerms: options?.acceptTerms ?? false }),
+    },
   );
 }

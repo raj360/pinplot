@@ -2,7 +2,7 @@
 
 **Goal:** Keep landlords **engaged** without listing fees — every meaningful event → timely notify.
 
-**Infrastructure:** Postmark (email) in `.env`; SMS (Africa's Talking / Twilio) Phase 6.  
+**Infrastructure:** Postmark (email) in `.env` — `POSTMARK_FROM_EMAIL` (transactional), `POSTMARK_REPLY_TO_EMAIL` (Zoho support inbox); SMS (Africa's Talking / Twilio) Phase 6.  
 **Code entry point:** `apps/api/src/buildings/landlord-notifications.service.ts` (stub today).
 
 ---

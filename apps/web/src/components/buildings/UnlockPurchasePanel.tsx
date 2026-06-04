@@ -11,6 +11,7 @@ import {
   unlockPanelDescription,
 } from "@/lib/unlocks/unlock-pricing";
 import { Button } from "@/components/ui/button";
+import { TermsAcceptanceField } from "@/components/legal/TermsAcceptanceField";
 import { cn } from "@/lib/utils/cn";
 
 export function UnlockPurchasePanel({
@@ -28,6 +29,9 @@ export function UnlockPurchasePanel({
   description,
   showHeading = true,
   layout = "grid",
+  needsUnlockTerms = false,
+  acceptUnlockTerms = false,
+  onAcceptUnlockTermsChange,
 }: {
   buildingId: string;
   availableUnits: UnitLike[];
@@ -43,6 +47,9 @@ export function UnlockPurchasePanel({
   description?: string;
   showHeading?: boolean;
   layout?: "grid" | "sidebar";
+  needsUnlockTerms?: boolean;
+  acceptUnlockTerms?: boolean;
+  onAcceptUnlockTermsChange?: (value: boolean) => void;
 }) {
   const defaultDescription = unlockPanelDescription({
     unlockCredits,
@@ -82,6 +89,14 @@ export function UnlockPurchasePanel({
           No units are available to unlock right now.
         </p>
       ) : (
+        <>
+        {needsUnlockTerms && onAcceptUnlockTermsChange ? (
+          <TermsAcceptanceField
+            className="mt-4"
+            checked={acceptUnlockTerms}
+            onCheckedChange={onAcceptUnlockTermsChange}
+          />
+        ) : null}
         <ul className={listClass}>
           {availableUnits.map((unit) => {
             const quote = unitQuotes[unit.id] ?? representativeQuote;
@@ -122,6 +137,7 @@ export function UnlockPurchasePanel({
             );
           })}
         </ul>
+        </>
       )}
 
       {error ? <p className="mt-3 text-sm text-red-600">{error}</p> : null}
@@ -129,8 +145,8 @@ export function UnlockPurchasePanel({
       {isAuthenticated && availableUnits.length > 0 ? (
         <p className="mt-3 text-xs text-muted">
           {unlockCredits > 0
-            ? "Your credit covers this unlock in dev when it matches the quoted fee — no card charge until Stripe is connected."
-            : "Dev mode: payment simulated until Stripe / Flutterwave is connected."}
+            ? "Your credit covers this unlock in dev when it matches the quoted fee — no card charge until payments go live."
+            : "Dev mode: payment simulated until Flutterwave / Lemon Squeezy is connected (Sprint 5B)."}
         </p>
       ) : null}
     </div>

@@ -17,29 +17,29 @@
 ## Sprint 4 — **✅ complete**
 
 ```bash
-yarn db:migrate   # through 019
+yarn db:migrate   # through 020 for Sprint 5A
 ```
 
 Keep `ALLOW_DEV_UNLOCK=1` in dev until Sprint **5B** webhooks enforce unlock payment.
 
 ---
 
-## Sprint 5A — Trust, access & engagement — **current (start here)**
+## Sprint 5A — Trust, access & engagement — **✅ implemented (run migration 020)**
 
 | ID | Task | Status | Ref |
 |----|------|--------|-----|
-| T-01 | Landlord phone required before admin approve | Pending | TRUST |
-| T-02 | Ownership attestation on landlord submit | Pending | TRUST |
-| T-03 | `/terms` + `/privacy` pages | Pending | legal/ |
-| T-04 | Terms acceptance on submit + unlock | Pending | T-03 |
-| T-05 | Admin verification checklist UI | Pending | TRUST §4 |
-| T-06 | Report listing + admin queue | Pending | TRUST |
-| T-07 | Duplicate pin warning on approve | Pending | TRUST |
-| T-08 | New landlord building cap | Pending | TRUST |
-| T-09 | Free listing UX — remove listing fee banner | Pending | BUSINESS |
-| N-01 | Postmark integration | Pending | NOTIFICATIONS |
-| N-02 | Email: listing approved | Pending | N-01 |
-| N-03 | Email: listing rejected | Pending | N-01 |
+| T-01 | Landlord phone required before admin approve | Done | TRUST |
+| T-02 | Ownership attestation on landlord submit | Done | TRUST |
+| T-03 | `/terms` + `/privacy` pages | Done | legal/ |
+| T-04 | Terms acceptance on submit + unlock | Done | T-03 |
+| T-05 | Admin verification checklist UI | Done | TRUST §4 |
+| T-06 | Report listing + admin queue | Done | TRUST |
+| T-07 | Duplicate pin warning on approve | Done | TRUST |
+| T-08 | New landlord building cap | Done | TRUST |
+| T-09 | Free listing UX — remove listing fee banner | Done | BUSINESS |
+| N-01 | Postmark integration | Done | NOTIFICATIONS |
+| N-02 | Email: listing approved | Done | N-01 |
+| N-03 | Email: listing rejected | Done | N-01 |
 
 **Order:** T-03 → T-04 → T-09 → T-01 → T-02 → T-05 → T-06–T-08 → N-01–N-03
 
@@ -97,7 +97,7 @@ Keep `ALLOW_DEV_UNLOCK=1` in dev until Sprint **5B** webhooks enforce unlock pay
 | Sprint 4 complete | ✅ |
 | Payments strategy documented | ✅ |
 | Trust / terms plan | ✅ docs |
-| Sprint 5A guardrails | ❌ |
+| Sprint 5A guardrails | ✅ (run `yarn db:migrate` → 020) |
 | Live unlock (FW + LS) | ❌ 5B |
 | Stripe / LLC | ⏸ deferred |
 

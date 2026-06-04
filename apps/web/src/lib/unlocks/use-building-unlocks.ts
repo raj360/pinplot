@@ -60,7 +60,11 @@ export function useBuildingUnlocks(
   units: UnitLike[],
   pricingContext?: PricingContext,
 ) {
-  const { isAuthenticated, loading: authLoading } = useAuth();
+  const { isAuthenticated, loading: authLoading, profile, refreshProfile } =
+    useAuth();
+  const [acceptUnlockTerms, setAcceptUnlockTerms] = useState(false);
+  const needsUnlockTerms =
+    isAuthenticated && !profile?.tenant_unlock_terms_accepted_at;
 
   const [unlockState, setUnlockState] = useState<UnlockFetchState | null>(null);
   const [walletState, setWalletState] = useState<WalletFetchState | null>(
@@ -232,10 +236,19 @@ export function useBuildingUnlocks(
 
   const handleUnlock = useCallback(
     async (unitId: string): Promise<boolean> => {
+      if (needsUnlockTerms && !acceptUnlockTerms) {
+        setError("Accept the Terms of Service and Privacy Policy to unlock.");
+        return false;
+      }
       setError(null);
       setUnlockingId(unitId);
       try {
-        await unlockUnit(unitId);
+        await unlockUnit(unitId, {
+          acceptTerms: needsUnlockTerms ? acceptUnlockTerms : undefined,
+        });
+        if (needsUnlockTerms) {
+          await refreshProfile();
+        }
         clearBuildingCache(buildingId);
         clearWalletCache();
         await reloadUnlocks();
@@ -256,7 +269,13 @@ export function useBuildingUnlocks(
         setUnlockingId(null);
       }
     },
-    [buildingId, reloadUnlocks],
+    [
+      acceptUnlockTerms,
+      buildingId,
+      needsUnlockTerms,
+      refreshProfile,
+      reloadUnlocks,
+    ],
   );
 
   const showUnlockSection =
@@ -277,5 +296,8 @@ export function useBuildingUnlocks(
     unitQuotes: visibleUnitQuotes,
     unlockingId,
     unlockCredits,
+    needsUnlockTerms,
+    acceptUnlockTerms,
+    setAcceptUnlockTerms,
   };
 }

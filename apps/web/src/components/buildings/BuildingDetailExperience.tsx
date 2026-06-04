@@ -9,6 +9,7 @@ import { UnlockPurchasePanel } from "@/components/buildings/UnlockPurchasePanel"
 import { UnlockedAccessCard } from "@/components/buildings/UnlockedAccessCard";
 import { UnlockedAccessCompact } from "@/components/buildings/UnlockedAccessCompact";
 import { UnlockSectionSkeleton } from "@/components/explore/BuildingPreviewSkeleton";
+import { ReportListingPanel } from "@/components/buildings/ReportListingPanel";
 import type { BuildingDetail } from "@/lib/api/buildings";
 import { mergeBuildingMedia } from "@/lib/buildings/media";
 import { formatCurrency } from "@/lib/intl/format";
@@ -62,6 +63,9 @@ export function BuildingDetailExperience({
     unitQuotes: unlocks.unitQuotes,
     representativeQuote: unlocks.representativeQuote,
     layout: unlockPanelLayout,
+    needsUnlockTerms: unlocks.needsUnlockTerms,
+    acceptUnlockTerms: unlocks.acceptUnlockTerms,
+    onAcceptUnlockTermsChange: unlocks.setAcceptUnlockTerms,
   } as const;
 
   const firstUnlockDescription = unlockPanelDescription({
@@ -198,6 +202,11 @@ export function BuildingDetailExperience({
             />
           </section>
         ) : null}
+
+        <ReportListingPanel
+          buildingId={building.id}
+          buildingName={building.name}
+        />
 
         <details className="group border-t border-border pt-6">
           <summary className="cursor-pointer list-none marker:content-none text-sm font-medium text-muted [&::-webkit-details-marker]:hidden">

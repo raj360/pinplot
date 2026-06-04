@@ -21,7 +21,10 @@ export class UnlocksController {
     @CurrentUser() user: AuthUser,
     @Body() dto: UnlockUnitDto,
   ) {
-    return this.unlocks.unlockUnit(user.id, unitId, dto.paymentId);
+    return this.unlocks.unlockUnit(user.id, unitId, {
+      paymentId: dto.paymentId,
+      acceptTerms: dto.acceptTerms,
+    });
   }
 }
 
