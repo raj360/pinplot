@@ -9,6 +9,7 @@ import { DatabaseService } from "../database/database.service";
 import { WalletService } from "../wallet/wallet.service";
 import { UnlocksService } from "../unlocks/unlocks.service";
 import { FlutterwaveService } from "./flutterwave.service";
+import { LemonSqueezyService } from "./lemon-squeezy.service";
 
 type PaymentRow = {
   id: string;
@@ -18,11 +19,14 @@ type PaymentRow = {
   amount: number;
   currency: string;
   external_ref: string | null;
+  created_at?: Date;
   metadata: {
     unitId?: string;
     chargeAmountUgx?: number;
     creditLedgerId?: string;
     providerTransactionId?: string;
+    lemonAmountCents?: number;
+    lemonCurrency?: string;
   };
 };
 
@@ -35,6 +39,7 @@ export class SettleUnlockService {
     private readonly wallet: WalletService,
     private readonly unlocks: UnlocksService,
     private readonly flutterwave: FlutterwaveService,
+    private readonly lemonSqueezy: LemonSqueezyService,
   ) {}
 
   async settleByExternalRef(
@@ -139,6 +144,57 @@ export class SettleUnlockService {
       amount: verified.amount,
       currency: verified.currency,
     });
+  }
+
+  async settleLemonSqueezyFromReturn(params: {
+    paymentId: string;
+    userId: string;
+    userEmail?: string;
+  }) {
+    const { rows } = await this.db.query<PaymentRow>(
+      `SELECT id, user_id, provider, status, amount, currency, external_ref, metadata, created_at
+       FROM payments
+       WHERE id = $1`,
+      [params.paymentId],
+    );
+    const payment = rows[0];
+    if (!payment) throw new NotFoundException("Payment not found");
+    if (payment.user_id !== params.userId) {
+      throw new BadRequestException("Payment does not belong to this account.");
+    }
+    if (payment.status === "COMPLETED") {
+      return this.idempotentUnlockResult(payment);
+    }
+    if (payment.provider !== PaymentProvider.LEMON_SQUEEZY) {
+      throw new BadRequestException("Payment is not a Lemon Squeezy checkout.");
+    }
+    if (!payment.external_ref) {
+      throw new BadRequestException("Payment missing external reference.");
+    }
+
+    const amountCents =
+      payment.metadata?.lemonAmountCents ??
+      Math.round((payment.metadata?.chargeAmountUgx ?? payment.amount) * 0.00026 * 100);
+
+    if (!params.userEmail) {
+      return { settled: false, reason: "order_not_found" as const };
+    }
+
+    const order = await this.lemonSqueezy.findMatchingPaidOrder({
+      customerEmail: params.userEmail,
+      amountCents,
+      notBefore: payment.created_at ?? new Date(Date.now() - 3_600_000),
+    });
+
+    if (!order) {
+      return { settled: false, reason: "order_not_found" as const };
+    }
+
+    return this.settleByExternalRef(
+      payment.external_ref,
+      PaymentProvider.LEMON_SQUEEZY,
+      { providerTransactionId: order.orderId },
+    );
   }
 
   async findExternalRefByPaymentId(paymentId: string) {

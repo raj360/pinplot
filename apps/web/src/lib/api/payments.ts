@@ -55,3 +55,11 @@ export async function confirmFlutterwaveReturn(params: {
     { method: "POST" },
   );
 }
+
+export async function confirmLemonSqueezyReturn(paymentId: string) {
+  const search = new URLSearchParams({ paymentId });
+  return apiFetch<{ settled?: boolean; reason?: string }>(
+    `/payments/lemon-squeezy/confirm?${search}`,
+    { method: "POST" },
+  );
+}

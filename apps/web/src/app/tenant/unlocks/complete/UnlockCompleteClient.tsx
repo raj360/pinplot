@@ -3,16 +3,14 @@
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
-import { AppHeader } from "@/components/layout/AppHeader";
-import { PageMain } from "@/components/layout/PageShell";
 import { Button } from "@/components/ui/button";
 import { LoadingState } from "@/components/ui/loading-state";
 import {
   confirmFlutterwaveReturn,
+  confirmLemonSqueezyReturn,
   fetchUnlockPaymentStatus,
 } from "@/lib/api/payments";
 import { unlockUnit } from "@/lib/api/unlocks";
-import { exploreBuildingUrl } from "@/lib/explore/urls";
 
 export function UnlockCompleteClient() {
   const router = useRouter();
@@ -71,6 +69,8 @@ export function UnlockCompleteClient() {
             transactionId,
             status,
           });
+        } else {
+          await confirmLemonSqueezyReturn(paymentId);
         }
 
         if (await poll()) {
@@ -83,9 +83,9 @@ export function UnlockCompleteClient() {
 
         interval = window.setInterval(async () => {
           attempts += 1;
-          if (cancelled || attempts > 30) {
+          if (cancelled || attempts > 15) {
             if (interval) window.clearInterval(interval);
-            if (!cancelled && attempts > 30) {
+            if (!cancelled && attempts > 15) {
               setFlowError(
                 "Payment is taking longer than expected. Check My unlocks in a minute.",
               );
@@ -117,43 +117,43 @@ export function UnlockCompleteClient() {
     };
   }, [configError, paymentId, unitId, txRef, transactionId, status]);
 
-  return (
-    <div className="flex min-h-screen flex-col bg-background">
-      <AppHeader />
-      <PageMain className="mx-auto max-w-lg py-12">
-        {error ? (
-          <div className="border border-red-200 bg-red-50 p-6 text-sm text-red-900">
-            <p>{error}</p>
-            <Link href="/explore" className="mt-4 inline-block text-primary">
+  if (error) {
+    return (
+      <div className="mx-auto max-w-lg py-8">
+        <div className="border border-red-200 bg-red-50 p-6 text-sm text-red-900">
+          <p>{error}</p>
+          <Link href="/explore" className="mt-4 inline-block text-primary">
+            Back to explore
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  if (done) {
+    return (
+      <div className="mx-auto max-w-lg py-8">
+        <div className="border border-green-200 bg-green-50 p-6 text-sm text-green-950">
+          <p className="font-medium">{message}</p>
+          <div className="mt-4 flex flex-wrap gap-3">
+            <Button type="button" onClick={() => router.push("/tenant/unlocks")}>
+              View my unlocks
+            </Button>
+            <Link
+              href="/explore"
+              className="inline-flex items-center text-primary hover:underline"
+            >
               Back to explore
             </Link>
           </div>
-        ) : done ? (
-          <div className="border border-green-200 bg-green-50 p-6 text-sm text-green-950">
-            <p className="font-medium">{message}</p>
-            <div className="mt-4 flex flex-wrap gap-3">
-              {unitId ? (
-                <Button
-                  type="button"
-                  onClick={() =>
-                    router.push(exploreBuildingUrl(unitId, { hideMap: true }))
-                  }
-                >
-                  View contact
-                </Button>
-              ) : null}
-              <Link
-                href="/tenant/unlocks"
-                className="inline-flex items-center text-primary hover:underline"
-              >
-                My unlocks
-              </Link>
-            </div>
-          </div>
-        ) : (
-          <LoadingState label={message} />
-        )}
-      </PageMain>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="mx-auto max-w-lg py-12">
+      <LoadingState label={message} />
     </div>
   );
 }

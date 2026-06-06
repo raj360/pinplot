@@ -12,6 +12,45 @@ import { FlutterwaveService } from "./flutterwave.service";
 import { LemonSqueezyService } from "./lemon-squeezy.service";
 import { SettleUnlockService } from "./settle-unlock.service";
 
+type LemonWebhookPayload = {
+  meta?: {
+    event_name?: string;
+    custom_data?: Record<string, string | number | undefined>;
+  };
+  data?: {
+    attributes?: {
+      custom_data?: Record<string, string | number | undefined>;
+    };
+  };
+  included?: Array<{
+    attributes?: {
+      custom_data?: Record<string, string | number | undefined>;
+    };
+  }>;
+};
+
+function readLemonCustomData(payload: LemonWebhookPayload) {
+  const merged: Record<string, string | undefined> = {};
+
+  const absorb = (obj?: Record<string, string | number | undefined>) => {
+    if (!obj) return;
+    for (const [key, value] of Object.entries(obj)) {
+      if (value != null && value !== "") {
+        merged[key] = String(value);
+      }
+    }
+  };
+
+  absorb(payload.data?.attributes?.custom_data);
+  for (const item of payload.included ?? []) {
+    absorb(item.attributes?.custom_data);
+  }
+  // Lemon Squeezy documents custom checkout fields on meta.custom_data.
+  absorb(payload.meta?.custom_data);
+
+  return merged;
+}
+
 @Controller("webhooks")
 export class WebhooksController {
   private readonly logger = new Logger(WebhooksController.name);
@@ -79,45 +118,29 @@ export class WebhooksController {
       return { received: false };
     }
 
-    const payload = JSON.parse(rawBody.toString("utf8")) as {
-      meta?: { event_name?: string };
-      data?: {
-        attributes?: {
-          custom_data?: Record<string, string>;
-        };
-      };
-      included?: Array<{
-        type?: string;
-        attributes?: {
-          custom_data?: Record<string, string>;
-        };
-      }>;
-    };
+    const payload = JSON.parse(rawBody.toString("utf8")) as LemonWebhookPayload;
 
     const eventName = payload.meta?.event_name ?? "";
-    if (!eventName.includes("order_created") && !eventName.includes("order_paid")) {
+    if (
+      !eventName.includes("order_created") &&
+      !eventName.includes("order_paid")
+    ) {
       return { received: true, skipped: true };
     }
 
-    let txRef: string | undefined;
-    let paymentId: string | undefined;
-
-    const rootCustom = payload.data?.attributes?.custom_data;
-    if (rootCustom?.tx_ref) txRef = rootCustom.tx_ref;
-    if (rootCustom?.payment_id) paymentId = rootCustom.payment_id;
-
-    for (const item of payload.included ?? []) {
-      const custom = item.attributes?.custom_data;
-      if (custom?.tx_ref) txRef = custom.tx_ref;
-      if (custom?.payment_id) paymentId = custom.payment_id;
-    }
+    const custom = readLemonCustomData(payload);
+    let txRef = custom.tx_ref;
+    const paymentId = custom.payment_id;
 
     if (!txRef && paymentId) {
-      txRef = (await this.settle.findExternalRefByPaymentId(paymentId)) ?? undefined;
+      txRef =
+        (await this.settle.findExternalRefByPaymentId(paymentId)) ?? undefined;
     }
 
     if (!txRef) {
-      this.logger.warn("Lemon Squeezy webhook: missing tx_ref");
+      this.logger.warn(
+        `Lemon Squeezy webhook: missing tx_ref (event=${eventName}, custom_keys=${Object.keys(custom).join(",") || "none"})`,
+      );
       return { received: true, skipped: true };
     }
 

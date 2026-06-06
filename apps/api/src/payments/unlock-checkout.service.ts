@@ -108,6 +108,13 @@ export class UnlockCheckoutService {
 
     const txRef = `plotpin-unlock-${randomUUID()}`;
     const returnBase = this.appUrl("/tenant/unlocks/complete");
+    const lemonPresentment =
+      provider === PaymentProvider.LEMON_SQUEEZY
+        ? await this.resolveLemonPresentment(
+            chargeUgx,
+            options?.tenantCountryCode,
+          )
+        : null;
 
     const { rows } = await this.db.query<{ id: string }>(
       `INSERT INTO payments (
@@ -118,7 +125,9 @@ export class UnlockCheckoutService {
         tenantId,
         provider,
         chargeUgx,
-        provider === PaymentProvider.FLUTTERWAVE ? "UGX" : await this.checkoutCurrency(tenantId, options?.tenantCountryCode),
+        provider === PaymentProvider.FLUTTERWAVE
+          ? "UGX"
+          : await this.checkoutCurrency(tenantId, options?.tenantCountryCode),
         txRef,
         JSON.stringify({
           unitId,
@@ -126,6 +135,12 @@ export class UnlockCheckoutService {
           chargeAmountUgx: chargeUgx,
           creditLedgerId,
           buildingName: unit.building_name,
+          ...(lemonPresentment
+            ? {
+                lemonAmountCents: lemonPresentment.amountCents,
+                lemonCurrency: lemonPresentment.quoteCurrency,
+              }
+            : {}),
         }),
       ],
     );
@@ -143,12 +158,8 @@ export class UnlockCheckoutService {
         redirectUrl,
       });
     } else {
-      const presentment = await this.resolveLemonPresentment(
-        chargeUgx,
-        options?.tenantCountryCode,
-      );
       checkoutUrl = await this.lemonSqueezy.createCheckout({
-        customPriceCents: presentment.amountCents,
+        customPriceCents: lemonPresentment!.amountCents,
         email: tenantEmail,
         name: tenantName ?? undefined,
         redirectUrl,

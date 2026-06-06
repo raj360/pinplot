@@ -32,4 +32,17 @@ export class PaymentsController {
       status,
     });
   }
+
+  @Post("lemon-squeezy/confirm")
+  @UseGuards(SupabaseAuthGuard)
+  confirmLemonSqueezy(
+    @CurrentUser() user: AuthUser,
+    @Query("paymentId") paymentId: string,
+  ) {
+    return this.settle.settleLemonSqueezyFromReturn({
+      paymentId,
+      userId: user.id,
+      userEmail: user.email,
+    });
+  }
 }
