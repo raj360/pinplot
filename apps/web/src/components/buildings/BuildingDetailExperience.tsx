@@ -4,6 +4,7 @@ import Link from "next/link";
 import { PRICING } from "@plotpin/shared-types";
 import { BuildingStepHeader } from "@/components/buildings/BuildingStepHeader";
 import { BuildingDetailPanel } from "@/components/buildings/BuildingDetailPanel";
+import { BuildingLockedCoverPreview } from "@/components/buildings/BuildingLockedCoverPreview";
 import { BuildingUnlockedHero } from "@/components/buildings/BuildingUnlockedHero";
 import { UnlockPurchasePanel } from "@/components/buildings/UnlockPurchasePanel";
 import { UnlockedAccessCard } from "@/components/buildings/UnlockedAccessCard";
@@ -127,14 +128,10 @@ export function BuildingDetailExperience({
     return (
       <div className="space-y-3">
         {building.coverThumbUrl ? (
-          <div className="overflow-hidden border border-border bg-surface">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={building.coverThumbUrl}
-              alt=""
-              className="aspect-[16/10] w-full object-cover"
-            />
-          </div>
+          <BuildingLockedCoverPreview
+            src={building.coverThumbUrl}
+            constrainOnDesktop={false}
+          />
         ) : null}
 
         <BuildingDetailPanel
@@ -236,14 +233,7 @@ export function BuildingDetailExperience({
   const detailColumn = (
     <div className="min-w-0 space-y-4">
       {building.coverThumbUrl && !hasAccess ? (
-        <div className="overflow-hidden border border-border bg-surface">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={building.coverThumbUrl}
-            alt=""
-            className="aspect-[16/10] w-full object-cover"
-          />
-        </div>
+        <BuildingLockedCoverPreview src={building.coverThumbUrl} />
       ) : null}
 
       <BuildingDetailPanel building={building} showUnlockLink={false} />
