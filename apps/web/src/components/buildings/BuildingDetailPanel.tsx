@@ -141,7 +141,7 @@ export function BuildingDetailPanel({
       <article className="space-y-3">
         {!hideHeader ? (
           <header>
-            <h2 className="text-lg font-bold">{building.name}</h2>
+            <h2 className="text-lg font-bold text-primary">{building.name}</h2>
             <p className="text-sm text-muted">
               {[building.district, building.city].filter(Boolean).join(", ")}
             </p>
@@ -176,7 +176,7 @@ export function BuildingDetailPanel({
   return (
     <article className="space-y-4">
       <header>
-        <h1 className="text-2xl font-bold">{building.name}</h1>
+        <h1 className="text-2xl font-bold text-primary">{building.name}</h1>
         <p className="text-sm text-muted">
           {[building.district, building.city].filter(Boolean).join(", ")}
         </p>

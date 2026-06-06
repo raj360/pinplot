@@ -59,6 +59,7 @@ import {
 } from "@/lib/api/http-errors";
 import {
   buildExploreHref,
+  buildExploreSelectionHref,
   exploreFiltersEqual,
   parseExploreFiltersFromSearchParams,
 } from "@/lib/explore/explore-url-filters";
@@ -85,16 +86,22 @@ export function ExploreClient() {
     [searchParams],
   );
 
-  const [mapVisible, setMapVisible] = useState(true);
+  const [mapVisible, setMapVisible] = useState(
+    () => searchParams.get("map") !== "0",
+  );
   const [detailMode, setDetailMode] = useState<DetailMode>(null);
   const [accessModalBuildingId, setAccessModalBuildingId] = useState<
     string | null
   >(null);
   const [allBuildings, setAllBuildings] = useState<BuildingSummary[]>([]);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(
+    () => searchParams.get("building"),
+  );
   const [selectedDetail, setSelectedDetail] = useState<BuildingDetail | null>(null);
   const selectedDetailRef = useRef<BuildingDetail | null>(null);
-  const [selectedLoading, setSelectedLoading] = useState(false);
+  const [selectedLoading, setSelectedLoading] = useState(
+    () => Boolean(searchParams.get("building")),
+  );
   const [loading, setLoading] = useState(true);
   const [searching, setSearching] = useState(false);
   const [searchAlert, setSearchAlert] = useState<SearchAlert>(null);
@@ -135,6 +142,30 @@ export function ExploreClient() {
   const suppressMapInteraction = useCallback(() => {
     suppressMapInteractionUntilRef.current = Date.now() + 900;
   }, []);
+
+  const syncSelectionToUrl = useCallback(
+    (
+      options: {
+        buildingId?: string | null;
+        hideMap?: boolean;
+        history?: "push" | "replace";
+      },
+    ) => {
+      skipUrlSyncRef.current = true;
+      const href = buildExploreSelectionHref(pathname, appliedFiltersRef.current, {
+        buildingId: options.buildingId,
+        hideMap: options.hideMap,
+        mapBounds: appliedMapBoundsRef.current,
+        preserve: searchParams,
+      });
+      if (options.history === "replace") {
+        router.replace(href, { scroll: false });
+      } else {
+        router.push(href, { scroll: false });
+      }
+    },
+    [pathname, router, searchParams],
+  );
 
   const executeSearchRef = useRef<
     (
@@ -278,8 +309,15 @@ export function ExploreClient() {
       setDetailMode(null);
       setAccessModalBuildingId(null);
       scrollListToBuilding(id);
+      if (!isMobile) {
+        syncSelectionToUrl({
+          buildingId: id,
+          hideMap: false,
+          history: "replace",
+        });
+      }
     },
-    [scrollListToBuilding, setHover],
+    [isMobile, scrollListToBuilding, setHover, syncSelectionToUrl],
   );
 
   const applySearchResults = useCallback(
@@ -301,7 +339,9 @@ export function ExploreClient() {
 
       if (pendingDeepLink && !deepLinkHandled.current) {
         setDetailMode(null);
-        setMapVisible(true);
+        if (searchParams.get("map") !== "0") {
+          setMapVisible(true);
+        }
         return;
       }
 
@@ -857,28 +897,31 @@ export function ExploreClient() {
     (id: string) => {
       if (isMobile) {
         setDetailMode("full");
+        syncSelectionToUrl({ buildingId: id, hideMap: false, history: "push" });
         void loadDetail(id);
         return;
       }
 
       setDetailMode("full");
       setMapVisible(false);
+      syncSelectionToUrl({ buildingId: id, hideMap: true, history: "push" });
       void loadDetail(id);
     },
-    [isMobile, loadDetail],
+    [isMobile, loadDetail, syncSelectionToUrl],
   );
 
   const handleMapSelect = useCallback(
     (id: string) => {
       if (isMobile) {
         setDetailMode("summary");
+        syncSelectionToUrl({ buildingId: id, hideMap: false, history: "push" });
         void loadDetail(id);
         return;
       }
 
       selectBuildingOnMap(id);
     },
-    [isMobile, loadDetail, selectBuildingOnMap],
+    [isMobile, loadDetail, selectBuildingOnMap, syncSelectionToUrl],
   );
 
   const handleExpandToFullDetails = useCallback(() => {
@@ -886,30 +929,63 @@ export function ExploreClient() {
 
     if (isMobile) {
       setDetailMode("full");
-      if (selectedId) void loadDetail(selectedId);
+      if (selectedId) {
+        syncSelectionToUrl({
+          buildingId: selectedId,
+          hideMap: false,
+          history: "replace",
+        });
+        void loadDetail(selectedId);
+      }
       return;
     }
 
     setDetailMode("full");
     setMapVisible(false);
-    if (selectedId) void loadDetail(selectedId);
-  }, [closeAccessModal, isMobile, loadDetail, selectedId]);
+    if (selectedId) {
+      syncSelectionToUrl({
+        buildingId: selectedId,
+        hideMap: true,
+        history: "push",
+      });
+      void loadDetail(selectedId);
+    }
+  }, [
+    closeAccessModal,
+    isMobile,
+    loadDetail,
+    selectedId,
+    syncSelectionToUrl,
+  ]);
 
   const handleToggleMap = useCallback(() => {
     setMapVisible((visible) => {
       const next = !visible;
       if (next) {
         setDetailMode(null);
+        if (selectedId) {
+          syncSelectionToUrl({
+            buildingId: selectedId,
+            hideMap: false,
+            history: "replace",
+          });
+        }
       } else if (selectedId) {
         setDetailMode("full");
+        syncSelectionToUrl({
+          buildingId: selectedId,
+          hideMap: true,
+          history: "push",
+        });
       }
       return next;
     });
-  }, [selectedId]);
+  }, [selectedId, syncSelectionToUrl]);
 
   const closeMobileSheet = useCallback(() => {
     setDetailMode(null);
-  }, []);
+    syncSelectionToUrl({ buildingId: null, hideMap: false, history: "replace" });
+  }, [syncSelectionToUrl]);
 
   const accessModalUnlocks = accessModalBuildingId
     ? (unlocksByBuilding.get(accessModalBuildingId) ?? [])
