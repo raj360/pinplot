@@ -72,9 +72,15 @@ export function useBuildingUnlocks(
 ) {
   const { isAuthenticated, loading: authLoading, profile, refreshProfile } =
     useAuth();
-  const [acceptUnlockTerms, setAcceptUnlockTerms] = useState(false);
-  const needsUnlockTerms =
-    isAuthenticated && !profile?.tenant_unlock_terms_accepted_at;
+  const termsAcceptedOnProfile = Boolean(profile?.tenant_unlock_terms_accepted_at);
+  const [acceptUnlockTermsOverride, setAcceptUnlockTermsOverride] = useState<
+    boolean | null
+  >(null);
+  const acceptUnlockTerms = acceptUnlockTermsOverride ?? termsAcceptedOnProfile;
+  const setAcceptUnlockTerms = useCallback((value: boolean) => {
+    setAcceptUnlockTermsOverride(value);
+  }, []);
+  const showUnlockTerms = isAuthenticated;
 
   const [unlockState, setUnlockState] = useState<UnlockFetchState | null>(null);
   const [walletState, setWalletState] = useState<WalletFetchState | null>(
@@ -257,7 +263,7 @@ export function useBuildingUnlocks(
 
   const handleUnlock = useCallback(
     async (unitId: string): Promise<boolean> => {
-      if (needsUnlockTerms && !acceptUnlockTerms) {
+      if (isAuthenticated && !acceptUnlockTerms) {
         setError("Accept the Terms of Service and Privacy Policy to unlock.");
         return false;
       }
@@ -272,7 +278,7 @@ export function useBuildingUnlocks(
 
         if (!canRedeemCredit) {
           const checkout = await startUnlockCheckout(unitId, {
-            acceptTerms: needsUnlockTerms ? acceptUnlockTerms : true,
+            acceptTerms: acceptUnlockTerms,
             tenantCountryCode: pricingContext?.tenantCountryCode,
             providerPreference:
               resolvedCheckoutMethod === "mobile_money"
@@ -281,16 +287,18 @@ export function useBuildingUnlocks(
           });
 
           if (checkout.mode === "checkout") {
-            if (needsUnlockTerms) await refreshProfile();
+            if (!termsAcceptedOnProfile) {
+              await refreshProfile();
+            }
             window.location.assign(checkout.checkoutUrl);
             return true;
           }
         }
 
         await unlockUnit(unitId, {
-          acceptTerms: needsUnlockTerms ? acceptUnlockTerms : undefined,
+          acceptTerms: acceptUnlockTerms,
         });
-        if (needsUnlockTerms) {
+        if (!termsAcceptedOnProfile) {
           await refreshProfile();
         }
         clearBuildingCache(buildingId);
@@ -316,13 +324,14 @@ export function useBuildingUnlocks(
     [
       acceptUnlockTerms,
       buildingId,
-      needsUnlockTerms,
+      isAuthenticated,
       primaryCreditUgx,
       pricingContext,
       refreshProfile,
       reloadUnlocks,
       resolvedCheckoutMethod,
       representativeQuote,
+      termsAcceptedOnProfile,
       unlockCredits,
       visibleUnitQuotes,
     ],
@@ -346,7 +355,8 @@ export function useBuildingUnlocks(
     unitQuotes: visibleUnitQuotes,
     unlockingId,
     unlockCredits,
-    needsUnlockTerms,
+    needsUnlockTerms: showUnlockTerms,
+    showUnlockTerms,
     acceptUnlockTerms,
     setAcceptUnlockTerms,
     checkoutMethod,

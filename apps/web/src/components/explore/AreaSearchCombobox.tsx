@@ -232,7 +232,7 @@ export function AreaSearchCombobox({
           "flex w-full text-left text-foreground transition-colors",
           isSegment
             ? cn(
-                "min-h-11 flex-col justify-center px-3 py-2",
+                "min-h-9 flex-col justify-center px-3 py-1.5",
                 "hover:bg-background/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 focus-visible:ring-inset",
                 active && value && "bg-primary/[0.03]",
               )

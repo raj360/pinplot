@@ -13,6 +13,7 @@ import {
 import type { UnlockCheckoutMethod } from "@/lib/unlocks/use-building-unlocks";
 import { Button } from "@/components/ui/button";
 import { TermsAcceptanceField } from "@/components/legal/TermsAcceptanceField";
+import { ApproximateLocationNotice } from "@/components/explore/ApproximateLocationNotice";
 import { cn } from "@/lib/utils/cn";
 
 export function UnlockPurchasePanel({
@@ -30,6 +31,7 @@ export function UnlockPurchasePanel({
   description,
   showHeading = true,
   layout = "grid",
+  showUnlockTerms = false,
   needsUnlockTerms = false,
   acceptUnlockTerms = false,
   onAcceptUnlockTermsChange,
@@ -51,6 +53,8 @@ export function UnlockPurchasePanel({
   description?: string;
   showHeading?: boolean;
   layout?: "grid" | "sidebar";
+  showUnlockTerms?: boolean;
+  /** @deprecated Use showUnlockTerms */
   needsUnlockTerms?: boolean;
   acceptUnlockTerms?: boolean;
   onAcceptUnlockTermsChange?: (value: boolean) => void;
@@ -75,6 +79,8 @@ export function UnlockPurchasePanel({
     isAuthenticated &&
     availableUnits.length > 0 &&
     onCheckoutMethodChange != null;
+
+  const resolvedShowUnlockTerms = showUnlockTerms || needsUnlockTerms;
 
   return (
     <div className="border border-border bg-surface p-4">
@@ -102,7 +108,8 @@ export function UnlockPurchasePanel({
         </p>
       ) : (
         <>
-        {needsUnlockTerms && onAcceptUnlockTermsChange ? (
+        <ApproximateLocationNotice className="mt-4" />
+        {resolvedShowUnlockTerms && onAcceptUnlockTermsChange ? (
           <TermsAcceptanceField
             className="mt-4"
             checked={acceptUnlockTerms}

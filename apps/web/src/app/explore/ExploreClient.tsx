@@ -28,7 +28,7 @@ import {
   resolveSearchArea,
 } from "@/lib/filters/search-areas";
 import { formatBuildingSummaryLine } from "@/lib/explore/building-summary-line";
-import { EXPLORE_NEAR_ME_RADIUS_DEG } from "@/lib/maps/config";
+import { EXPLORE_BUILDING_FOCUS_RADIUS_DEG, EXPLORE_NEAR_ME_RADIUS_DEG } from "@/lib/maps/config";
 import {
   boundsForExploreSearch,
   canSearchMapViewport,
@@ -265,7 +265,7 @@ export function ExploreClient() {
       const lat = exact?.lat ?? building.approximateLat;
       const lng = exact?.lng ?? building.approximateLng;
       suppressMapInteraction();
-      setMapFocusBounds(boundsAround(lat, lng, 0.006));
+      setMapFocusBounds(boundsAround(lat, lng, EXPLORE_BUILDING_FOCUS_RADIUS_DEG));
       setMapFitToken((token) => token + 1);
     },
     [suppressMapInteraction, visibleUnlockLocations],
@@ -1009,7 +1009,7 @@ export function ExploreClient() {
       <div className="sticky top-0 z-40 shrink-0 bg-background shadow-card">
         <AppHeader variant="wide" />
 
-        <ContentBand width="wide" className="bg-panel" innerClassName="py-1 sm:py-1.5">
+        <ContentBand width="wide" className="bg-panel" innerClassName="py-0.5 sm:py-1">
           <ExploreFilters
             filters={filters}
             appliedFilters={appliedFilters}

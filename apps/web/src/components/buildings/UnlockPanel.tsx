@@ -65,7 +65,8 @@ export function UnlockPanel({
           onUnlock={unlocks.handleUnlock}
           unlockingId={unlocks.unlockingId}
           unlockCredits={unlocks.unlockCredits}
-          needsUnlockTerms={unlocks.needsUnlockTerms}
+          needsUnlockTerms={unlocks.showUnlockTerms}
+          showUnlockTerms={unlocks.showUnlockTerms}
           acceptUnlockTerms={unlocks.acceptUnlockTerms}
           onAcceptUnlockTermsChange={unlocks.setAcceptUnlockTerms}
           checkoutMethod={unlocks.checkoutMethod}

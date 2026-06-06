@@ -16,6 +16,7 @@ import {
 } from "@/lib/maps/config";
 import { PlotPinClusterRenderer } from "@/lib/maps/plotpin-cluster-renderer";
 import { MapSearchAreaButton } from "@/components/maps/MapSearchAreaButton";
+import { ApproximateLocationNotice } from "@/components/explore/ApproximateLocationNotice";
 import { cn } from "@/lib/utils/cn";
 
 const MAPS_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? "";
@@ -161,6 +162,7 @@ export function PlotPinMap({
         disabled={!onSearchMapArea}
         onSearch={() => onSearchMapArea?.()}
       />
+      <ApproximateLocationNotice variant="map" />
     </div>
   );
 }
@@ -289,7 +291,7 @@ function MapFitBounds({
         { lat: focusBounds.south, lng: focusBounds.west },
         { lat: focusBounds.north, lng: focusBounds.east },
       );
-      map.fitBounds(bounds, 64);
+      map.fitBounds(bounds, 96);
       applyZoomCap();
       return;
     }
@@ -307,7 +309,7 @@ function MapFitBounds({
         lat: exact?.lat ?? building.approximateLat,
         lng: exact?.lng ?? building.approximateLng,
       });
-      map.setZoom(EXPLORE_MAP_MAX_ZOOM);
+      map.setZoom(EXPLORE_MAP_DEFAULT_ZOOM);
       return;
     }
 
@@ -320,7 +322,7 @@ function MapFitBounds({
       });
     }
 
-    map.fitBounds(bounds, 72);
+    map.fitBounds(bounds, 96);
     applyZoomCap();
   }, [map, buildings, unlockedLocations, fitToken, focusBounds, onProgrammaticMapMove]);
 
