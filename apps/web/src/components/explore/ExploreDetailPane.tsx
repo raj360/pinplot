@@ -28,7 +28,6 @@ export function ExploreDetailPane({
       building={detail}
       variant={variant}
       layout="stack"
-      hideHeader
       onUnlockSuccess={onUnlockSuccess}
       onExpandToFull={onExpandToFull}
     />

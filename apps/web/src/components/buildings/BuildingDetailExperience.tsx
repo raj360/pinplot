@@ -236,7 +236,11 @@ export function BuildingDetailExperience({
         <BuildingLockedCoverPreview src={building.coverThumbUrl} />
       ) : null}
 
-      <BuildingDetailPanel building={building} showUnlockLink={false} />
+      <BuildingDetailPanel
+        building={building}
+        showUnlockLink={false}
+        hideHeader={hideHeader}
+      />
 
       {building.hasPremiumMedia && !hasAccess ? (
         <p className="border border-dashed border-border bg-surface px-3 py-2.5 text-sm text-muted">
