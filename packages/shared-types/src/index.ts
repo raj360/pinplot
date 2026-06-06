@@ -90,6 +90,33 @@ export enum UnitStatus {
   RENTED = "RENTED",
 }
 
+/**
+ * Countries where Flutterwave exposes mobile-money checkout (MTN, Airtel, M-Pesa, …).
+ * Source: Flutterwave help — "Pay with Mobile Money" (UG, KE, TZ, RW, GH, ZM, MW, BF, CI, CM, SN).
+ * Nigeria, South Africa, etc. use Flutterwave for cards/bank rails but not this MoMo product.
+ */
+export const FLUTTERWAVE_MOMO_COUNTRIES = new Set([
+  "UG",
+  "KE",
+  "TZ",
+  "RW",
+  "GH",
+  "ZM",
+  "MW",
+  "BF",
+  "CI",
+  "CM",
+  "SN",
+]);
+
+/** @deprecated Prefer FLUTTERWAVE_MOMO_COUNTRIES */
+export const FLUTTERWAVE_CHECKOUT_COUNTRIES = FLUTTERWAVE_MOMO_COUNTRIES;
+
+export function isFlutterwaveMoMoCountry(countryCode: string | null | undefined) {
+  const code = (countryCode ?? "").toUpperCase();
+  return code.length === 2 && FLUTTERWAVE_MOMO_COUNTRIES.has(code);
+}
+
 export enum PaymentProvider {
   /** Deferred until US LLC exists — see docs/PAYMENTS-STRATEGY.md */
   STRIPE = "STRIPE",

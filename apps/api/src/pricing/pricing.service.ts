@@ -46,7 +46,10 @@ export class PricingService {
       buildingType: params.buildingType ?? null,
       bedrooms: params.bedrooms,
       label: rule?.label ?? undefined,
-      note: "Payment collection starts in a future update.",
+      note:
+        params.purpose === PaymentPurpose.UNLOCK
+          ? "Pay via Flutterwave (Uganda) or Lemon Squeezy (international)."
+          : undefined,
     };
   }
 

@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   ConflictException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
@@ -13,6 +14,8 @@ import {
 import { DatabaseService } from "../database/database.service";
 import { PricingService } from "../pricing/pricing.service";
 import { WalletService } from "../wallet/wallet.service";
+import { LandlordNotificationsService } from "../buildings/landlord-notifications.service";
+import { TenantNotificationsService } from "../notifications/tenant-notifications.service";
 
 type UnitRow = {
   id: string;
@@ -33,6 +36,7 @@ type UnitRow = {
   landlord_phone: string | null;
   landlord_phone_secondary?: string | null;
   landlord_email: string | null;
+  landlord_id: string | null;
 };
 
 type UnlockRow = {
@@ -59,6 +63,8 @@ export class UnlocksService {
     private readonly db: DatabaseService,
     private readonly wallet: WalletService,
     private readonly pricing: PricingService,
+    private readonly landlordNotifications: LandlordNotificationsService,
+    private readonly tenantNotifications: TenantNotificationsService,
   ) {}
 
   async listMine(tenantId: string) {
@@ -284,6 +290,13 @@ export class UnlocksService {
       const response = await this.enrichWithMedia(
         this.toResponse(unit, rows[0], "winner"),
       );
+
+      void this.notifyUnlockParties(
+        unit,
+        tenantId,
+        resolvedPayment.paymentId,
+      ).catch(() => undefined);
+
       return {
         ...response,
         paidWithCredit: resolvedPayment.paidWithCredit,
@@ -308,7 +321,8 @@ export class UnlocksService {
               b.exact_lat, b.exact_lng, b.approximate_lat, b.approximate_lng,
               p.phone AS landlord_phone,
               p.phone_secondary AS landlord_phone_secondary,
-              au.email AS landlord_email
+              au.email AS landlord_email,
+              b.landlord_id
        ${UNIT_JOIN}
        WHERE u.id = $1 AND b.is_verified = TRUE
        FOR UPDATE OF u`,
@@ -391,10 +405,15 @@ export class UnlocksService {
     paymentId?: string,
   ) {
     if (paymentId) {
-      return {
+      const validated = await this.validateCompletedUnlockPayment(
         paymentId,
-        paidWithCredit: false,
-        creditType: undefined as string | undefined,
+        tenantId,
+        unit.id,
+      );
+      return {
+        paymentId: validated.id,
+        paidWithCredit: Boolean(validated.paidWithCredit),
+        creditType: validated.creditType,
       };
     }
 
@@ -450,14 +469,71 @@ export class UnlocksService {
     return rows[0].id;
   }
 
+  private async validateCompletedUnlockPayment(
+    paymentId: string,
+    tenantId: string,
+    unitId: string,
+  ) {
+    const { rows } = await this.db.query<{
+      id: string;
+      user_id: string;
+      status: string;
+      purpose: string;
+      metadata: {
+        unitId?: string;
+        creditType?: string;
+        credit?: boolean;
+      };
+    }>(
+      `SELECT id, user_id, status, purpose, metadata
+       FROM payments WHERE id = $1`,
+      [paymentId],
+    );
+
+    const payment = rows[0];
+    if (!payment) throw new NotFoundException("Payment not found");
+    if (payment.user_id !== tenantId) {
+      throw new ForbiddenException("Payment does not belong to this account.");
+    }
+    if (payment.purpose !== "UNLOCK") {
+      throw new BadRequestException("Invalid payment purpose.");
+    }
+    if (payment.status !== "COMPLETED") {
+      throw new BadRequestException(
+        "Payment is not completed yet. Wait a moment and try again.",
+      );
+    }
+    const meta = payment.metadata ?? {};
+    if (meta.unitId && meta.unitId !== unitId) {
+      throw new BadRequestException("Payment does not match this unit.");
+    }
+
+    const { rows: used } = await this.db.query(
+      `SELECT 1 FROM unit_unlocks WHERE payment_id = $1 LIMIT 1`,
+      [paymentId],
+    );
+    if (used[0]) {
+      throw new ConflictException("This payment was already used for an unlock.");
+    }
+
+    return {
+      id: payment.id,
+      paidWithCredit: Boolean(meta.credit),
+      creditType: meta.creditType as string | undefined,
+    };
+  }
+
   private async createDevPayment(
     tenantId: string,
     unitId: string,
     feeUgx: number,
   ) {
-    if (process.env.NODE_ENV === "production" && !process.env.ALLOW_DEV_UNLOCK) {
+    const allowDev =
+      process.env.ALLOW_DEV_UNLOCK === "1" ||
+      process.env.ALLOW_DEV_UNLOCK === "true";
+    if (process.env.NODE_ENV === "production" && !allowDev) {
       throw new BadRequestException(
-        "Payment required. Connect Stripe or Flutterwave checkout.",
+        "Payment required. Start checkout via POST /units/:unitId/unlock/checkout.",
       );
     }
 
@@ -474,6 +550,40 @@ export class UnlocksService {
       ],
     );
     return rows[0].id;
+  }
+
+  private async notifyUnlockParties(
+    unit: UnitRow,
+    tenantId: string,
+    paymentId: string,
+  ) {
+    const { rows: tenantRows } = await this.db.query<{ email: string | null }>(
+      `SELECT email FROM auth.users WHERE id = $1`,
+      [tenantId],
+    );
+    const tenantEmail = tenantRows[0]?.email ?? null;
+
+    const { rows: paymentRows } = await this.db.query<{ amount: number }>(
+      `SELECT amount FROM payments WHERE id = $1`,
+      [paymentId],
+    );
+    const amountUgx = paymentRows[0]?.amount ?? PRICING.tenantUnlockFeeUgx;
+
+    await this.landlordNotifications.notifyUnlockReceived({
+      landlordId: unit.landlord_id ?? "",
+      landlordEmail: unit.landlord_email,
+      buildingId: unit.building_id,
+      buildingName: unit.building_name,
+      unitNumber: unit.unit_number,
+    });
+
+    await this.tenantNotifications.notifyUnlockReceipt({
+      tenantId,
+      tenantEmail,
+      buildingName: unit.building_name,
+      unitNumber: unit.unit_number,
+      amountUgx,
+    });
   }
 
   private async enrichWithMedia(

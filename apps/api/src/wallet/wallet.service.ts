@@ -134,6 +134,62 @@ export class WalletService {
    * Consume one unlock credit (FIFO). Caller must run inside a transaction when
    * composing with unlock.
    */
+  async peekUnlockCredit(
+    userId: string,
+  ): Promise<{ ledgerId: string; creditType: WalletCreditType; amountUgx: number } | null> {
+    const { rows } = await this.db.query<LedgerRow>(
+      `SELECT *
+       FROM wallet_ledger
+       WHERE user_id = $1
+         AND purpose = 'UNLOCK'
+         AND remaining_quantity > 0
+         AND (expires_at IS NULL OR expires_at > NOW())
+       ORDER BY created_at ASC
+       LIMIT 1`,
+      [userId],
+    );
+    const row = rows[0];
+    if (!row) return null;
+    return {
+      ledgerId: row.id,
+      creditType: row.credit_type as WalletCreditType,
+      amountUgx: row.amount_ugx,
+    };
+  }
+
+  async consumeCreditById(ledgerId: string, userId: string) {
+    const { rows } = await this.db.query<LedgerRow>(
+      `SELECT *
+       FROM wallet_ledger
+       WHERE id = $1 AND user_id = $2
+         AND purpose = 'UNLOCK'
+         AND remaining_quantity > 0
+         AND (expires_at IS NULL OR expires_at > NOW())
+       FOR UPDATE`,
+      [ledgerId, userId],
+    );
+    const row = rows[0];
+    if (!row) {
+      throw new NotFoundException("Wallet credit not found or already used.");
+    }
+
+    const nextQuantity = row.remaining_quantity - 1;
+    await this.db.query(
+      `UPDATE wallet_ledger
+       SET remaining_quantity = $2,
+           remaining_ugx = CASE WHEN $2 = 0 THEN 0 ELSE remaining_ugx END,
+           updated_at = NOW()
+       WHERE id = $1`,
+      [row.id, nextQuantity],
+    );
+
+    return {
+      ledgerId: row.id,
+      creditType: row.credit_type as WalletCreditType,
+      amountUgx: row.amount_ugx,
+    };
+  }
+
   async consumeUnlockCredit(
     userId: string,
   ): Promise<{ ledgerId: string; creditType: WalletCreditType; amountUgx: number } | null> {

@@ -10,6 +10,7 @@ import {
   unlockButtonLabel,
   unlockPanelDescription,
 } from "@/lib/unlocks/unlock-pricing";
+import type { UnlockCheckoutMethod } from "@/lib/unlocks/use-building-unlocks";
 import { Button } from "@/components/ui/button";
 import { TermsAcceptanceField } from "@/components/legal/TermsAcceptanceField";
 import { cn } from "@/lib/utils/cn";
@@ -32,6 +33,9 @@ export function UnlockPurchasePanel({
   needsUnlockTerms = false,
   acceptUnlockTerms = false,
   onAcceptUnlockTermsChange,
+  checkoutMethod = "card",
+  onCheckoutMethodChange,
+  showMobileMoneyCheckout = false,
 }: {
   buildingId: string;
   availableUnits: UnitLike[];
@@ -50,6 +54,9 @@ export function UnlockPurchasePanel({
   needsUnlockTerms?: boolean;
   acceptUnlockTerms?: boolean;
   onAcceptUnlockTermsChange?: (value: boolean) => void;
+  checkoutMethod?: UnlockCheckoutMethod;
+  onCheckoutMethodChange?: (method: UnlockCheckoutMethod) => void;
+  showMobileMoneyCheckout?: boolean;
 }) {
   const defaultDescription = unlockPanelDescription({
     unlockCredits,
@@ -63,6 +70,11 @@ export function UnlockPurchasePanel({
       ? "grid-cols-1"
       : "grid-cols-1 sm:grid-cols-[repeat(auto-fill,minmax(15rem,1fr))]",
   );
+
+  const showPaymentMethodPicker =
+    isAuthenticated &&
+    availableUnits.length > 0 &&
+    onCheckoutMethodChange != null;
 
   return (
     <div className="border border-border bg-surface p-4">
@@ -96,6 +108,45 @@ export function UnlockPurchasePanel({
             checked={acceptUnlockTerms}
             onCheckedChange={onAcceptUnlockTermsChange}
           />
+        ) : null}
+        {showPaymentMethodPicker ? (
+          <fieldset className="mt-4 space-y-2">
+            <legend className="text-sm font-medium text-foreground">
+              Payment method
+            </legend>
+            <label className="flex cursor-pointer items-start gap-2 border border-border bg-background p-3 text-sm has-[:checked]:border-primary has-[:checked]:ring-1 has-[:checked]:ring-primary/30">
+              <input
+                type="radio"
+                name="unlock-checkout-method"
+                className="mt-0.5"
+                checked={checkoutMethod === "card"}
+                onChange={() => onCheckoutMethodChange("card")}
+              />
+              <span>
+                <span className="font-medium">Card</span>
+                <span className="mt-0.5 block text-xs text-muted">
+                  Visa · Mastercard · Apple Pay (international checkout)
+                </span>
+              </span>
+            </label>
+            {showMobileMoneyCheckout ? (
+              <label className="flex cursor-pointer items-start gap-2 border border-border bg-background p-3 text-sm has-[:checked]:border-primary has-[:checked]:ring-1 has-[:checked]:ring-primary/30">
+                <input
+                  type="radio"
+                  name="unlock-checkout-method"
+                  className="mt-0.5"
+                  checked={checkoutMethod === "mobile_money"}
+                  onChange={() => onCheckoutMethodChange("mobile_money")}
+                />
+                <span>
+                  <span className="font-medium">Mobile money</span>
+                  <span className="mt-0.5 block text-xs text-muted">
+                    MTN · Airtel · M-Pesa (UGX via Flutterwave)
+                  </span>
+                </span>
+              </label>
+            ) : null}
+          </fieldset>
         ) : null}
         <ul className={listClass}>
           {availableUnits.map((unit) => {
@@ -145,8 +196,8 @@ export function UnlockPurchasePanel({
       {isAuthenticated && availableUnits.length > 0 ? (
         <p className="mt-3 text-xs text-muted">
           {unlockCredits > 0
-            ? "Your credit covers this unlock in dev when it matches the quoted fee — no card charge until payments go live."
-            : "Dev mode: payment simulated until Flutterwave / Lemon Squeezy is connected (Sprint 5B)."}
+            ? "Credits apply when they cover the full quoted fee. Otherwise you pay via your selected checkout."
+            : "You will be redirected to a secure checkout to complete payment."}
         </p>
       ) : null}
     </div>

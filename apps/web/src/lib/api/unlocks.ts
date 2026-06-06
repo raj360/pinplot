@@ -76,13 +76,16 @@ export async function fetchUnlockStatus(unitId: string) {
 
 export async function unlockUnit(
   unitId: string,
-  options?: { acceptTerms?: boolean },
+  options?: { acceptTerms?: boolean; paymentId?: string },
 ) {
   return apiFetch<TenantUnlock & { status: string; feeUgx: number }>(
     `/units/${unitId}/unlock`,
     {
       method: "POST",
-      body: JSON.stringify({ acceptTerms: options?.acceptTerms ?? false }),
+      body: JSON.stringify({
+        acceptTerms: options?.acceptTerms ?? false,
+        paymentId: options?.paymentId,
+      }),
     },
   );
 }

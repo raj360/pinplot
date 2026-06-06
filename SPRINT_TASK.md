@@ -17,7 +17,7 @@
 ## Sprint 4 — **✅ complete**
 
 ```bash
-yarn db:migrate   # through 020 for Sprint 5A
+yarn db:migrate   # through 022 for Sprint 5B
 ```
 
 Keep `ALLOW_DEV_UNLOCK=1` in dev until Sprint **5B** webhooks enforce unlock payment.
@@ -45,22 +45,22 @@ Keep `ALLOW_DEV_UNLOCK=1` in dev until Sprint **5B** webhooks enforce unlock pay
 
 ---
 
-## Sprint 5B — Unlock payments (Flutterwave + Lemon Squeezy)
+## Sprint 5B — Unlock payments (Flutterwave + Lemon Squeezy) — **✅ implemented**
 
 **Gate:** Sprint 5A exit ✅ · **No Stripe / LLC in this sprint**
 
 | ID | Task | Status | Notes |
 |----|------|--------|-------|
-| P-00 | `LEMON_SQUEEZY` on `payment_provider` enum | Pending | Migration `024` |
-| S4-20 | Multi-country `pricing_rules` seed | Pending | Unlock quotes |
-| S5-01a | `POST /unlocks/checkout` + routing | Pending | UG → FW; intl → LS |
-| S5-01b | Lemon Squeezy checkout + webhook | Pending | Diaspora cards |
-| S5-01c | Flutterwave checkout + webhook | Pending | UG MoMo / local |
-| S5-02 | Shared settleUnlock idempotency | Pending | |
-| S5-03 | Enforce unlock payment (prod) | Pending | |
-| S5-07 | Wallet + payment reconciliation | Pending | |
-| N-04 | Email: landlord unlock received | Pending | |
-| N-05 | Email: tenant unlock receipt | Pending | |
+| P-00 | `LEMON_SQUEEZY` on `payment_provider` enum | Done | Migration `021` |
+| S4-20 | Multi-country `pricing_rules` seed | Done | Migration `022` |
+| S5-01a | `POST /units/:unitId/unlock/checkout` + routing | Done | UG → FW; intl → LS |
+| S5-01b | Lemon Squeezy checkout + webhook | Done | `LEMON_SQUEEZY_*` env |
+| S5-01c | Flutterwave checkout + webhook | Done | `FLUTTERWAVE_*` env |
+| S5-02 | Shared settleUnlock idempotency | Done | `SettleUnlockService` |
+| S5-03 | Enforce unlock payment (prod) | Done | `ALLOW_DEV_UNLOCK` off in prod |
+| S5-07 | Wallet + payment reconciliation | Done | Credit peek + partial charge |
+| N-04 | Email: landlord unlock received | Done | Postmark |
+| N-05 | Email: tenant unlock receipt | Done | Postmark |
 
 **Deferred:** ~~S5-01 Stripe~~ · ~~US LLC~~ · ~~landlord listing fee~~
 
@@ -98,7 +98,7 @@ Keep `ALLOW_DEV_UNLOCK=1` in dev until Sprint **5B** webhooks enforce unlock pay
 | Payments strategy documented | ✅ |
 | Trust / terms plan | ✅ docs |
 | Sprint 5A guardrails | ✅ (run `yarn db:migrate` → 020) |
-| Live unlock (FW + LS) | ❌ 5B |
+| Live unlock (FW + LS) | ✅ (configure PSP keys + webhooks) |
 | Stripe / LLC | ⏸ deferred |
 
 ---

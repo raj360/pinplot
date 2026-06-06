@@ -17,6 +17,7 @@ import {
   unlockPanelDescription,
 } from "@/lib/unlocks/unlock-pricing";
 import { useBuildingUnlocks } from "@/lib/unlocks/use-building-unlocks";
+import { useAuth } from "@/lib/auth/use-auth";
 
 type BuildingDetailExperienceProps = {
   building: BuildingDetail;
@@ -36,9 +37,11 @@ export function BuildingDetailExperience({
   onExpandToFull,
   hideHeader = false,
 }: BuildingDetailExperienceProps) {
+  const { profile } = useAuth();
   const unlocks = useBuildingUnlocks(building.id, building.units, {
     buildingType: building.buildingType,
     countryCode: building.countryCode,
+    tenantCountryCode: profile?.country_code,
   });
   const location = [building.district, building.city].filter(Boolean).join(", ");
   const hasAccess = unlocks.activeUnlocks.length > 0;
@@ -66,6 +69,9 @@ export function BuildingDetailExperience({
     needsUnlockTerms: unlocks.needsUnlockTerms,
     acceptUnlockTerms: unlocks.acceptUnlockTerms,
     onAcceptUnlockTermsChange: unlocks.setAcceptUnlockTerms,
+    checkoutMethod: unlocks.checkoutMethod,
+    onCheckoutMethodChange: unlocks.setCheckoutMethod,
+    showMobileMoneyCheckout: unlocks.showMobileMoneyCheckout,
   } as const;
 
   const firstUnlockDescription = unlockPanelDescription({

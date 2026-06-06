@@ -1,7 +1,14 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { PaymentPurpose, UnitStatus, type PriceQuote } from "@plotpin/shared-types";
+import {
+  PaymentPurpose,
+  PRICING,
+  UnitStatus,
+  isFlutterwaveMoMoCountry,
+  type PriceQuote,
+} from "@plotpin/shared-types";
+import { startUnlockCheckout } from "@/lib/api/payments";
 import { useAuth } from "@/lib/auth/use-auth";
 import { fetchBuildingUnlocks, unlockUnit, type TenantUnlock } from "@/lib/api/unlocks";
 import { fetchBuildingUnlocksFresh } from "@/lib/api/unlocks-cache";
@@ -17,6 +24,7 @@ import type { UnitLike } from "@/lib/buildings/unit-summary";
 type PricingContext = {
   buildingType: string;
   countryCode: string;
+  tenantCountryCode?: string;
 };
 
 type UnitQuoteState = {
@@ -35,6 +43,8 @@ type WalletFetchState = {
   unlockCredits: number;
   primaryCreditUgx: number | null;
 };
+
+export type UnlockCheckoutMethod = "card" | "mobile_money";
 
 function walletFromSummary(
   wallet: Awaited<ReturnType<typeof fetchWalletCached>>,
@@ -72,6 +82,8 @@ export function useBuildingUnlocks(
   );
   const [unlockingId, setUnlockingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [checkoutMethod, setCheckoutMethod] =
+    useState<UnlockCheckoutMethod>("card");
   const [unitQuoteState, setUnitQuoteState] = useState<UnitQuoteState>({
     buildingId: "",
     quotes: {},
@@ -103,6 +115,15 @@ export function useBuildingUnlocks(
     ? `${pricingContext.buildingType}:${pricingContext.countryCode}`
     : "";
   const shouldFetchQuotes = Boolean(pricingContextKey && availableUnits.length > 0);
+
+  const showMobileMoneyCheckout =
+    isFlutterwaveMoMoCountry(pricingContext?.tenantCountryCode) ||
+    isFlutterwaveMoMoCountry(pricingContext?.countryCode);
+
+  const resolvedCheckoutMethod: UnlockCheckoutMethod =
+    showMobileMoneyCheckout && checkoutMethod === "mobile_money"
+      ? "mobile_money"
+      : "card";
 
   useEffect(() => {
     if (!isAuthenticated || authLoading) return;
@@ -243,6 +264,29 @@ export function useBuildingUnlocks(
       setError(null);
       setUnlockingId(unitId);
       try {
+        const quote = visibleUnitQuotes[unitId] ?? representativeQuote;
+        const feeUgx = quote?.amountUgx ?? PRICING.tenantUnlockFeeUgx;
+        const canRedeemCredit =
+          unlockCredits > 0 &&
+          (primaryCreditUgx == null || primaryCreditUgx >= feeUgx);
+
+        if (!canRedeemCredit) {
+          const checkout = await startUnlockCheckout(unitId, {
+            acceptTerms: needsUnlockTerms ? acceptUnlockTerms : true,
+            tenantCountryCode: pricingContext?.tenantCountryCode,
+            providerPreference:
+              resolvedCheckoutMethod === "mobile_money"
+                ? "flutterwave"
+                : "lemon_squeezy",
+          });
+
+          if (checkout.mode === "checkout") {
+            if (needsUnlockTerms) await refreshProfile();
+            window.location.assign(checkout.checkoutUrl);
+            return true;
+          }
+        }
+
         await unlockUnit(unitId, {
           acceptTerms: needsUnlockTerms ? acceptUnlockTerms : undefined,
         });
@@ -273,8 +317,14 @@ export function useBuildingUnlocks(
       acceptUnlockTerms,
       buildingId,
       needsUnlockTerms,
+      primaryCreditUgx,
+      pricingContext,
       refreshProfile,
       reloadUnlocks,
+      resolvedCheckoutMethod,
+      representativeQuote,
+      unlockCredits,
+      visibleUnitQuotes,
     ],
   );
 
@@ -299,5 +349,8 @@ export function useBuildingUnlocks(
     needsUnlockTerms,
     acceptUnlockTerms,
     setAcceptUnlockTerms,
+    checkoutMethod,
+    setCheckoutMethod,
+    showMobileMoneyCheckout,
   };
 }

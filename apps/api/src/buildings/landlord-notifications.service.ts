@@ -10,6 +10,14 @@ export type ListingRejectedNotification = {
   reason: string;
 };
 
+export type UnlockReceivedNotification = {
+  landlordId: string;
+  landlordEmail: string | null;
+  buildingId: string;
+  buildingName: string;
+  unitNumber: string;
+};
+
 export type ListingApprovedNotification = {
   landlordId: string;
   landlordEmail: string | null;
@@ -31,6 +39,44 @@ export class LandlordNotificationsService {
       this.config.get<string>("CORS_ORIGIN")?.trim() ||
       "http://localhost:3000";
     return `${base.replace(/\/$/, "")}${path}`;
+  }
+
+  async notifyUnlockReceived(
+    payload: UnlockReceivedNotification,
+  ): Promise<{ delivered: boolean; channel: "postmark" | "stub" }> {
+    const email = payload.landlordEmail?.trim();
+    if (!email) {
+      this.logger.warn(
+        `Unlock received (no email): building=${payload.buildingId} landlord=${payload.landlordId}`,
+      );
+      return { delivered: false, channel: "stub" };
+    }
+
+    const manageUrl = this.appUrl(
+      `/landlord/buildings/${payload.buildingId}`,
+    );
+    const subject = `PlotPin: tenant unlocked Unit ${payload.unitNumber}`;
+    const textBody = [
+      `A tenant unlocked contact for "${payload.buildingName}" — Unit ${payload.unitNumber}.`,
+      "",
+      "They have a time-limited exclusive window to reach you. Respond promptly while the listing is fresh.",
+      "",
+      manageUrl,
+      "",
+      "— PlotPin",
+    ].join("\n");
+
+    const result = await this.postmark.sendEmail({
+      to: email,
+      subject,
+      textBody,
+      tag: "landlord_unlock_received",
+    });
+
+    return {
+      delivered: result.delivered,
+      channel: result.delivered ? "postmark" : "stub",
+    };
   }
 
   async notifyListingApproved(

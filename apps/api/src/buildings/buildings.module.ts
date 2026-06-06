@@ -18,5 +18,6 @@ import { LandlordNotificationsService } from "./landlord-notifications.service";
     ExploreSearchCacheService,
     LandlordNotificationsService,
   ],
+  exports: [LandlordNotificationsService],
 })
 export class BuildingsModule {}

@@ -88,6 +88,7 @@ Tenant taps "Unlock"
 | Viewer / preference | Provider |
 |---------------------|----------|
 | `country_code === UG` or user selects MoMo | **Flutterwave** |
+| Tenant or listing in **Flutterwave MoMo markets** (UG, KE, TZ, RW, NG, GH, …) | **Flutterwave** |
 | Diaspora corridors / international card default | **Lemon Squeezy** |
 | Override in Settings (future) | User choice |
 
