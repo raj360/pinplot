@@ -18,7 +18,7 @@ export function formatBuildingSummaryLine(
       building.currency,
       building.countryCode,
     );
-    return `${building.availableUnitCount} available · from ${rent}/mo`;
+    return `${building.availableUnitCount} available · from ${rent}`;
   }
   return "Click for details";
 }

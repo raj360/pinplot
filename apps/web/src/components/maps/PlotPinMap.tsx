@@ -66,6 +66,8 @@ type Props = {
   onHoverOpenDetail?: (id: string) => void;
   onAccessOpen?: (id: string) => void;
   onHover?: (id: string | null) => void;
+  /** Keep the selected pin's tooltip visible (touch devices have no hover). */
+  persistSelectedTooltip?: boolean;
   /** cooperative = page scroll passes through on mobile; greedy = map captures all gestures */
   gestureHandling?: "greedy" | "cooperative" | "none" | "auto";
   /** Increment after search to fit map to result markers. */
@@ -92,6 +94,7 @@ export function PlotPinMap({
   onHoverOpenDetail,
   onAccessOpen,
   onHover,
+  persistSelectedTooltip = false,
   gestureHandling = "greedy",
   fitBoundsToken = 0,
   focusBounds = null,
@@ -153,6 +156,7 @@ export function PlotPinMap({
             onHoverOpenDetail={onHoverOpenDetail}
             onAccessOpen={onAccessOpen}
             onHover={onHover}
+            persistSelectedTooltip={persistSelectedTooltip}
           />
         </GoogleMap>
       </APIProvider>
@@ -396,6 +400,85 @@ function createMarkerPin(label: string, unlocked: boolean) {
   return { pin, body };
 }
 
+const MAP_TOOLTIP_EDGE_PAD = 10;
+
+/** Keep tooltip box inside the map viewport; shift arrow to stay on the pin. */
+function clampMapTooltip(tooltip: HTMLDivElement, map: google.maps.Map) {
+  tooltip.style.transform = "translateX(-50%)";
+  tooltip.style.setProperty("--tooltip-shift", "0px");
+
+  const mapRect = map.getDiv()?.getBoundingClientRect();
+  if (!mapRect) return;
+
+  const tooltipRect = tooltip.getBoundingClientRect();
+  let shift = 0;
+
+  if (tooltipRect.left < mapRect.left + MAP_TOOLTIP_EDGE_PAD) {
+    shift = mapRect.left + MAP_TOOLTIP_EDGE_PAD - tooltipRect.left;
+  } else if (tooltipRect.right > mapRect.right - MAP_TOOLTIP_EDGE_PAD) {
+    shift = mapRect.right - MAP_TOOLTIP_EDGE_PAD - tooltipRect.right;
+  }
+
+  if (Math.abs(shift) < 0.5) return;
+
+  tooltip.style.transform = `translateX(calc(-50% + ${shift}px))`;
+  tooltip.style.setProperty("--tooltip-shift", `${-shift}px`);
+}
+
+type MarkerStyleState = {
+  selectedId?: string | null;
+  hoveredId?: string | null;
+  hoverPreview?: HoverPreview;
+  persistSelectedTooltip: boolean;
+  cameraMoving: boolean;
+  buildings: BuildingSummary[];
+  map: google.maps.Map | null;
+};
+
+/** Apply pin highlight + tooltip visibility to all markers from current state. */
+function renderMarkerStyles(
+  entries: MarkerUiEntry[],
+  state: MarkerStyleState,
+) {
+  for (const entry of entries) {
+    const { id, pin, tooltip, titleButton, summary, unlocked, marker } = entry;
+
+    const active = state.selectedId === id;
+    const hovered = state.hoveredId === id;
+    pin.className = markerVariantClasses(active, hovered, unlocked);
+    marker.zIndex = active || hovered ? 2 : 1;
+
+    // Hover tooltip is transient; selected tooltip persists on touch devices.
+    // Suppress tooltips while the camera moves to avoid floating artifacts.
+    const showTooltip =
+      !state.cameraMoving &&
+      (hovered || (active && state.persistSelectedTooltip));
+
+    if (showTooltip) {
+      const building = state.buildings.find((b) => b.id === id);
+      const preview =
+        state.hoverPreview?.id === id ? state.hoverPreview : null;
+      const name = preview?.name ?? building?.name ?? "Listing";
+      const summaryLine =
+        preview?.summaryLine ??
+        (building && building.availableUnitCount > 0
+          ? `${building.availableUnitCount} available`
+          : "Click for details");
+
+      if (titleButton.textContent !== name) titleButton.textContent = name;
+      if (summary.textContent !== summaryLine) {
+        summary.textContent = summaryLine;
+      }
+      tooltip.classList.add("is-visible");
+      if (state.map) clampMapTooltip(tooltip, state.map);
+    } else {
+      tooltip.classList.remove("is-visible");
+      tooltip.style.transform = "translateX(-50%)";
+      tooltip.style.setProperty("--tooltip-shift", "0px");
+    }
+  }
+}
+
 function createMapTooltip() {
   const tooltip = document.createElement("div");
   tooltip.className = "plotpin-map-tooltip plotpin-map-tooltip--rich";
@@ -424,6 +507,7 @@ function ClusteredMarkers({
   onHoverOpenDetail,
   onAccessOpen,
   onHover,
+  persistSelectedTooltip = false,
 }: {
   buildings: BuildingSummary[];
   selectedId?: string | null;
@@ -435,6 +519,7 @@ function ClusteredMarkers({
   onHoverOpenDetail?: (id: string) => void;
   onAccessOpen?: (id: string) => void;
   onHover?: (id: string | null) => void;
+  persistSelectedTooltip?: boolean;
 }) {
   const map = useMap();
   const clustererRef = useRef<MarkerClusterer | null>(null);
@@ -451,6 +536,11 @@ function ClusteredMarkers({
   const markerIdsRef = useRef(
     new globalThis.Map<google.maps.marker.AdvancedMarkerElement, string>(),
   );
+  const selectedIdRef = useRef(selectedId);
+  const hoveredIdRef = useRef(hoveredId);
+  const hoverPreviewRef = useRef(hoverPreview);
+  const persistSelectedTooltipRef = useRef(persistSelectedTooltip);
+  const cameraMovingRef = useRef(false);
 
   useEffect(() => {
     buildingsRef.current = buildings;
@@ -663,39 +753,64 @@ function ClusteredMarkers({
   }, [map, positions]);
 
   useEffect(() => {
-    const frame = window.requestAnimationFrame(() => {
-      for (const entry of markerUiRef.current) {
-        const { id, pin, tooltip, titleButton, summary, unlocked, marker } = entry;
-
-        const active = selectedId === id;
-        const hovered = hoveredId === id;
-        pin.className = markerVariantClasses(active, hovered, unlocked);
-        marker.zIndex = active || hovered ? 2 : 1;
-
-        if (hovered) {
-          const building = buildingsRef.current.find((b) => b.id === id);
-          const preview =
-            hoverPreview?.id === id ? hoverPreview : null;
-          const name = preview?.name ?? building?.name ?? "Listing";
-          const summaryLine =
-            preview?.summaryLine ??
-            (building && building.availableUnitCount > 0
-              ? `${building.availableUnitCount} available`
-              : "Click for details");
-
-          if (titleButton.textContent !== name) titleButton.textContent = name;
-          if (summary.textContent !== summaryLine) {
-            summary.textContent = summaryLine;
-          }
-          tooltip.classList.add("is-visible");
-        } else {
-          tooltip.classList.remove("is-visible");
-        }
-      }
+    selectedIdRef.current = selectedId;
+    hoveredIdRef.current = hoveredId;
+    hoverPreviewRef.current = hoverPreview;
+    persistSelectedTooltipRef.current = persistSelectedTooltip;
+    renderMarkerStyles(markerUiRef.current, {
+      selectedId,
+      hoveredId,
+      hoverPreview,
+      persistSelectedTooltip,
+      cameraMoving: cameraMovingRef.current,
+      buildings: buildingsRef.current,
+      map,
     });
+  }, [
+    map,
+    positions,
+    selectedId,
+    hoveredId,
+    hoverPreview,
+    persistSelectedTooltip,
+  ]);
 
-    return () => window.cancelAnimationFrame(frame);
-  }, [selectedId, hoveredId, hoverPreview]);
+  useEffect(() => {
+    if (!map) return;
+
+    const restyle = () => {
+      renderMarkerStyles(markerUiRef.current, {
+        selectedId: selectedIdRef.current,
+        hoveredId: hoveredIdRef.current,
+        hoverPreview: hoverPreviewRef.current,
+        persistSelectedTooltip: persistSelectedTooltipRef.current,
+        cameraMoving: cameraMovingRef.current,
+        buildings: buildingsRef.current,
+        map,
+      });
+    };
+
+    const hideWhileMoving = () => {
+      if (cameraMovingRef.current) return;
+      cameraMovingRef.current = true;
+      restyle();
+    };
+
+    const onIdle = () => {
+      cameraMovingRef.current = false;
+      restyle();
+    };
+
+    const zoomListener = map.addListener("zoom_changed", hideWhileMoving);
+    const dragListener = map.addListener("dragstart", hideWhileMoving);
+    const idleListener = map.addListener("idle", onIdle);
+
+    return () => {
+      zoomListener.remove();
+      dragListener.remove();
+      idleListener.remove();
+    };
+  }, [map]);
 
   return null;
 }

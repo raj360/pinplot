@@ -97,10 +97,13 @@ export function ExploreClient() {
   const [selectedId, setSelectedId] = useState<string | null>(
     () => searchParams.get("building"),
   );
+  const selectedIdRef = useRef<string | null>(selectedId);
   const [selectedDetail, setSelectedDetail] = useState<BuildingDetail | null>(null);
   const selectedDetailRef = useRef<BuildingDetail | null>(null);
   const [selectedLoading, setSelectedLoading] = useState(
-    () => Boolean(searchParams.get("building")),
+    () =>
+      Boolean(searchParams.get("building")) &&
+      searchParams.get("map") === "0",
   );
   const [loading, setLoading] = useState(true);
   const [searching, setSearching] = useState(false);
@@ -195,6 +198,10 @@ export function ExploreClient() {
     getDefaultMapBoundsRef.current = getDefaultMapBounds;
     viewerCountryCodeRef.current = viewer.countryCode;
   }, [getDefaultMapBounds, viewer.countryCode]);
+
+  useEffect(() => {
+    selectedIdRef.current = selectedId;
+  }, [selectedId]);
 
   useEffect(() => {
     geoLocationRef.current = geo.location;
@@ -304,20 +311,19 @@ export function ExploreClient() {
 
   const selectBuildingOnMap = useCallback(
     (id: string) => {
+      selectedIdRef.current = id;
       setSelectedId(id);
       setHover(id);
       setDetailMode(null);
       setAccessModalBuildingId(null);
       scrollListToBuilding(id);
-      if (!isMobile) {
-        syncSelectionToUrl({
-          buildingId: id,
-          hideMap: false,
-          history: "replace",
-        });
-      }
+      syncSelectionToUrl({
+        buildingId: id,
+        hideMap: false,
+        history: "replace",
+      });
     },
-    [isMobile, scrollListToBuilding, setHover, syncSelectionToUrl],
+    [scrollListToBuilding, setHover, syncSelectionToUrl],
   );
 
   const applySearchResults = useCallback(
@@ -347,9 +353,22 @@ export function ExploreClient() {
 
       setDetailMode(null);
       setMapVisible(true);
-      setSelectedId(data[0].id);
+
+      // Selection is mirrored to the URL `building` param, so prefer it (then the
+      // last in-memory selection) when still in results — this keeps the map
+      // highlight deterministic and in sync with the address bar after pan/zoom.
+      const prevSelected = selectedIdRef.current;
+      const inData = (id: string | null | undefined): id is string =>
+        Boolean(id) && data.some((b) => b.id === id);
+      const resolvedId = inData(pendingDeepLink)
+        ? pendingDeepLink
+        : inData(prevSelected)
+          ? prevSelected
+          : data[0].id;
+      selectedIdRef.current = resolvedId;
+      setSelectedId(resolvedId);
       if (isMobile) {
-        void loadDetail(data[0].id);
+        void loadDetail(resolvedId);
       }
     },
     [isMobile, loadDetail, searchParams, setHover],
@@ -407,14 +426,22 @@ export function ExploreClient() {
       const hideMap = searchParams.get("map") === "0";
 
       focusBuildingOnMap(building);
+      selectedIdRef.current = buildingId;
       setSelectedId(buildingId);
       setHover(buildingId);
       scrollListToBuilding(buildingId);
 
       if (isMobile) {
-        setDetailMode("summary");
         setMapVisible(true);
-        void loadDetail(buildingId);
+        if (hideMap) {
+          setDetailMode("full");
+          void loadDetail(buildingId);
+        } else {
+          setDetailMode(null);
+          setSelectedDetail(null);
+          selectedDetailRef.current = null;
+          setSelectedLoading(false);
+        }
         return;
       }
 
@@ -912,16 +939,9 @@ export function ExploreClient() {
 
   const handleMapSelect = useCallback(
     (id: string) => {
-      if (isMobile) {
-        setDetailMode("summary");
-        syncSelectionToUrl({ buildingId: id, hideMap: false, history: "push" });
-        void loadDetail(id);
-        return;
-      }
-
       selectBuildingOnMap(id);
     },
-    [isMobile, loadDetail, selectBuildingOnMap, syncSelectionToUrl],
+    [selectBuildingOnMap],
   );
 
   const handleExpandToFullDetails = useCallback(() => {
@@ -1067,8 +1087,9 @@ export function ExploreClient() {
     unlockedBuildingIds,
     unlockedLocations: visibleUnlockLocations,
     onSelect: handleMapSelect,
-    onHoverOpenDetail: isMobile ? undefined : handleListSelect,
+    onHoverOpenDetail: handleListSelect,
     onHover: isMobile ? undefined : setHover,
+    persistSelectedTooltip: isMobile,
     gestureHandling: "greedy" as const,
     fitBoundsToken: mapFitToken,
     focusBounds: mapFocusBounds,
@@ -1139,7 +1160,7 @@ export function ExploreClient() {
           )}
         >
           {mapVisible ? (
-            <section className="explore-mobile-map relative h-[38vh] min-h-[12rem] max-h-[68vh] shrink-0 overflow-hidden border-b border-border md:hidden">
+            <section className="explore-mobile-map relative h-[38vh] min-h-48 max-h-[68vh] shrink-0 overflow-visible border-b border-border md:hidden">
               <PlotPinMap {...mapProps} />
             </section>
           ) : null}

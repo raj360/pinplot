@@ -18,7 +18,7 @@ type BuildingPreviewModalProps = {
   onExpandToFull?: () => void;
 };
 
-/** Mobile bottom sheet — full detail after list tap, compact summary after map pin. */
+/** Mobile bottom sheet — full detail after list tap or tooltip title. */
 export function BuildingPreviewModal({
   open,
   buildingName,
