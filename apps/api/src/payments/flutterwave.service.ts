@@ -10,8 +10,10 @@ type InitializePaymentInput = {
   amountUgx: number;
   email: string;
   name: string;
-  phone?: string | null;
+  phone: string;
   redirectUrl: string;
+  /** When true, open directly on Uganda mobile money (MTN / Airtel). */
+  mobileMoneyOnly?: boolean;
 };
 
 type FlutterwaveInitResponse = {
@@ -58,10 +60,13 @@ export class FlutterwaveService {
         amount: input.amountUgx,
         currency: "UGX",
         redirect_url: input.redirectUrl,
+        payment_options: input.mobileMoneyOnly
+          ? "mobilemoneyuganda"
+          : "mobilemoneyuganda,card",
         customer: {
           email: input.email,
           name: input.name,
-          phonenumber: input.phone ?? undefined,
+          phonenumber: input.phone,
         },
         customizations: {
           title: "PlotPin — Unlock contact",

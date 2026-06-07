@@ -74,6 +74,7 @@ export function BuildingDetailExperience({
     checkoutMethod: unlocks.checkoutMethod,
     onCheckoutMethodChange: unlocks.setCheckoutMethod,
     showMobileMoneyCheckout: unlocks.showMobileMoneyCheckout,
+    profilePhone: unlocks.profilePhone,
   } as const;
 
   const firstUnlockDescription = unlockPanelDescription({

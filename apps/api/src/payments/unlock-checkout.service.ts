@@ -106,6 +106,13 @@ export class UnlockCheckoutService {
       );
     }
 
+    const profile = await this.loadTenantProfile(tenantId);
+    const resolvedName =
+      [profile?.first_name, profile?.last_name].filter(Boolean).join(" ").trim() ||
+      tenantName?.trim() ||
+      "PlotPin tenant";
+    const tenantPhone = profile?.phone?.trim() ?? null;
+
     const txRef = `plotpin-unlock-${randomUUID()}`;
     const returnBase = this.appUrl("/tenant/unlocks/complete");
     const lemonPresentment =
@@ -150,18 +157,26 @@ export class UnlockCheckoutService {
 
     let checkoutUrl: string;
     if (provider === PaymentProvider.FLUTTERWAVE) {
+      if (!tenantPhone) {
+        throw new BadRequestException(
+          "Add a mobile money phone number to your profile before paying with MoMo.",
+        );
+      }
       checkoutUrl = await this.flutterwave.createPaymentLink({
         txRef,
         amountUgx: chargeUgx,
         email: tenantEmail,
-        name: tenantName ?? "PlotPin tenant",
+        name: resolvedName,
+        phone: tenantPhone,
         redirectUrl,
+        mobileMoneyOnly:
+          options?.providerPreference === "flutterwave",
       });
     } else {
       checkoutUrl = await this.lemonSqueezy.createCheckout({
         customPriceCents: lemonPresentment!.amountCents,
         email: tenantEmail,
-        name: tenantName ?? undefined,
+        name: resolvedName,
         redirectUrl,
         customData: {
           payment_id: paymentId,
@@ -188,6 +203,18 @@ export class UnlockCheckoutService {
       this.config.get<string>("CORS_ORIGIN")?.split(",")[0]?.trim() ||
       "http://localhost:3000";
     return `${base.replace(/\/$/, "")}${path}`;
+  }
+
+  private async loadTenantProfile(tenantId: string) {
+    const { rows } = await this.db.query<{
+      first_name: string | null;
+      last_name: string | null;
+      phone: string | null;
+    }>(
+      `SELECT first_name, last_name, phone FROM profiles WHERE id = $1`,
+      [tenantId],
+    );
+    return rows[0] ?? null;
   }
 
   private async ensureUnlockTerms(tenantId: string, acceptTerms?: boolean) {

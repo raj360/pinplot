@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import type { PriceQuote } from "@plotpin/shared-types";
-import { PRICING } from "@plotpin/shared-types";
+import { PRICING, formatPhoneDisplay, isValidStoredPhone } from "@plotpin/shared-types";
 import { exploreBuildingUrl } from "@/lib/explore/urls";
 import { formatUnitDetail, type UnitLike } from "@/lib/buildings/unit-summary";
 import {
@@ -38,6 +38,7 @@ export function UnlockPurchasePanel({
   checkoutMethod = "card",
   onCheckoutMethodChange,
   showMobileMoneyCheckout = false,
+  profilePhone = null,
 }: {
   buildingId: string;
   availableUnits: UnitLike[];
@@ -61,6 +62,7 @@ export function UnlockPurchasePanel({
   checkoutMethod?: UnlockCheckoutMethod;
   onCheckoutMethodChange?: (method: UnlockCheckoutMethod) => void;
   showMobileMoneyCheckout?: boolean;
+  profilePhone?: string | null;
 }) {
   const defaultDescription = unlockPanelDescription({
     unlockCredits,
@@ -150,6 +152,23 @@ export function UnlockPurchasePanel({
                   <span className="mt-0.5 block text-xs text-muted">
                     MTN · Airtel · M-Pesa (UGX via Flutterwave)
                   </span>
+                  {checkoutMethod === "mobile_money" ? (
+                    isValidStoredPhone(profilePhone) ? (
+                      <span className="mt-1 block text-xs text-muted">
+                        Push notification goes to{" "}
+                        {formatPhoneDisplay(profilePhone!)}
+                      </span>
+                    ) : (
+                      <span className="mt-1 block text-xs text-amber-800">
+                        Add your MoMo number in{" "}
+                        <Link href="/settings" className="text-primary underline">
+                          Settings
+                        </Link>{" "}
+                        before paying — Flutterwave sends the PIN prompt to that
+                        number.
+                      </span>
+                    )
+                  ) : null}
                 </span>
               </label>
             ) : null}

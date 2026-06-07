@@ -6,6 +6,7 @@ import {
   PRICING,
   UnitStatus,
   isFlutterwaveMoMoCountry,
+  isValidStoredPhone,
   type PriceQuote,
 } from "@plotpin/shared-types";
 import { startUnlockCheckout } from "@/lib/api/payments";
@@ -277,6 +278,16 @@ export function useBuildingUnlocks(
           (primaryCreditUgx == null || primaryCreditUgx >= feeUgx);
 
         if (!canRedeemCredit) {
+          if (
+            resolvedCheckoutMethod === "mobile_money" &&
+            !isValidStoredPhone(profile?.phone)
+          ) {
+            setError(
+              "Add a mobile money phone number to your profile before paying with MoMo.",
+            );
+            return false;
+          }
+
           const checkout = await startUnlockCheckout(unitId, {
             acceptTerms: acceptUnlockTerms,
             tenantCountryCode: pricingContext?.tenantCountryCode,
@@ -327,6 +338,7 @@ export function useBuildingUnlocks(
       isAuthenticated,
       primaryCreditUgx,
       pricingContext,
+      profile,
       refreshProfile,
       reloadUnlocks,
       resolvedCheckoutMethod,
@@ -362,5 +374,6 @@ export function useBuildingUnlocks(
     checkoutMethod,
     setCheckoutMethod,
     showMobileMoneyCheckout,
+    profilePhone: profile?.phone ?? null,
   };
 }

@@ -21,6 +21,16 @@ export function UnlockCompleteClient() {
   const transactionId = searchParams.get("transaction_id");
   const status = searchParams.get("status");
 
+  const flutterwaveOutcome = useMemo(() => {
+    if (!status) return null;
+    const normalized = status.toLowerCase();
+    if (normalized === "successful") return null;
+    if (normalized === "cancelled") {
+      return "Payment was cancelled. No charge was made — you can try again when ready.";
+    }
+    return "Payment was not completed. Try again or choose a different payment method.";
+  }, [status]);
+
   const configError = useMemo(() => {
     if (!paymentId || !unitId) {
       return "Missing payment details. Return to explore and try again.";
@@ -32,10 +42,10 @@ export function UnlockCompleteClient() {
   const [flowError, setFlowError] = useState<string | null>(null);
   const [done, setDone] = useState(false);
 
-  const error = configError ?? flowError;
+  const error = configError ?? flutterwaveOutcome ?? flowError;
 
   useEffect(() => {
-    if (configError || !paymentId || !unitId) return;
+    if (configError || flutterwaveOutcome || !paymentId || !unitId) return;
 
     let cancelled = false;
     let attempts = 0;
@@ -64,13 +74,23 @@ export function UnlockCompleteClient() {
     async function finalize() {
       try {
         if (txRef && transactionId && status) {
-          await confirmFlutterwaveReturn({
+          const confirm = await confirmFlutterwaveReturn({
             txRef,
             transactionId,
             status,
           });
+          if (confirm.settled === false && status.toLowerCase() !== "successful") {
+            if (!cancelled) {
+              setFlowError(
+                status.toLowerCase() === "cancelled"
+                  ? "Payment was cancelled. No charge was made — you can try again when ready."
+                  : "Payment was not completed. Try again or choose a different payment method.",
+              );
+            }
+            return;
+          }
         } else {
-          await confirmLemonSqueezyReturn(paymentId);
+          await confirmLemonSqueezyReturn(paymentId!);
         }
 
         if (await poll()) {
@@ -115,7 +135,7 @@ export function UnlockCompleteClient() {
       cancelled = true;
       if (interval) window.clearInterval(interval);
     };
-  }, [configError, paymentId, unitId, txRef, transactionId, status]);
+  }, [configError, flutterwaveOutcome, paymentId, unitId, txRef, transactionId, status]);
 
   if (error) {
     return (
