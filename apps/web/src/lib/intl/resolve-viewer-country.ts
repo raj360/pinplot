@@ -2,6 +2,8 @@ import { DEFAULT_COUNTRY } from "@plotpin/shared-types";
 import type { CountryCatalog } from "@plotpin/shared-types";
 import type { ViewerContext } from "@/lib/intl/format-money";
 
+import { readEdgeCountryFromHeaders } from "@/lib/intl/edge-geo";
+
 export const VIEWER_COUNTRY_STORAGE_KEY = "plotpin-viewer-country";
 
 /** Virtual code when the viewer is outside the explicit country catalog. */
@@ -154,6 +156,12 @@ export function resolveViewerCountryCode(input: ViewerResolutionHints): string {
     input.timeZone ?? browserTimeZone(),
     input.language ?? browserLanguage(),
   );
+}
+
+/** Home SSR — resolve viewer region from edge IP headers when available. */
+export function resolveServerViewerCountry(headerStore: Headers): string {
+  const ipCountry = readEdgeCountryFromHeaders(headerStore);
+  return resolveViewerCountryCode({ ipCountry });
 }
 
 /** Full viewer display context — handles catalog countries and ROW fallback. */

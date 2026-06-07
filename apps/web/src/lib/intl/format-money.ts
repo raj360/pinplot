@@ -171,6 +171,26 @@ export function formatViewerMoney(
   return formatCurrency(rounded, viewer.displayCurrency, viewer.displayLocale);
 }
 
+/**
+ * Unlock fee for marketing copy — leads with the viewer's currency and notes
+ * the canonical UGX charge when they differ (e.g. "£4 (~USh 20,000)").
+ */
+export function formatCanonicalUgxForViewer(
+  amountUgx: number,
+  viewer: ViewerContext,
+  fxRates: FxRateMap,
+): FormattedMoney {
+  const primary = formatViewerMoney(amountUgx, viewer, fxRates);
+  if (viewer.displayCurrency === "UGX") {
+    return { primary };
+  }
+  const canonical = formatCurrency(amountUgx, "UGX", "en-UG");
+  return {
+    primary,
+    footnote: `~${canonical}`,
+  };
+}
+
 export function viewerContextFromCountry(
   country: CountryCatalog | undefined,
 ): ViewerContext {

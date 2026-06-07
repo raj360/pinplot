@@ -83,8 +83,10 @@ export async function fetchBuildingsInBounds(
 
 export async function fetchFeaturedBuildings(
   limit = 12,
+  countryCode?: string,
 ): Promise<BuildingSummary[]> {
   const params = new URLSearchParams({ limit: String(limit) });
+  if (countryCode) params.set("countryCode", countryCode);
   const res = await fetch(`${API_URL}/api/v1/buildings/featured?${params}`, {
     next: { revalidate: 60 },
   });

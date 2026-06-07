@@ -102,8 +102,17 @@ export class BuildingsService {
     return result;
   }
 
-  async findFeatured(limit = 12) {
+  async findFeatured(limit = 12, countryCode?: string) {
     const capped = Math.min(Math.max(limit, 1), 24);
+    const region = countryCode?.trim().toUpperCase() || null;
+    const params: unknown[] = [capped];
+    // Surface the viewer's region first, then backfill with the rest of supply
+    // so the section stays populated even where local supply is still thin.
+    let regionOrder = "";
+    if (region) {
+      params.push(region);
+      regionOrder = `(b.country_code = $${params.length}) DESC, `;
+    }
     const { rows } = await this.db.query<BuildingRow>(
       `SELECT
         b.id,
@@ -131,9 +140,9 @@ export class BuildingsService {
         AND ${EXPLORE_FEATURED_ACTIVE_SQL}
       GROUP BY b.id, co.currency, b.is_featured, b.featured_until
       HAVING COUNT(u.id) FILTER (WHERE u.status = 'AVAILABLE') > 0
-      ORDER BY b.featured_until DESC NULLS LAST, b.featured_granted_at DESC NULLS LAST, b.created_at DESC
+      ORDER BY ${regionOrder}b.featured_until DESC NULLS LAST, b.featured_granted_at DESC NULLS LAST, b.created_at DESC
       LIMIT $1`,
-      [capped],
+      params,
     );
     return rows.map((row) => this.toSummary(row));
   }

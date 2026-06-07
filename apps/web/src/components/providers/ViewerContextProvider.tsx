@@ -23,6 +23,7 @@ import {
   formatViewerMoney,
   type FormattedMoney,
   type ViewerContext,
+  formatCanonicalUgxForViewer,
 } from "@/lib/intl/format-money";
 import {
   readStoredViewerCountry,
@@ -59,6 +60,8 @@ type ViewerContextValue = {
   ) => string;
   /** Format a canonical-UGX fee (e.g. unlock fee) in the viewer's currency. */
   formatUnlockFee: (amountUgx: number) => string;
+  /** Unlock fee for hero/marketing — viewer currency first, UGX footnote when different. */
+  formatUnlockFeeLabel: (amountUgx: number) => FormattedMoney;
 };
 
 const ViewerContextReact = createContext<ViewerContextValue | null>(null);
@@ -297,6 +300,11 @@ export function ViewerContextProvider({
     [fxRates, viewer],
   );
 
+  const formatUnlockFeeLabel = useCallback(
+    (amountUgx: number) => formatCanonicalUgxForViewer(amountUgx, viewer, fxRates),
+    [fxRates, viewer],
+  );
+
   const value = useMemo<ViewerContextValue>(
     () => ({
       ready,
@@ -311,6 +319,7 @@ export function ViewerContextProvider({
       formatListingMoney,
       formatListingRentPerMonth,
       formatUnlockFee,
+      formatUnlockFeeLabel,
     }),
     [
       ready,
@@ -325,6 +334,7 @@ export function ViewerContextProvider({
       formatListingMoney,
       formatListingRentPerMonth,
       formatUnlockFee,
+      formatUnlockFeeLabel,
     ],
   );
 
