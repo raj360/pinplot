@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { BuildingDetailExperience } from "@/components/buildings/BuildingDetailExperience";
 import { BuildingPreviewSkeleton } from "@/components/explore/BuildingPreviewSkeleton";
+import { Skeleton } from "@/components/ui/skeleton";
 import type { BuildingDetail } from "@/lib/api/buildings";
 import { cn } from "@/lib/utils/cn";
 
@@ -17,7 +18,7 @@ type BuildingPreviewModalProps = {
   onExpandToFull?: () => void;
 };
 
-/** Mobile bottom sheet — full detail after list tap, compact summary after map pin. */
+/** Mobile bottom sheet — full detail after list tap or tooltip title. */
 export function BuildingPreviewModal({
   open,
   buildingName,
@@ -49,6 +50,7 @@ export function BuildingPreviewModal({
 
   const title = detail?.name ?? buildingName ?? "Building";
   const isSummary = mode === "summary";
+  const showTitleSkeleton = loading && !detail && !buildingName;
   const sheetHeight = isSummary
     ? "h-[min(58vh,30rem)]"
     : "h-[min(92vh,100dvh)]";
@@ -83,7 +85,14 @@ export function BuildingPreviewModal({
               id="building-preview-title"
               className="truncate text-base font-bold leading-tight text-primary sm:text-lg"
             >
-              {loading && !detail ? "Loading…" : title}
+              {showTitleSkeleton ? (
+                <>
+                  <span className="sr-only">Loading building details</span>
+                  <Skeleton className="h-6 w-56 max-w-full rounded-sm" />
+                </>
+              ) : (
+                title
+              )}
             </h2>
           </div>
           <button

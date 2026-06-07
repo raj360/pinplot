@@ -13,6 +13,39 @@ export const PRICING = {
   unlockExclusiveHours: 72,
 } as const;
 
+/** Max pending/unverified buildings per landlord account (Sprint 5A). */
+export const MAX_UNVERIFIED_BUILDINGS_PER_LANDLORD = 3;
+
+/** Admin duplicate-pin warning radius (meters). */
+export const DUPLICATE_PIN_RADIUS_METERS = 50;
+
+export type AdminVerificationChecklist = {
+  phoneMatchesListing: boolean;
+  photosAuthentic: boolean;
+  pinPlausible: boolean;
+  rentConsistent: boolean;
+  duplicatePinReviewed: boolean;
+  landlordNotSuspended: boolean;
+  ownershipAttestationRecorded: boolean;
+};
+
+export const REJECT_REASON_PRESETS = [
+  "Cannot verify ownership or authority to list this property.",
+  "Duplicate or conflicting listing at this location.",
+  "Photos are misleading, stock images, or missing the actual building.",
+  "Map pin does not match the stated district or city.",
+  "Rent information is inconsistent across units.",
+  "Suspected broker or third-party listing without authorization.",
+] as const;
+
+export const LISTING_REPORT_REASONS = [
+  "Suspected scam or unauthorized blockage/viewing fees",
+  "Wrong location or misleading map pin",
+  "Misleading photos or not the actual property",
+  "Already rented / not available",
+  "Other",
+] as const;
+
 /** Max building photos per listing (cover + gallery). */
 export const MAX_BUILDING_PHOTOS = 4;
 
@@ -57,9 +90,38 @@ export enum UnitStatus {
   RENTED = "RENTED",
 }
 
+/**
+ * Countries where Flutterwave exposes mobile-money checkout (MTN, Airtel, M-Pesa, …).
+ * Source: Flutterwave help — "Pay with Mobile Money" (UG, KE, TZ, RW, GH, ZM, MW, BF, CI, CM, SN).
+ * Nigeria, South Africa, etc. use Flutterwave for cards/bank rails but not this MoMo product.
+ */
+export const FLUTTERWAVE_MOMO_COUNTRIES = new Set([
+  "UG",
+  "KE",
+  "TZ",
+  "RW",
+  "GH",
+  "ZM",
+  "MW",
+  "BF",
+  "CI",
+  "CM",
+  "SN",
+]);
+
+/** @deprecated Prefer FLUTTERWAVE_MOMO_COUNTRIES */
+export const FLUTTERWAVE_CHECKOUT_COUNTRIES = FLUTTERWAVE_MOMO_COUNTRIES;
+
+export function isFlutterwaveMoMoCountry(countryCode: string | null | undefined) {
+  const code = (countryCode ?? "").toUpperCase();
+  return code.length === 2 && FLUTTERWAVE_MOMO_COUNTRIES.has(code);
+}
+
 export enum PaymentProvider {
+  /** Deferred until US LLC exists — see docs/PAYMENTS-STRATEGY.md */
   STRIPE = "STRIPE",
   FLUTTERWAVE = "FLUTTERWAVE",
+  LEMON_SQUEEZY = "LEMON_SQUEEZY",
 }
 
 export enum PaymentPurpose {

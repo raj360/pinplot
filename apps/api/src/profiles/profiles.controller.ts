@@ -49,7 +49,8 @@ export class ProfilesController {
   private profileSelect = `
     id, role, first_name, last_name, phone, phone_secondary,
     phone_verified_at, phone_secondary_verified_at,
-    country_code, is_verified, created_at
+    country_code, is_verified, created_at,
+    landlord_terms_accepted_at, tenant_unlock_terms_accepted_at
   `;
 
   @Get("me")

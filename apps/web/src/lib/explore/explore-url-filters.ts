@@ -103,3 +103,36 @@ export function buildExploreHref(
   const qs = params.toString();
   return qs ? `${pathname}?${qs}` : pathname;
 }
+
+/** Update building selection / detail-pane visibility in the shareable URL. */
+export function buildExploreSelectionHref(
+  pathname: string,
+  filters: ExploreSearchFilters,
+  options: {
+    buildingId?: string | null;
+    hideMap?: boolean;
+    mapBounds?: Bounds | null;
+    preserve?: URLSearchParams;
+  },
+): string {
+  const preserve = new URLSearchParams(options.preserve?.toString() ?? "");
+
+  if (options.buildingId) {
+    preserve.set("building", options.buildingId);
+  } else {
+    preserve.delete("building");
+  }
+
+  if (options.hideMap) {
+    preserve.set("map", "0");
+  } else {
+    preserve.delete("map");
+  }
+
+  return buildExploreHref(
+    pathname,
+    filters,
+    preserve,
+    options.mapBounds ?? null,
+  );
+}

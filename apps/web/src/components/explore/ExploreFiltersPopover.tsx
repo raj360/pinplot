@@ -145,7 +145,7 @@ export function ExploreFiltersPopover({
         aria-controls={panelId}
         onClick={() => setOpen((value) => !value)}
         className={cn(
-          "flex h-full min-h-11 w-full flex-col justify-center px-3 py-2 text-left transition-colors",
+          "flex h-full min-h-9 w-full flex-col justify-center px-3 py-1.5 text-left transition-colors",
           "hover:bg-background/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 focus-visible:ring-inset",
           open && "bg-background/80",
           activeCount > 0 && "bg-primary/3",

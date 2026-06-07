@@ -16,9 +16,15 @@ import {
   CreateUnitDto,
   RegisterImageDto,
   UpdateUnitDto,
+  VerifyBuildingDto,
 } from "./dto/building.dto";
-import type { BuildingSummary, BuildingType, UnitStatus } from "@plotpin/shared-types";
-import { MAX_BUILDING_PHOTOS, PaymentPurpose } from "@plotpin/shared-types";
+import type { BuildingSummary, UnitStatus } from "@plotpin/shared-types";
+import {
+  DUPLICATE_PIN_RADIUS_METERS,
+  MAX_BUILDING_PHOTOS,
+  MAX_UNVERIFIED_BUILDINGS_PER_LANDLORD,
+  type AdminVerificationChecklist,
+} from "@plotpin/shared-types";
 import {
   EXPLORE_BOUNDS_SQL,
   EXPLORE_FEATURED_ACTIVE_SQL,
@@ -441,16 +447,6 @@ export class BuildingsService {
       status: updated.status,
     };
 
-    if (status === "AVAILABLE") {
-      const listingQuote = await this.pricing.quote({
-        buildingType: building.building_type as BuildingType,
-        bedrooms: unit.bedrooms,
-        purpose: PaymentPurpose.LISTING,
-        countryCode: building.country_code,
-      });
-      return { unit: unitPayload, listingQuote };
-    }
-
     return { unit: unitPayload };
   }
 
@@ -623,14 +619,59 @@ export class BuildingsService {
   }
 
   async create(landlordId: string, dto: CreateBuildingDto) {
+    if (!dto.acceptTerms) {
+      throw new BadRequestException(
+        "You must accept the Terms of Service and Privacy Policy.",
+      );
+    }
+    if (!dto.ownershipAttestation) {
+      throw new BadRequestException(
+        "Confirm that you have authority to list this property.",
+      );
+    }
+
+    const { rows: suspended } = await this.db.query(
+      `SELECT suspended_at FROM profiles WHERE id = $1`,
+      [landlordId],
+    );
+    if (suspended[0]?.suspended_at) {
+      throw new BadRequestException(
+        "This account cannot submit new listings. Contact support.",
+      );
+    }
+
+    const { rows: capRows } = await this.db.query<{ count: number }>(
+      `SELECT COUNT(*)::int AS count
+       FROM buildings
+       WHERE landlord_id = $1
+         AND is_verified = FALSE
+         AND rejected_at IS NULL`,
+      [landlordId],
+    );
+    if (
+      (capRows[0]?.count ?? 0) >= MAX_UNVERIFIED_BUILDINGS_PER_LANDLORD
+    ) {
+      throw new BadRequestException(
+        `You can have at most ${MAX_UNVERIFIED_BUILDINGS_PER_LANDLORD} listings awaiting verification. Wait for admin review or remove a draft.`,
+      );
+    }
+
+    await this.db.query(
+      `UPDATE profiles
+       SET landlord_terms_accepted_at = COALESCE(landlord_terms_accepted_at, NOW()),
+           updated_at = NOW()
+       WHERE id = $1`,
+      [landlordId],
+    );
+
     await this.db.query("BEGIN");
     try {
       const { rows } = await this.db.query(
         `INSERT INTO buildings (
           landlord_id, name, description, city, district, country_code,
           approximate_lat, approximate_lng, exact_address, exact_lat, exact_lng,
-          total_units, video_url, building_type, is_verified
-        ) VALUES ($1,$2,$3,$4,$5,'UG',$6,$7,$8,$9,$10,$11,$12,$13,FALSE)
+          total_units, video_url, building_type, is_verified, ownership_attested_at
+        ) VALUES ($1,$2,$3,$4,$5,'UG',$6,$7,$8,$9,$10,$11,$12,$13,FALSE,NOW())
         RETURNING *`,
         [
           landlordId,
@@ -689,21 +730,143 @@ export class BuildingsService {
     return row;
   }
 
-  async setVerified(buildingId: string, verified: boolean) {
+  async setVerified(buildingId: string, dto: VerifyBuildingDto, adminId: string) {
+    if (!dto.verified) {
+      const { rows } = await this.db.query(
+        `UPDATE buildings
+         SET is_verified = FALSE,
+             updated_at = NOW()
+         WHERE id = $1
+         RETURNING id, name, is_verified`,
+        [buildingId],
+      );
+      if (!rows[0]) throw new NotFoundException("Building not found");
+      this.exploreCache.clear();
+      return rows[0];
+    }
+
+    await this.assertPendingBuilding(buildingId);
+
+    const checklist = dto.checklist;
+    if (!checklist || !this.checklistComplete(checklist)) {
+      throw new BadRequestException(
+        "Complete the verification checklist before approving.",
+      );
+    }
+
+    const { rows: buildingRows } = await this.db.query<{
+      id: string;
+      name: string;
+      landlord_id: string | null;
+      ownership_attested_at: Date | null;
+      landlord_phone: string | null;
+      landlord_suspended_at: Date | null;
+      landlord_email: string | null;
+    }>(
+      `SELECT b.id, b.name, b.landlord_id, b.ownership_attested_at,
+              p.phone AS landlord_phone, p.suspended_at AS landlord_suspended_at,
+              u.email AS landlord_email
+       FROM buildings b
+       LEFT JOIN profiles p ON p.id = b.landlord_id
+       LEFT JOIN auth.users u ON u.id = b.landlord_id
+       WHERE b.id = $1`,
+      [buildingId],
+    );
+    const building = buildingRows[0];
+    if (!building) throw new NotFoundException("Building not found");
+
+    if (!building.landlord_phone?.trim()) {
+      throw new BadRequestException(
+        "Landlord must add a phone number on their profile before approval.",
+      );
+    }
+    if (!building.ownership_attested_at) {
+      throw new BadRequestException(
+        "Ownership attestation is missing on this listing.",
+      );
+    }
+    if (building.landlord_suspended_at) {
+      throw new BadRequestException("Landlord account is suspended.");
+    }
+
+    const duplicateWarnings = await this.findDuplicatePinWarnings(buildingId);
+    if (duplicateWarnings.length > 0 && !dto.acknowledgeDuplicatePin) {
+      throw new BadRequestException(
+        "Another verified listing exists within 50m. Acknowledge the duplicate pin warning to approve.",
+      );
+    }
+
     const { rows } = await this.db.query(
       `UPDATE buildings
-       SET is_verified = $2,
-           verified_at = CASE WHEN $2 THEN NOW() ELSE verified_at END,
+       SET is_verified = TRUE,
+           verified_at = NOW(),
+           verified_by = $2,
+           verification_checklist = $3::jsonb,
            rejected_at = NULL,
            rejection_reason = NULL,
            updated_at = NOW()
        WHERE id = $1
        RETURNING id, name, is_verified`,
-      [buildingId, verified],
+      [buildingId, adminId, JSON.stringify(checklist)],
     );
     if (!rows[0]) throw new NotFoundException("Building not found");
+
+    const notification = await this.landlordNotifications.notifyListingApproved({
+      landlordId: building.landlord_id ?? "",
+      landlordEmail: building.landlord_email,
+      buildingId: building.id,
+      buildingName: building.name,
+    });
+
     this.exploreCache.clear();
-    return rows[0];
+    return { ...rows[0], notification, duplicateWarnings };
+  }
+
+  private checklistComplete(checklist: AdminVerificationChecklist) {
+    return (
+      checklist.phoneMatchesListing &&
+      checklist.photosAuthentic &&
+      checklist.pinPlausible &&
+      checklist.rentConsistent &&
+      checklist.duplicatePinReviewed &&
+      checklist.landlordNotSuspended &&
+      checklist.ownershipAttestationRecorded
+    );
+  }
+
+  async findDuplicatePinWarnings(buildingId: string) {
+    const { rows } = await this.db.query<{
+      id: string;
+      name: string;
+      landlord_id: string | null;
+      distance_m: number;
+    }>(
+      `SELECT b2.id, b2.name, b2.landlord_id,
+              ST_Distance(b1.location::geography, b2.location::geography) AS distance_m
+       FROM buildings b1
+       JOIN buildings b2
+         ON b2.id <> b1.id
+        AND b2.is_verified = TRUE
+        AND b2.landlord_id IS DISTINCT FROM b1.landlord_id
+        AND b1.location IS NOT NULL
+        AND b2.location IS NOT NULL
+        AND ST_DWithin(
+          b1.location::geography,
+          b2.location::geography,
+          $2
+        )
+       WHERE b1.id = $1
+       ORDER BY distance_m ASC
+       LIMIT 5`,
+      [buildingId, DUPLICATE_PIN_RADIUS_METERS],
+    );
+
+    return rows.map((row) => ({
+      id: row.id,
+      name: row.name,
+      landlordId: row.landlord_id,
+      distanceM: Math.round(row.distance_m),
+    }));
   }
 
   async rejectBuilding(buildingId: string, adminId: string, reason: string) {
@@ -825,7 +988,7 @@ export class BuildingsService {
 
     const { rows } = await this.db.query(
       `SELECT b.*,
-              p.first_name, p.last_name, p.phone,
+              p.first_name, p.last_name, p.phone, p.suspended_at,
               u.email AS landlord_email
        FROM buildings b
        LEFT JOIN profiles p ON p.id = b.landlord_id
@@ -839,6 +1002,8 @@ export class BuildingsService {
     const exactLat = row.exact_lat as number | null;
     const exactLng = row.exact_lng as number | null;
     const units = await this.fetchUnits(buildingId);
+
+    const duplicatePinWarnings = await this.findDuplicatePinWarnings(buildingId);
 
     return {
       id: row.id,
@@ -854,6 +1019,9 @@ export class BuildingsService {
       pinLat: exactLat ?? (row.approximate_lat as number),
       pinLng: exactLng ?? (row.approximate_lng as number),
       isVerified: row.is_verified,
+      ownershipAttestedAt: row.ownership_attested_at ?? null,
+      duplicatePinWarnings,
+      landlordPhoneRequired: !row.phone,
       units,
       landlord: {
         id: row.landlord_id,
@@ -861,6 +1029,7 @@ export class BuildingsService {
         lastName: row.last_name,
         phone: row.phone,
         email: row.landlord_email,
+        suspendedAt: row.suspended_at ?? null,
       },
     };
   }

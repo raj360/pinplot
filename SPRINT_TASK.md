@@ -2,93 +2,91 @@
 
 ## Strategic shift (June 2026)
 
-**Product direction:** Open internationally for **discovery and diaspora tenants** while **Uganda remains primary supply market**. English-only UI. **Currency presentation** (not translation) so US/UK/EU users see familiar amounts—Stripe Checkout will mirror this later.
+**Product direction:** Open internationally for **discovery and diaspora tenants** while **Uganda remains primary supply market**. English-only UI. **Currency presentation** (not translation).
 
-**Ads:** YouTube, Facebook, Instagram, TikTok → land on `/` or explore with UTM tracking (Phase 6 infra).
+**Monetization:** **Free verified listing** · **Paid tenant unlock** · Featured/badge ~3 months post-launch — [docs/BUSINESS-MODEL.md](./docs/BUSINESS-MODEL.md)
 
-**Featured listings:** Paid add-on later; **launch promo = first 20 verified listings globally** featured via admin grant / coupon / credit.
+**Payments (updated):** **Flutterwave + Lemon Squeezy** for Sprint 5B — **no US LLC / Stripe until traction** — [docs/PAYMENTS-STRATEGY.md](./docs/PAYMENTS-STRATEGY.md)
+
+**Trust:** Anti-blocker positioning — [docs/TRUST-ANTI-SCAM.md](./docs/TRUST-ANTI-SCAM.md)
+
+**Planning index:** [docs/README.md](./docs/README.md) · **Build order:** [docs/IMPLEMENTATION-PLAN.md](./docs/IMPLEMENTATION-PLAN.md)
 
 ---
 
-## Sprint 4 — Supply, wallet & international foundations — **✅ complete**
+## Sprint 4 — **✅ complete**
 
-**Slice 1 ✅ · Slice 2 ✅ · Slice 3 ✅ · Slice 4 ✅**
+```bash
+yarn db:migrate   # through 022 for Sprint 5B
+```
+
+Keep `ALLOW_DEV_UNLOCK=1` in dev until Sprint **5B** webhooks enforce unlock payment.
+
+---
+
+## Sprint 5A — Trust, access & engagement — **✅ implemented (run migration 020)**
+
+| ID | Task | Status | Ref |
+|----|------|--------|-----|
+| T-01 | Landlord phone required before admin approve | Done | TRUST |
+| T-02 | Ownership attestation on landlord submit | Done | TRUST |
+| T-03 | `/terms` + `/privacy` pages | Done | legal/ |
+| T-04 | Terms acceptance on submit + unlock | Done | T-03 |
+| T-05 | Admin verification checklist UI | Done | TRUST §4 |
+| T-06 | Report listing + admin queue | Done | TRUST |
+| T-07 | Duplicate pin warning on approve | Done | TRUST |
+| T-08 | New landlord building cap | Done | TRUST |
+| T-09 | Free listing UX — remove listing fee banner | Done | BUSINESS |
+| N-01 | Postmark integration | Done | NOTIFICATIONS |
+| N-02 | Email: listing approved | Done | N-01 |
+| N-03 | Email: listing rejected | Done | N-01 |
+
+**Order:** T-03 → T-04 → T-09 → T-01 → T-02 → T-05 → T-06–T-08 → N-01–N-03
+
+---
+
+## Sprint 5B — Unlock payments (Flutterwave + Lemon Squeezy) — **✅ implemented**
+
+**Gate:** Sprint 5A exit ✅ · **No Stripe / LLC in this sprint**
+
+| ID | Task | Status | Notes |
+|----|------|--------|-------|
+| P-00 | `LEMON_SQUEEZY` on `payment_provider` enum | Done | Migration `021` |
+| S4-20 | Multi-country `pricing_rules` seed | Done | Migration `022` |
+| S5-01a | `POST /units/:unitId/unlock/checkout` + routing | Done | UG → FW; intl → LS |
+| S5-01b | Lemon Squeezy checkout + webhook | Done | `LEMON_SQUEEZY_*` env |
+| S5-01c | Flutterwave checkout + webhook | Done | `FLUTTERWAVE_*` env |
+| S5-02 | Shared settleUnlock idempotency | Done | `SettleUnlockService` |
+| S5-03 | Enforce unlock payment (prod) | Done | `ALLOW_DEV_UNLOCK` off in prod |
+| S5-07 | Wallet + payment reconciliation | Done | Credit peek + partial charge |
+| N-04 | Email: landlord unlock received | Done | Postmark |
+| N-05 | Email: tenant unlock receipt | Done | Postmark |
+
+**Deferred:** ~~S5-01 Stripe~~ · ~~US LLC~~ · ~~landlord listing fee~~
+
+**Later (volume):** US LLC + Stripe migration — [PAYMENTS-STRATEGY.md](./docs/PAYMENTS-STRATEGY.md) §8
+
+---
+
+## Sprint 5C — Uganda polish (P1)
 
 | ID | Task | Status |
 |----|------|--------|
-| S4-01–S4-02, S4-E1–E5, S4-A1–A3 | Pricing, explore perf, admin edit | Done |
-| S4-03–S4-12, S4-UX | Wallet, photos, reject, 429, auth resilience, tokens | Done |
-| S4-14–S4-18 | International foundations + featured launch | Done |
-| S4-22, S4-24, S4-25 | Homepage v2 + D3 hero + IP geolocation | Done |
-
-**Prerequisites (all envs):**
-
-```bash
-yarn db:migrate   # through 019
-```
-
-Keep `ALLOW_DEV_UNLOCK=1` in dev/staging until Sprint 5 webhooks enforce payment.
+| S5-04 | MoMo UX polish | Pending |
+| S5-05 | USSD | Pending |
+| N-06 | SMS unlock alert | Pending |
 
 ---
 
-### Sprint 4 — Slice 3 (international foundations) — **✅ complete**
+## Phase 6 — Deferred monetization & growth
 
-| ID | Task | Status | Notes |
-|----|------|--------|-------|
-| S4-13 | **Explore geo bootstrap** | Polish left | Diaspora map default ✅; Near me ✅; **optional:** viewport URL persist; don’t auto-GPS on first load |
-| S4-14 | **Country catalog** | Done | `017`; UG + 10 diaspora corridors |
-| S4-15 | **Currency display layer** | Done | `018`; explore cards + building detail; API `currency` on summaries |
-| S4-16 | **Viewer context** | Done | Settings override → localStorage → profile → **IP** → timezone → language → UG |
-| S4-17 | **Explore empty state** | Done | Diaspora copy, browse Uganda, landlord CTA |
-| S4-18 | **Featured launch program** | Done | `019`; `/admin/featured` batch grant; 20 × 90 days; audit log |
-| S4-25 | **IP geolocation** | Done | `/api/geo` edge headers; session-cached client helper |
-
----
-
-### Sprint 4 — Slice 4 (homepage v2) — **✅ complete**
-
-| ID | Task | Status | Notes |
-|----|------|--------|-------|
-| S4-22 | **Homepage v2** | Done | Featured grid (`GET /buildings/featured`), diaspora copy + FX hints, value props, landlord CTA |
-| S4-24 | **D3 map hero** | Done | Kampala SVG map; explore-style pins; rotating spotlight; greens persist per cycle; legend |
-
-**References:** `docs/PRD-HOMEPAGE-FEATURED-WALLET.md`, `docs/PLAN-HOMEPAGE-D3-HERO.md`
-
-**Optional follow-up:** Fine-tune `HERO_PINS` coordinates against final `kampala.svg` artwork.
-
----
-
-### Sprint 4 — deferred until Stripe (pair with S5-01)
-
-| ID | Task | Status | Notes |
-|----|------|--------|-------|
-| S4-19 | **Landlord country on create** | Deferred | UG-only supply today; needed when non-UG landlords list |
-| S4-20 | **Pricing rules multi-country seed** | Deferred | US/GB/corridor fee rows for `/pricing/quote` + checkout |
-
----
-
-## Sprint 5 — Payments (**Stripe-first**) — **current**
-
-**Gate:** S4-15 display layer ✅ · **S4-20 recommended** before live multi-currency checkout · remove dev unlock bypass when webhooks live
-
-| ID | Task | Status | Notes |
-|----|------|--------|-------|
-| S5-01 | **Stripe Checkout** | Pending | Diaspora unlock + listing fees; presentment currency follows viewer context |
-| S5-02 | **Stripe webhooks** | Pending | `checkout.session.completed`; idempotent unlock / listing credit |
-| S5-03 | **Enforce fees** | Pending | Remove `ALLOW_DEV_UNLOCK` in prod; gate unlock + unit AVAILABLE on payment |
-| S5-04–S5-06 | **Flutterwave / MoMo / USSD** | Pending | Uganda-local rails |
-| S5-07 | **Wallet + Stripe reconciliation** | Pending | Ledger entries match webhook events |
-| S5-08 | **Paid featured** | Pending | Stripe checkout for 7/14/30-day featured boost |
-
-**Suggested Sprint 5 day-1 order:**
-
-```
-1. S4-20 pricing_rules seed (US/GB + corridors) — unblocks correct quotes
-2. S5-01 Stripe Checkout (tenant unlock + landlord listing fee)
-3. S5-02 webhooks + S5-03 enforce (turn off dev unlock in staging)
-4. S5-08 paid featured (optional after core unlock loop)
-5. S5-04+ MoMo when Stripe diaspora path is stable
-```
+| ID | Task | Notes |
+|----|------|-------|
+| S5-08 | Paid featured | ~3 months post-launch |
+| T-14 | Verify badge (one-time) | Optional |
+| S4-19 | Landlord country on create | |
+| **P-LLC** | US LLC + Stripe | When PAYMENTS-STRATEGY §8 triggers |
+| S6-* | UTM, Open Graph, PWA | |
 
 ---
 
@@ -96,30 +94,23 @@ Keep `ALLOW_DEV_UNLOCK=1` in dev/staging until Sprint 5 webhooks enforce payment
 
 | Milestone | Status |
 |-----------|--------|
-| Tenant discover → unlock → contact (dev) | ✅ |
-| Landlord submit → admin approve/reject | ✅ |
-| Wallet / coupons / welcome bonus | ✅ |
-| Explore viewport search + filters + Near me | ✅ |
-| Country catalog + diaspora map default | ✅ |
-| FX display `(~£…)` on explore + detail + homepage | ✅ |
-| Viewer country override (Settings) + IP geolocation | ✅ |
-| Explore empty state (diaspora + CTA) | ✅ |
-| Featured launch (20 free, admin grant) | ✅ |
-| Homepage v2 (featured + hero) | ✅ |
-| Multi-country pricing rules | ⏸ S4-20 (Sprint 5 prep) |
-| Stripe checkout | ❌ S5-01 |
+| Sprint 4 complete | ✅ |
+| Payments strategy documented | ✅ |
+| Trust / terms plan | ✅ docs |
+| Sprint 5A guardrails | ✅ (run `yarn db:migrate` → 020) |
+| Live unlock (FW + LS) | ✅ (configure PSP keys + webhooks) |
+| Stripe / LLC | ⏸ deferred |
 
 ---
 
 ## Recommended build order
 
 ```
-Now:      S5-01 → S5-02 → S5-03     Stripe Checkout + webhooks + enforce fees
-With:     S4-20                      pricing_rules seed (same sprint as checkout)
-Parallel: S4-13 polish               viewport persist; GPS only on Near me click
-Later:    S6                         UTM ad landing + Open Graph + PWA
+Now:   5A (trust + terms + notifications)
+Next:  5B (S4-20 + Lemon Squeezy + Flutterwave + enforce)
+Later: 5C polish · Phase 6 featured · LLC+Stripe when justified
 ```
 
 ---
 
-*Last updated: 2026-06-03 — Sprint 4 complete; Sprint 5 (Stripe) is next*
+*Last updated: 2026-06-03 — Flutterwave + Lemon Squeezy; Stripe deferred*

@@ -106,7 +106,7 @@ export function ExploreFilters({
   return (
     <form
       onSubmit={handleSubmit}
-      className="relative isolate z-20 px-3 py-2.5 sm:px-4 sm:py-3"
+      className="relative isolate z-20 px-3 py-1.5 sm:px-4 sm:py-2"
     >
       {filterLoading ? (
         <div
@@ -141,7 +141,7 @@ export function ExploreFilters({
             />
           </div>
 
-          <div className="flex shrink-0 flex-col justify-center gap-1 border-t border-border p-2 sm:border-l sm:border-t-0 sm:px-3 sm:py-2">
+          <div className="flex shrink-0 flex-col justify-center border-t border-border p-1.5 sm:border-l sm:border-t-0 sm:px-2.5 sm:py-1.5">
             <Button
               type="button"
               variant="outline"
@@ -149,14 +149,12 @@ export function ExploreFilters({
               loading={locationLoading}
               loadingLabel="Finding your location"
               onClick={() => void onNearMe()}
-              className="min-h-9 w-full sm:w-auto"
+              className="min-h-8 w-full sm:w-auto"
+              title="Uses your device GPS"
             >
               <MapPin className="size-3.5" aria-hidden />
               Near me
             </Button>
-            <p className="hidden text-center text-[10px] text-muted sm:block">
-              Uses your device GPS
-            </p>
           </div>
         </div>
       </div>
@@ -165,13 +163,13 @@ export function ExploreFilters({
         chips={appliedChips}
         onRemove={handleRemoveChip}
         disabled={searching}
-        className="mt-2.5"
+        className="mt-1.5"
       />
 
-      <div className="mt-2.5 flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-t border-border/70 pt-2.5 text-sm">
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+      <div className="mt-1.5 flex flex-wrap items-center justify-between gap-x-3 gap-y-1 border-t border-border/70 pt-2 text-sm">
+        <div className="flex flex-wrap items-center gap-x-2.5 gap-y-0.5">
           {searching ? (
-            <span className="inline-flex min-h-9 items-center gap-1.5 text-sm text-muted">
+            <span className="inline-flex min-h-8 items-center gap-1.5 text-xs text-muted">
               <Spinner className="size-3.5" label="Updating map results" />
               Updating results…
             </span>
@@ -184,7 +182,7 @@ export function ExploreFilters({
             type="button"
             onClick={onReset}
             disabled={searching}
-            className="min-h-9 px-1 font-medium text-primary hover:underline disabled:opacity-60"
+            className="min-h-8 px-0.5 text-xs font-medium text-primary hover:underline disabled:opacity-60"
           >
             Reset all
           </button>
@@ -207,7 +205,7 @@ export function ExploreFilters({
         <button
           type="button"
           onClick={onToggleMap}
-          className={cn("min-h-9 shrink-0 font-medium text-primary hover:underline")}
+          className={cn("min-h-8 shrink-0 text-xs font-medium text-primary hover:underline")}
         >
           {mapVisible ? "Hide map" : "Show map"}
         </button>

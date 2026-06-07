@@ -495,6 +495,7 @@ export function renderPlotPinMapHero(
   } else {
     timer = d3.timer(() => {
       if (destroyed) return;
+      if (typeof document !== "undefined" && document.hidden) return;
       renderFrame(performance.now());
     });
   }

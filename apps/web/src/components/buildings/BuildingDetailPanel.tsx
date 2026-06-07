@@ -137,15 +137,17 @@ export function BuildingDetailPanel({
   );
 
   if (compact) {
+    const location = [building.district, building.city].filter(Boolean).join(", ");
+
     return (
       <article className="space-y-3">
         {!hideHeader ? (
           <header>
-            <h2 className="text-lg font-bold">{building.name}</h2>
-            <p className="text-sm text-muted">
-              {[building.district, building.city].filter(Boolean).join(", ")}
-            </p>
+            <h2 className="text-lg font-bold text-primary">{building.name}</h2>
+            {location ? <p className="text-sm text-muted">{location}</p> : null}
           </header>
+        ) : location ? (
+          <p className="text-sm text-muted">{location}</p>
         ) : null}
 
         {summaryBox}
@@ -175,12 +177,18 @@ export function BuildingDetailPanel({
 
   return (
     <article className="space-y-4">
-      <header>
-        <h1 className="text-2xl font-bold">{building.name}</h1>
+      {!hideHeader ? (
+        <header>
+          <h1 className="text-2xl font-bold text-primary">{building.name}</h1>
+          <p className="text-sm text-muted">
+            {[building.district, building.city].filter(Boolean).join(", ")}
+          </p>
+        </header>
+      ) : [building.district, building.city].filter(Boolean).length > 0 ? (
         <p className="text-sm text-muted">
           {[building.district, building.city].filter(Boolean).join(", ")}
         </p>
-      </header>
+      ) : null}
 
       {summaryBox}
 

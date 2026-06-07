@@ -23,7 +23,13 @@ import {
   type AdminPendingUnit,
 } from "@/lib/api/buildings";
 import { getAccessToken } from "@/lib/api/client";
+import { REJECT_REASON_PRESETS } from "@plotpin/shared-types";
 import { formatCurrency } from "@/lib/intl/format";
+import {
+  EMPTY_VERIFICATION_CHECKLIST,
+  VerificationChecklistForm,
+} from "@/components/admin/AdminVerificationChecklist";
+import type { AdminVerificationChecklist } from "@plotpin/shared-types";
 
 type UnitDraft = {
   unitNumber: string;
@@ -63,6 +69,10 @@ export default function AdminEditBuildingClient({
   const [showRejectForm, setShowRejectForm] = useState(false);
   const [rejectReason, setRejectReason] = useState("");
   const [rejecting, setRejecting] = useState(false);
+  const [checklist, setChecklist] = useState<AdminVerificationChecklist>(
+    EMPTY_VERIFICATION_CHECKLIST,
+  );
+  const [acknowledgeDuplicatePin, setAcknowledgeDuplicatePin] = useState(false);
 
   const [name, setName] = useState("");
   const [city, setCity] = useState("");
@@ -258,7 +268,14 @@ export default function AdminEditBuildingClient({
     setApproving(true);
     setError(null);
     try {
-      await verifyBuilding(buildingId, true);
+      await verifyBuilding(buildingId, {
+        verified: true,
+        checklist,
+        acknowledgeDuplicatePin:
+          (building?.duplicatePinWarnings.length ?? 0) > 0
+            ? acknowledgeDuplicatePin
+            : undefined,
+      });
       router.push("/admin/buildings");
       router.refresh();
     } catch (err) {
@@ -267,6 +284,15 @@ export default function AdminEditBuildingClient({
       setApproving(false);
     }
   }
+
+  const checklistComplete = Object.values(checklist).every(Boolean);
+  const canApprove =
+    checklistComplete &&
+    !building?.landlordPhoneRequired &&
+    Boolean(building?.ownershipAttestedAt) &&
+    !building?.landlord.suspendedAt &&
+    ((building?.duplicatePinWarnings.length ?? 0) === 0 ||
+      acknowledgeDuplicatePin);
 
   if (loading) {
     return (
@@ -321,6 +347,7 @@ export default function AdminEditBuildingClient({
             type="button"
             loading={approving}
             loadingLabel="Approving building"
+            disabled={!canApprove}
             onClick={() => void approve()}
           >
             Approve & go live
@@ -332,9 +359,21 @@ export default function AdminEditBuildingClient({
         <section className="mb-4 border border-red-200 bg-red-50 p-4">
           <h2 className="text-sm font-medium text-red-950">Reject listing</h2>
           <p className="mt-1 text-sm text-red-900/90">
-            Explain what the landlord should fix. They will see this reason on
-            their dashboard (email notification is stubbed in dev).
+            Explain what the landlord should fix. They will see this on their
+            dashboard and receive an email when Postmark is configured.
           </p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {REJECT_REASON_PRESETS.map((preset, index) => (
+              <button
+                key={preset}
+                type="button"
+                className="border border-red-200 bg-white px-2 py-1 text-xs text-red-900 hover:bg-red-100"
+                onClick={() => setRejectReason(preset)}
+              >
+                Preset {index + 1}
+              </button>
+            ))}
+          </div>
           <label className="mt-3 block text-sm text-red-950">
             Reason for rejection
             <textarea
@@ -374,11 +413,49 @@ export default function AdminEditBuildingClient({
 
       <p className="mb-6 text-sm text-muted">
         Landlord: {getAdminLandlordDisplayName(building)}
-        {building.landlord.phone ? ` · ${building.landlord.phone}` : ""}
+        {building.landlord.phone ? ` · ${building.landlord.phone}` : " · no phone"}
         {" · "}
         {building.units.length}{" "}
         {building.units.length === 1 ? "unit" : "units"}
+        {building.ownershipAttestedAt
+          ? " · ownership attested"
+          : " · no ownership attestation"}
       </p>
+
+      {building.duplicatePinWarnings.length > 0 ? (
+        <section className="mb-6 border border-amber-300 bg-amber-50 p-4">
+          <h2 className="text-sm font-medium text-amber-950">
+            Duplicate pin warning
+          </h2>
+          <p className="mt-1 text-sm text-amber-900">
+            Verified listings within 50m for a different landlord:
+          </p>
+          <ul className="mt-2 list-inside list-disc text-sm text-amber-900">
+            {building.duplicatePinWarnings.map((warning) => (
+              <li key={warning.id}>
+                {warning.name} (~{warning.distanceM}m)
+              </li>
+            ))}
+          </ul>
+          <label className="mt-3 flex items-start gap-2 text-sm text-amber-950">
+            <input
+              type="checkbox"
+              checked={acknowledgeDuplicatePin}
+              onChange={(e) => setAcknowledgeDuplicatePin(e.target.checked)}
+            />
+            I reviewed the duplicate risk and approve anyway.
+          </label>
+        </section>
+      ) : null}
+
+      <VerificationChecklistForm
+        className="mb-6"
+        value={checklist}
+        onChange={setChecklist}
+        ownershipAttestedAt={building.ownershipAttestedAt}
+        landlordPhoneMissing={building.landlordPhoneRequired}
+        landlordSuspended={Boolean(building.landlord.suspendedAt)}
+      />
 
       <div className="space-y-6">
         <section className="border border-border bg-surface p-4">

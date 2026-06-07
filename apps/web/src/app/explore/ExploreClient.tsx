@@ -27,7 +27,8 @@ import {
   boundsAround,
   resolveSearchArea,
 } from "@/lib/filters/search-areas";
-import { EXPLORE_NEAR_ME_RADIUS_DEG } from "@/lib/maps/config";
+import { formatBuildingSummaryLine } from "@/lib/explore/building-summary-line";
+import { EXPLORE_BUILDING_FOCUS_RADIUS_DEG, EXPLORE_NEAR_ME_RADIUS_DEG } from "@/lib/maps/config";
 import {
   boundsForExploreSearch,
   canSearchMapViewport,
@@ -58,6 +59,7 @@ import {
 } from "@/lib/api/http-errors";
 import {
   buildExploreHref,
+  buildExploreSelectionHref,
   exploreFiltersEqual,
   parseExploreFiltersFromSearchParams,
 } from "@/lib/explore/explore-url-filters";
@@ -84,16 +86,25 @@ export function ExploreClient() {
     [searchParams],
   );
 
-  const [mapVisible, setMapVisible] = useState(true);
+  const [mapVisible, setMapVisible] = useState(
+    () => searchParams.get("map") !== "0",
+  );
   const [detailMode, setDetailMode] = useState<DetailMode>(null);
   const [accessModalBuildingId, setAccessModalBuildingId] = useState<
     string | null
   >(null);
   const [allBuildings, setAllBuildings] = useState<BuildingSummary[]>([]);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(
+    () => searchParams.get("building"),
+  );
+  const selectedIdRef = useRef<string | null>(selectedId);
   const [selectedDetail, setSelectedDetail] = useState<BuildingDetail | null>(null);
   const selectedDetailRef = useRef<BuildingDetail | null>(null);
-  const [selectedLoading, setSelectedLoading] = useState(false);
+  const [selectedLoading, setSelectedLoading] = useState(
+    () =>
+      Boolean(searchParams.get("building")) &&
+      searchParams.get("map") === "0",
+  );
   const [loading, setLoading] = useState(true);
   const [searching, setSearching] = useState(false);
   const [searchAlert, setSearchAlert] = useState<SearchAlert>(null);
@@ -111,7 +122,8 @@ export function ExploreClient() {
   const { isAuthenticated } = useAuth();
   const shouldAutoGeo = !urlMapBounds && !urlFilters.city;
   const geo = useExploreGeolocation({ autoRequest: shouldAutoGeo });
-  const { getDefaultMapBounds, countriesByCode, viewer } = useViewerContext();
+  const { getDefaultMapBounds, countriesByCode, viewer, formatListingRentPerMonth } =
+    useViewerContext();
   const [unlockedLocations, setUnlockedLocations] = useState<
     Map<string, { lat: number; lng: number }>
   >(new Map());
@@ -133,6 +145,30 @@ export function ExploreClient() {
   const suppressMapInteraction = useCallback(() => {
     suppressMapInteractionUntilRef.current = Date.now() + 900;
   }, []);
+
+  const syncSelectionToUrl = useCallback(
+    (
+      options: {
+        buildingId?: string | null;
+        hideMap?: boolean;
+        history?: "push" | "replace";
+      },
+    ) => {
+      skipUrlSyncRef.current = true;
+      const href = buildExploreSelectionHref(pathname, appliedFiltersRef.current, {
+        buildingId: options.buildingId,
+        hideMap: options.hideMap,
+        mapBounds: appliedMapBoundsRef.current,
+        preserve: searchParams,
+      });
+      if (options.history === "replace") {
+        router.replace(href, { scroll: false });
+      } else {
+        router.push(href, { scroll: false });
+      }
+    },
+    [pathname, router, searchParams],
+  );
 
   const executeSearchRef = useRef<
     (
@@ -162,6 +198,10 @@ export function ExploreClient() {
     getDefaultMapBoundsRef.current = getDefaultMapBounds;
     viewerCountryCodeRef.current = viewer.countryCode;
   }, [getDefaultMapBounds, viewer.countryCode]);
+
+  useEffect(() => {
+    selectedIdRef.current = selectedId;
+  }, [selectedId]);
 
   useEffect(() => {
     geoLocationRef.current = geo.location;
@@ -248,23 +288,90 @@ export function ExploreClient() {
     [isAuthenticated, loadSelectedDetail, setHover],
   );
 
+  const scrollListToBuilding = useCallback((buildingId: string) => {
+    window.requestAnimationFrame(() => {
+      const row = listRef.current?.querySelector(
+        `[data-building-id="${buildingId}"]`,
+      );
+      row?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    });
+  }, []);
+
+  const focusBuildingOnMap = useCallback(
+    (building: BuildingSummary) => {
+      const exact = visibleUnlockLocations.get(building.id);
+      const lat = exact?.lat ?? building.approximateLat;
+      const lng = exact?.lng ?? building.approximateLng;
+      suppressMapInteraction();
+      setMapFocusBounds(boundsAround(lat, lng, EXPLORE_BUILDING_FOCUS_RADIUS_DEG));
+      setMapFitToken((token) => token + 1);
+    },
+    [suppressMapInteraction, visibleUnlockLocations],
+  );
+
+  const selectBuildingOnMap = useCallback(
+    (id: string) => {
+      selectedIdRef.current = id;
+      setSelectedId(id);
+      setHover(id);
+      setDetailMode(null);
+      setAccessModalBuildingId(null);
+      scrollListToBuilding(id);
+      syncSelectionToUrl({
+        buildingId: id,
+        hideMap: false,
+        history: "replace",
+      });
+    },
+    [scrollListToBuilding, setHover, syncSelectionToUrl],
+  );
+
   const applySearchResults = useCallback(
     (data: BuildingSummary[]) => {
       setAllBuildings(data);
       setHover(null);
-      setDetailMode(null);
-      setMapVisible(true);
+
+      const pendingDeepLink = searchParams.get("building");
 
       if (data.length === 0) {
         setSelectedId(null);
         setSelectedDetail(null);
+        selectedDetailRef.current = null;
         setSelectedLoading(false);
+        setDetailMode(null);
+        setMapVisible(true);
         return;
       }
 
-      void loadDetail(data[0].id);
+      if (pendingDeepLink && !deepLinkHandled.current) {
+        setDetailMode(null);
+        if (searchParams.get("map") !== "0") {
+          setMapVisible(true);
+        }
+        return;
+      }
+
+      setDetailMode(null);
+      setMapVisible(true);
+
+      // Selection is mirrored to the URL `building` param, so prefer it (then the
+      // last in-memory selection) when still in results — this keeps the map
+      // highlight deterministic and in sync with the address bar after pan/zoom.
+      const prevSelected = selectedIdRef.current;
+      const inData = (id: string | null | undefined): id is string =>
+        Boolean(id) && data.some((b) => b.id === id);
+      const resolvedId = inData(pendingDeepLink)
+        ? pendingDeepLink
+        : inData(prevSelected)
+          ? prevSelected
+          : data[0].id;
+      selectedIdRef.current = resolvedId;
+      setSelectedId(resolvedId);
+      if (isMobile) {
+        void loadDetail(resolvedId);
+      }
     },
-    [loadDetail, setHover],
+    [isMobile, loadDetail, searchParams, setHover],
   );
 
   const refreshUnlockState = useCallback(async () => {
@@ -297,20 +404,69 @@ export function ExploreClient() {
   );
 
   const consumeDeepLink = useCallback(
-    (buildings: BuildingSummary[]) => {
+    async (buildings: BuildingSummary[]) => {
       if (deepLinkHandled.current) return;
 
       const buildingId = searchParams.get("building");
       if (!buildingId) return;
-      if (!buildings.some((building) => building.id === buildingId)) return;
+
+      let building = buildings.find((item) => item.id === buildingId);
+      if (!building) {
+        const detail = await loadSelectedDetail(buildingId);
+        if (!detail) return;
+        building = detail;
+        setAllBuildings((prev) =>
+          prev.some((item) => item.id === buildingId)
+            ? prev
+            : [detail, ...prev],
+        );
+      }
 
       deepLinkHandled.current = true;
       const hideMap = searchParams.get("map") === "0";
-      setDetailMode("full");
-      if (hideMap && !isMobile) setMapVisible(false);
-      void loadDetail(buildingId);
+
+      focusBuildingOnMap(building);
+      selectedIdRef.current = buildingId;
+      setSelectedId(buildingId);
+      setHover(buildingId);
+      scrollListToBuilding(buildingId);
+
+      if (isMobile) {
+        setMapVisible(true);
+        if (hideMap) {
+          setDetailMode("full");
+          void loadDetail(buildingId);
+        } else {
+          setDetailMode(null);
+          setSelectedDetail(null);
+          selectedDetailRef.current = null;
+          setSelectedLoading(false);
+        }
+        return;
+      }
+
+      if (hideMap) {
+        setDetailMode("full");
+        setMapVisible(false);
+        void loadDetail(buildingId);
+        return;
+      }
+
+      setDetailMode(null);
+      setMapVisible(true);
+      setSelectedDetail(null);
+      selectedDetailRef.current = null;
+      setSelectedLoading(false);
     },
-    [isMobile, loadDetail, searchParams],
+    [
+      focusBuildingOnMap,
+      isMobile,
+      loadDetail,
+      loadSelectedDetail,
+      scrollListToBuilding,
+      searchParams,
+      setHover,
+    ],
   );
 
   const applySearchResultsRef = useRef(applySearchResults);
@@ -768,31 +924,24 @@ export function ExploreClient() {
     (id: string) => {
       if (isMobile) {
         setDetailMode("full");
+        syncSelectionToUrl({ buildingId: id, hideMap: false, history: "push" });
         void loadDetail(id);
         return;
       }
 
       setDetailMode("full");
       setMapVisible(false);
+      syncSelectionToUrl({ buildingId: id, hideMap: true, history: "push" });
       void loadDetail(id);
     },
-    [isMobile, loadDetail],
+    [isMobile, loadDetail, syncSelectionToUrl],
   );
 
   const handleMapSelect = useCallback(
     (id: string) => {
-      if (isMobile) {
-        setDetailMode("summary");
-        void loadDetail(id);
-        return;
-      }
-
-      setDetailMode("summary");
-      setMapVisible(true);
-      closeAccessModal();
-      void loadDetail(id);
+      selectBuildingOnMap(id);
     },
-    [closeAccessModal, isMobile, loadDetail],
+    [selectBuildingOnMap],
   );
 
   const handleExpandToFullDetails = useCallback(() => {
@@ -800,30 +949,63 @@ export function ExploreClient() {
 
     if (isMobile) {
       setDetailMode("full");
-      if (selectedId) void loadDetail(selectedId);
+      if (selectedId) {
+        syncSelectionToUrl({
+          buildingId: selectedId,
+          hideMap: false,
+          history: "replace",
+        });
+        void loadDetail(selectedId);
+      }
       return;
     }
 
     setDetailMode("full");
     setMapVisible(false);
-    if (selectedId) void loadDetail(selectedId);
-  }, [closeAccessModal, isMobile, loadDetail, selectedId]);
+    if (selectedId) {
+      syncSelectionToUrl({
+        buildingId: selectedId,
+        hideMap: true,
+        history: "push",
+      });
+      void loadDetail(selectedId);
+    }
+  }, [
+    closeAccessModal,
+    isMobile,
+    loadDetail,
+    selectedId,
+    syncSelectionToUrl,
+  ]);
 
   const handleToggleMap = useCallback(() => {
     setMapVisible((visible) => {
       const next = !visible;
       if (next) {
         setDetailMode(null);
+        if (selectedId) {
+          syncSelectionToUrl({
+            buildingId: selectedId,
+            hideMap: false,
+            history: "replace",
+          });
+        }
       } else if (selectedId) {
         setDetailMode("full");
+        syncSelectionToUrl({
+          buildingId: selectedId,
+          hideMap: true,
+          history: "push",
+        });
       }
       return next;
     });
-  }, [selectedId]);
+  }, [selectedId, syncSelectionToUrl]);
 
   const closeMobileSheet = useCallback(() => {
     setDetailMode(null);
-  }, []);
+    syncSelectionToUrl({ buildingId: null, hideMap: false, history: "replace" });
+  }, [syncSelectionToUrl]);
 
   const accessModalUnlocks = accessModalBuildingId
     ? (unlocksByBuilding.get(accessModalBuildingId) ?? [])
@@ -843,9 +1025,12 @@ export function ExploreClient() {
     return {
       id: hoveredId,
       name: building.name,
-      loading: false,
+      summaryLine: formatBuildingSummaryLine(
+        building,
+        formatListingRentPerMonth,
+      ),
     };
-  }, [allBuildings, hoveredId]);
+  }, [allBuildings, formatListingRentPerMonth, hoveredId]);
 
   const listLoading = loading || searching;
 
@@ -902,7 +1087,9 @@ export function ExploreClient() {
     unlockedBuildingIds,
     unlockedLocations: visibleUnlockLocations,
     onSelect: handleMapSelect,
+    onHoverOpenDetail: handleListSelect,
     onHover: isMobile ? undefined : setHover,
+    persistSelectedTooltip: isMobile,
     gestureHandling: "greedy" as const,
     fitBoundsToken: mapFitToken,
     focusBounds: mapFocusBounds,
@@ -911,8 +1098,6 @@ export function ExploreClient() {
   };
 
   const showMobileSheet = Boolean(selectedId) && isMobile && detailMode !== null;
-  const showMapSummary =
-    !isMobile && mapVisible && detailMode === "summary" && Boolean(selectedId);
   const showFullDetailPane =
     !isMobile && !mapVisible && Boolean(selectedId);
 
@@ -921,7 +1106,7 @@ export function ExploreClient() {
       <div className="sticky top-0 z-40 shrink-0 bg-background shadow-card">
         <AppHeader variant="wide" />
 
-        <ContentBand width="wide" className="bg-panel" innerClassName="py-1 sm:py-1.5">
+        <ContentBand width="wide" className="bg-panel" innerClassName="py-0.5 sm:py-1">
           <ExploreFilters
             filters={filters}
             appliedFilters={appliedFilters}
@@ -975,7 +1160,7 @@ export function ExploreClient() {
           )}
         >
           {mapVisible ? (
-            <section className="explore-mobile-map relative h-[38vh] min-h-[12rem] max-h-[68vh] shrink-0 overflow-hidden border-b border-border md:hidden">
+            <section className="explore-mobile-map relative h-[38vh] min-h-48 max-h-[68vh] shrink-0 overflow-visible border-b border-border md:hidden">
               <PlotPinMap {...mapProps} />
             </section>
           ) : null}
@@ -1016,31 +1201,6 @@ export function ExploreClient() {
               onBrowseSupply={() => void handleBrowseSupply()}
             />
 
-            {showMapSummary ? (
-              <div className="explore-desktop-summary relative z-10 hidden h-[min(58vh,30rem)] shrink-0 flex-col overflow-hidden border-t-2 border-border bg-surface shadow-[0_-14px_36px_-14px_rgba(15,23,42,0.22)] ring-1 ring-black/5 md:flex">
-                <div className="flex shrink-0 items-center justify-between gap-2 border-b border-border px-4 py-2.5">
-                  <p className="truncate text-sm font-semibold text-primary">
-                    {selectedBuilding?.name ?? "Building"}
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() => setDetailMode(null)}
-                    className="shrink-0 text-xs text-muted hover:text-foreground"
-                  >
-                    Close
-                  </button>
-                </div>
-                <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-4">
-                  <ExploreDetailPane
-                    loading={selectedLoading}
-                    detail={selectedDetail}
-                    variant="compact"
-                    onUnlockSuccess={() => void handleUnlockSuccess()}
-                    onExpandToFull={handleExpandToFullDetails}
-                  />
-                </div>
-              </div>
-            ) : null}
           </aside>
 
           {mapVisible ? (

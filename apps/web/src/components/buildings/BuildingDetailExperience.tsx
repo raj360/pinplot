@@ -4,11 +4,13 @@ import Link from "next/link";
 import { PRICING } from "@plotpin/shared-types";
 import { BuildingStepHeader } from "@/components/buildings/BuildingStepHeader";
 import { BuildingDetailPanel } from "@/components/buildings/BuildingDetailPanel";
+import { BuildingLockedCoverPreview } from "@/components/buildings/BuildingLockedCoverPreview";
 import { BuildingUnlockedHero } from "@/components/buildings/BuildingUnlockedHero";
 import { UnlockPurchasePanel } from "@/components/buildings/UnlockPurchasePanel";
 import { UnlockedAccessCard } from "@/components/buildings/UnlockedAccessCard";
 import { UnlockedAccessCompact } from "@/components/buildings/UnlockedAccessCompact";
 import { UnlockSectionSkeleton } from "@/components/explore/BuildingPreviewSkeleton";
+import { ReportListingPanel } from "@/components/buildings/ReportListingPanel";
 import type { BuildingDetail } from "@/lib/api/buildings";
 import { mergeBuildingMedia } from "@/lib/buildings/media";
 import { formatCurrency } from "@/lib/intl/format";
@@ -16,6 +18,7 @@ import {
   unlockPanelDescription,
 } from "@/lib/unlocks/unlock-pricing";
 import { useBuildingUnlocks } from "@/lib/unlocks/use-building-unlocks";
+import { useAuth } from "@/lib/auth/use-auth";
 
 type BuildingDetailExperienceProps = {
   building: BuildingDetail;
@@ -35,9 +38,11 @@ export function BuildingDetailExperience({
   onExpandToFull,
   hideHeader = false,
 }: BuildingDetailExperienceProps) {
+  const { profile } = useAuth();
   const unlocks = useBuildingUnlocks(building.id, building.units, {
     buildingType: building.buildingType,
     countryCode: building.countryCode,
+    tenantCountryCode: profile?.country_code,
   });
   const location = [building.district, building.city].filter(Boolean).join(", ");
   const hasAccess = unlocks.activeUnlocks.length > 0;
@@ -62,6 +67,14 @@ export function BuildingDetailExperience({
     unitQuotes: unlocks.unitQuotes,
     representativeQuote: unlocks.representativeQuote,
     layout: unlockPanelLayout,
+    showUnlockTerms: unlocks.showUnlockTerms,
+    needsUnlockTerms: unlocks.showUnlockTerms,
+    acceptUnlockTerms: unlocks.acceptUnlockTerms,
+    onAcceptUnlockTermsChange: unlocks.setAcceptUnlockTerms,
+    checkoutMethod: unlocks.checkoutMethod,
+    onCheckoutMethodChange: unlocks.setCheckoutMethod,
+    showMobileMoneyCheckout: unlocks.showMobileMoneyCheckout,
+    profilePhone: unlocks.profilePhone,
   } as const;
 
   const firstUnlockDescription = unlockPanelDescription({
@@ -116,14 +129,10 @@ export function BuildingDetailExperience({
     return (
       <div className="space-y-3">
         {building.coverThumbUrl ? (
-          <div className="overflow-hidden border border-border bg-surface">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={building.coverThumbUrl}
-              alt=""
-              className="aspect-[16/10] w-full object-cover"
-            />
-          </div>
+          <BuildingLockedCoverPreview
+            src={building.coverThumbUrl}
+            constrainOnDesktop={false}
+          />
         ) : null}
 
         <BuildingDetailPanel
@@ -199,6 +208,11 @@ export function BuildingDetailExperience({
           </section>
         ) : null}
 
+        <ReportListingPanel
+          buildingId={building.id}
+          buildingName={building.name}
+        />
+
         <details className="group border-t border-border pt-6">
           <summary className="cursor-pointer list-none marker:content-none text-sm font-medium text-muted [&::-webkit-details-marker]:hidden">
             <span className="underline decoration-border underline-offset-2 group-open:no-underline">
@@ -220,17 +234,14 @@ export function BuildingDetailExperience({
   const detailColumn = (
     <div className="min-w-0 space-y-4">
       {building.coverThumbUrl && !hasAccess ? (
-        <div className="overflow-hidden border border-border bg-surface">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={building.coverThumbUrl}
-            alt=""
-            className="aspect-[16/10] w-full object-cover"
-          />
-        </div>
+        <BuildingLockedCoverPreview src={building.coverThumbUrl} />
       ) : null}
 
-      <BuildingDetailPanel building={building} showUnlockLink={false} />
+      <BuildingDetailPanel
+        building={building}
+        showUnlockLink={false}
+        hideHeader={hideHeader}
+      />
 
       {building.hasPremiumMedia && !hasAccess ? (
         <p className="border border-dashed border-border bg-surface px-3 py-2.5 text-sm text-muted">

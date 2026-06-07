@@ -3,18 +3,30 @@
 import { UnlockPurchasePanel } from "@/components/buildings/UnlockPurchasePanel";
 import { UnlockedAccessCard } from "@/components/buildings/UnlockedAccessCard";
 import { LoadingState } from "@/components/ui/loading-state";
+import { useAuth } from "@/lib/auth/use-auth";
 import { useBuildingUnlocks } from "@/lib/unlocks/use-building-unlocks";
 import type { UnitLike } from "@/lib/buildings/unit-summary";
 
-/** Legacy wrapper — prefer BuildingPageClient on the building detail route. */
+/** Legacy wrapper — prefer BuildingDetailExperience on the building detail route. */
 export function UnlockPanel({
   buildingId,
+  buildingType,
+  countryCode,
   units,
 }: {
   buildingId: string;
+  /** From the building record — used for tiered unlock quotes. */
+  buildingType: string;
+  /** ISO country of the listing — used for checkout routing and quotes. */
+  countryCode: string;
   units: UnitLike[];
 }) {
-  const unlocks = useBuildingUnlocks(buildingId, units);
+  const { profile } = useAuth();
+  const unlocks = useBuildingUnlocks(buildingId, units, {
+    buildingType,
+    countryCode,
+    tenantCountryCode: profile?.country_code,
+  });
 
   if (unlocks.loading) {
     return (
@@ -52,7 +64,15 @@ export function UnlockPanel({
           isAuthenticated={unlocks.isAuthenticated}
           onUnlock={unlocks.handleUnlock}
           unlockingId={unlocks.unlockingId}
-        unlockCredits={unlocks.unlockCredits}
+          unlockCredits={unlocks.unlockCredits}
+          needsUnlockTerms={unlocks.showUnlockTerms}
+          showUnlockTerms={unlocks.showUnlockTerms}
+          acceptUnlockTerms={unlocks.acceptUnlockTerms}
+          onAcceptUnlockTermsChange={unlocks.setAcceptUnlockTerms}
+          checkoutMethod={unlocks.checkoutMethod}
+          onCheckoutMethodChange={unlocks.setCheckoutMethod}
+          showMobileMoneyCheckout={unlocks.showMobileMoneyCheckout}
+          profilePhone={unlocks.profilePhone}
         />
       ) : null}
     </section>

@@ -1,27 +1,31 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useForm, type Resolver } from "react-hook-form";
+import { isValidPhoneNumber } from "libphonenumber-js";
+import { Controller, useForm, type Resolver } from "react-hook-form";
 import { z } from "zod";
-import {
-  DEFAULT_PHONE_DIAL_CODE,
-  combineToE164,
-  dialCodeFromStored,
-  nationalDigitsFromStored,
-} from "@plotpin/shared-types";
+import type { Country } from "react-phone-number-input";
 import { PhoneVerificationNotice } from "@/components/profile/PhoneVerificationNotice";
 import { Button } from "@/components/ui/button";
 import { FormField } from "@/components/ui/form-field";
-import {
-  IntlPhoneField,
-  phoneValuesToE164,
-} from "@/components/ui/intl-phone-field";
+import { IntlPhoneField } from "@/components/ui/intl-phone-field";
 import {
   notifyProfileUpdated,
   updateMyProfile,
   type UserProfile,
 } from "@/lib/api/profiles";
 import { profileCompletionMessage } from "@/lib/auth/profile-complete";
+
+function storedPhoneValue(stored: string | null | undefined) {
+  if (!stored?.trim() || stored.includes("@")) return undefined;
+  return stored;
+}
+
+function defaultPhoneCountry(profile: UserProfile | null): Country {
+  const code = profile?.country_code?.toUpperCase();
+  if (code && code.length === 2) return code as Country;
+  return "UG";
+}
 
 const profileSchema = z.object({
   firstName: z
@@ -35,10 +39,19 @@ const profileSchema = z.object({
     .max(80, { message: "Last name is too long" })
     .optional()
     .or(z.literal("")),
-  phoneDialCode: z.string().min(1),
-  phoneNational: z.string().trim().min(1, { message: "Phone number is required" }),
-  phoneSecondaryDialCode: z.string().optional(),
-  phoneSecondaryNational: z.string().optional(),
+  phone: z
+    .string()
+    .trim()
+    .min(1, { message: "Phone number is required" })
+    .refine((value) => isValidPhoneNumber(value), {
+      message: "Enter a valid phone number",
+    }),
+  phoneSecondary: z
+    .string()
+    .optional()
+    .refine((value) => !value?.trim() || isValidPhoneNumber(value), {
+      message: "Enter a valid secondary number or leave it blank",
+    }),
 });
 
 type ProfileFormData = z.infer<typeof profileSchema>;
@@ -61,6 +74,7 @@ export function ProfileCompletionForm({
   showVerification?: boolean;
 }) {
   const isLandlord = profile?.role === "LANDLORD";
+  const phoneDefaultCountry = defaultPhoneCountry(profile);
 
   const form = useForm<ProfileFormData>({
     resolver: zodResolver(
@@ -69,58 +83,26 @@ export function ProfileCompletionForm({
     defaultValues: {
       firstName: profile?.first_name?.trim() ?? "",
       lastName: profile?.last_name?.trim() ?? "",
-      phoneDialCode: profile?.phone
-        ? dialCodeFromStored(profile.phone)
-        : DEFAULT_PHONE_DIAL_CODE,
-      phoneNational: profile?.phone
-        ? nationalDigitsFromStored(profile.phone)
-        : "",
-      phoneSecondaryDialCode: profile?.phone_secondary
-        ? dialCodeFromStored(profile.phone_secondary)
-        : DEFAULT_PHONE_DIAL_CODE,
-      phoneSecondaryNational: profile?.phone_secondary
-        ? nationalDigitsFromStored(profile.phone_secondary)
-        : "",
+      phone: storedPhoneValue(profile?.phone) ?? "",
+      phoneSecondary: storedPhoneValue(profile?.phone_secondary) ?? "",
     },
   });
 
   async function onSubmit(values: ProfileFormData) {
-    const phone = phoneValuesToE164(values.phoneDialCode, values.phoneNational);
-    if (!phone) {
-      form.setError("phoneNational", {
-        message: "Enter a valid phone number for the selected country",
+    const phoneSecondary = values.phoneSecondary?.trim();
+    if (phoneSecondary && phoneSecondary === values.phone) {
+      form.setError("phoneSecondary", {
+        message: "Secondary number must differ from your primary phone",
       });
       return;
-    }
-
-    let phoneSecondary: string | undefined;
-    const secondaryNational = values.phoneSecondaryNational?.trim();
-    if (secondaryNational) {
-      phoneSecondary =
-        phoneValuesToE164(
-          values.phoneSecondaryDialCode ?? DEFAULT_PHONE_DIAL_CODE,
-          secondaryNational,
-        ) ?? undefined;
-      if (!phoneSecondary) {
-        form.setError("phoneSecondaryNational", {
-          message: "Enter a valid secondary number or leave it blank",
-        });
-        return;
-      }
-      if (phoneSecondary === phone) {
-        form.setError("phoneSecondaryNational", {
-          message: "Secondary number must differ from your primary phone",
-        });
-        return;
-      }
     }
 
     try {
       await updateMyProfile({
         firstName: values.firstName.trim(),
         lastName: values.lastName?.trim() || undefined,
-        phone,
-        phoneSecondary,
+        phone: values.phone,
+        phoneSecondary: phoneSecondary || undefined,
       });
       notifyProfileUpdated();
       onSuccess?.();
@@ -172,35 +154,43 @@ export function ProfileCompletionForm({
         />
       </div>
 
-      <IntlPhoneField<ProfileFormData>
-        id="profile-phone"
-        label={
-          isLandlord ? "Primary phone (tenant contact)" : "Primary phone"
-        }
-        dialCodeName="phoneDialCode"
-        nationalName="phoneNational"
-        register={form.register}
-        nationalRegisterOptions={{
-          setValueAs: (value: string) => value.replace(/[^\d\s-]/g, ""),
-        }}
-        nationalError={form.formState.errors.phoneNational}
-        hint="Used for calls and WhatsApp where supported"
-        defaultStored={profile?.phone}
+      <Controller
+        name="phone"
+        control={form.control}
+        render={({ field, fieldState }) => (
+          <IntlPhoneField
+            id="profile-phone"
+            label={
+              isLandlord ? "Primary phone (tenant contact)" : "Primary phone"
+            }
+            value={field.value}
+            onChange={field.onChange}
+            onBlur={field.onBlur}
+            error={fieldState.error}
+            defaultCountry={phoneDefaultCountry}
+            hint="Search country · used for calls and WhatsApp where supported"
+            defaultStored={profile?.phone}
+          />
+        )}
       />
 
-      <IntlPhoneField<ProfileFormData>
-        id="profile-phone-secondary"
-        label="Secondary phone"
-        dialCodeName="phoneSecondaryDialCode"
-        nationalName="phoneSecondaryNational"
-        register={form.register}
-        required={false}
-        nationalRegisterOptions={{
-          setValueAs: (value: string) => value.replace(/[^\d\s-]/g, ""),
-        }}
-        nationalError={form.formState.errors.phoneSecondaryNational}
-        hint="Optional backup — e.g. Uganda line if your primary is abroad"
-        defaultStored={profile?.phone_secondary}
+      <Controller
+        name="phoneSecondary"
+        control={form.control}
+        render={({ field, fieldState }) => (
+          <IntlPhoneField
+            id="profile-phone-secondary"
+            label="Secondary phone"
+            value={field.value}
+            onChange={field.onChange}
+            onBlur={field.onBlur}
+            error={fieldState.error}
+            required={false}
+            defaultCountry={phoneDefaultCountry}
+            hint="Optional backup — e.g. Uganda line if your primary is abroad"
+            defaultStored={profile?.phone_secondary}
+          />
+        )}
       />
 
       {showVerification ? (

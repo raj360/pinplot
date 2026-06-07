@@ -21,7 +21,7 @@ export function BuildingPreviewSkeleton({
 
       {!isSummary ? (
         <>
-          <Skeleton className="h-36 w-full" />
+          <Skeleton className="h-36 w-full md:max-h-52 md:max-w-md md:aspect-[4/3]" />
           <div className="grid grid-cols-4 gap-1.5">
             {Array.from({ length: 8 }).map((_, index) => (
               <Skeleton key={index} className="aspect-square" />
@@ -58,7 +58,9 @@ export function BuildingDetailSkeleton({
 
   return (
     <div className={cn("space-y-4", className)} aria-hidden>
-      {!isCompact ? <Skeleton className="h-40 w-full" /> : null}
+      {!isCompact ? (
+        <Skeleton className="h-40 w-full md:max-h-52 md:max-w-md md:aspect-[4/3]" />
+      ) : null}
       <Skeleton className="h-16 w-full border border-border bg-neutral-25" />
       {!isCompact ? (
         <div className="grid grid-cols-6 gap-1.5">

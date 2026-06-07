@@ -1436,6 +1436,13 @@
   resolved "https://registry.npmjs.org/@types/react-dom/-/react-dom-19.2.3.tgz#c1e305d15a52a3e508d54dca770d202cb63abf2c"
   integrity sha512-jp2L/eY6fn+KgVVQAOqYItbF0VY/YApe5Mz2F0aykSO8gx31bYCZyvSeYxCHKvzHG5eZjc+zyaS5BrBWya2+kQ==
 
+"@types/react-phone-number-input@^3.1.37":
+  version "3.1.37"
+  resolved "https://registry.npmjs.org/@types/react-phone-number-input/-/react-phone-number-input-3.1.37.tgz#7781cbb31d693da99eff4dbfad5635021477cb77"
+  integrity sha512-N5/4VjptmOJWs4g5keMxjAuc8yQFr0fM+OSYfT8h0IQVm5kUiLAGNg+TGHy21Xzb1DB/PhDkiWnKcIREgr5VWA==
+  dependencies:
+    react-phone-number-input "*"
+
 "@types/react@^19":
   version "19.2.15"
   resolved "https://registry.npmjs.org/@types/react/-/react-19.2.15.tgz#9e2c6a4251a290f5c525c3143caa872fa6e01e0d"
@@ -2236,6 +2243,11 @@ class-validator@^0.14.2:
     libphonenumber-js "^1.11.1"
     validator "^13.15.22"
 
+classnames@^2.5.1:
+  version "2.5.1"
+  resolved "https://registry.npmjs.org/classnames/-/classnames-2.5.1.tgz#ba774c614be0f016da105c858e7159eae8e7687b"
+  integrity sha512-saHYOzhIQs6wy2sVxTM6bUDsQO4F50V9RQ22qBpEdCW+I+/Wmke2HOl6lS6dTpdxVhb88/I6+Hs+438c3lfUow==
+
 cli-cursor@^3.1.0:
   version "3.1.0"
   resolved "https://registry.npmjs.org/cli-cursor/-/cli-cursor-3.1.0.tgz#264305a7ae490d1d03bf0c9ba7c925d1753af307"
@@ -2379,6 +2391,11 @@ cosmiconfig@^8.2.0:
     js-yaml "^4.1.0"
     parse-json "^5.2.0"
     path-type "^4.0.0"
+
+country-flag-icons@^1.6.14:
+  version "1.6.17"
+  resolved "https://registry.npmjs.org/country-flag-icons/-/country-flag-icons-1.6.17.tgz#875cf35eb2a0d7fcb0f07166fed9fc65863e03f8"
+  integrity sha512-Nmik0289ZVZSI3c7mJR/amg6DyY7Z59b0sTFSKayeX72mHfPzCPJygwJs2pYgQULzuAyWeCUgwAJ+Dq8OR+JFw==
 
 cross-spawn@^7.0.6:
   version "7.0.6"
@@ -3642,6 +3659,13 @@ inherits@^2.0.3, inherits@^2.0.4, inherits@~2.0.4:
   resolved "https://registry.npmjs.org/inherits/-/inherits-2.0.4.tgz#0fa2c64f932917c3433a0ded55363aae37416b7c"
   integrity sha512-k/vGaX4/Yla3WzyMCvTQOXYeIHvqOKtnqBduzTHpzpQZzAskKMhZ2K+EnBiSM9zGSoIFeMpXKxa4dYeZIQqewQ==
 
+input-format@^0.3.14:
+  version "0.3.14"
+  resolved "https://registry.npmjs.org/input-format/-/input-format-0.3.14.tgz#7aea985e2a5b258d2cdd853ac7cc10bac1b2a8b8"
+  integrity sha512-gHMrgrbCgmT4uK5Um5eVDUohuV9lcs95ZUUN9Px2Y0VIfjTzT2wF8Q3Z4fwLFm7c5Z2OXCm53FHoovj6SlOKdg==
+  dependencies:
+    prop-types "^15.8.1"
+
 internal-slot@^1.1.0:
   version "1.1.0"
   resolved "https://registry.npmjs.org/internal-slot/-/internal-slot-1.1.0.tgz#1eac91762947d2f7056bc838d93e13b2e9604961"
@@ -4031,6 +4055,11 @@ libphonenumber-js@^1.11.1:
   version "1.13.3"
   resolved "https://registry.npmjs.org/libphonenumber-js/-/libphonenumber-js-1.13.3.tgz#943893d41c037b7af11691e8b9d2463a3a254232"
   integrity sha512-xMkdAMqcyG7iN2WZZmGIfWbYxW4orRkny+0/AXIbwL0xll2zkDX0Vzo/BXFa6+7mh2UvJl9MbcTtHk0YXkFtBA==
+
+libphonenumber-js@^1.13.4, libphonenumber-js@^1.13.5:
+  version "1.13.5"
+  resolved "https://registry.npmjs.org/libphonenumber-js/-/libphonenumber-js-1.13.5.tgz#89a8d1130faf7982ed8b7db810f698a075cda758"
+  integrity sha512-7/kRezHmQlMfO6pmvt34orO/g3j1C47k8FCBXFgj/mklTLwQdBca1LkhDK6RM8UyM6JqHFAIikMdkKkyfQy39A==
 
 lightningcss-android-arm64@1.32.0:
   version "1.32.0"
@@ -4758,6 +4787,17 @@ react-is@^16.13.1:
   version "16.13.1"
   resolved "https://registry.npmjs.org/react-is/-/react-is-16.13.1.tgz#789729a4dc36de2999dc156dd6c1d9c18cea56a4"
   integrity sha512-24e6ynE2H+OKt4kqsOvNd8kBpV65zoxbA4BVsEOB3ARVWQki/DHzaUoC5KuON/BiccDaCCTZBuOcfZs70kR8bQ==
+
+react-phone-number-input@*, react-phone-number-input@^3.4.17:
+  version "3.4.17"
+  resolved "https://registry.npmjs.org/react-phone-number-input/-/react-phone-number-input-3.4.17.tgz#f528d5c50dcdf85a9022ba9e593cd72d03f0997e"
+  integrity sha512-1wcjhBAWHgEBAGLi5/XbeZI7Q3aEHNb2z/dHY6R2Gz70TQvu0ZoOT28NTdwtZf4lyRKXWufnTzVhLPBUD8LfmQ==
+  dependencies:
+    classnames "^2.5.1"
+    country-flag-icons "^1.6.14"
+    input-format "^0.3.14"
+    libphonenumber-js "^1.13.4"
+    prop-types "^15.8.1"
 
 react@19.2.1:
   version "19.2.1"
