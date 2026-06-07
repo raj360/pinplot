@@ -11,6 +11,7 @@ import { LandlordDashboardSkeleton } from "@/components/landlord/LandlordPageSke
 import { fetchMyBuildings, type LandlordBuilding } from "@/lib/api/buildings";
 import { getAccessToken } from "@/lib/api/client";
 import {
+  buildingNeedsUnitSetup,
   buildingWasRejected,
   countBuildingsNeedingSetup,
   countBuildingsPendingReview,
@@ -30,6 +31,7 @@ export default function LandlordDashboardClient() {
   const visibleCount = countBuildingsVisibleOnExplore(buildings);
   const pendingCount = countBuildingsPendingReview(buildings);
   const rejectedCount = countBuildingsRejected(buildings);
+  const firstNeedsSetup = buildings.find(buildingNeedsUnitSetup);
 
   useEffect(() => {
     let cancelled = false;
@@ -92,6 +94,14 @@ export default function LandlordDashboardClient() {
             Admin approved your listing, but tenants cannot see it until you
             mark at least one unit as available.
           </p>
+          {firstNeedsSetup ? (
+            <Link
+              href={`/landlord/buildings/${firstNeedsSetup.id}`}
+              className="mt-3 inline-flex bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+            >
+              Mark units available
+            </Link>
+          ) : null}
         </div>
       ) : null}
 

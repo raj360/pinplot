@@ -35,6 +35,12 @@ import { NewBuildingPreview } from "@/components/landlord/NewBuildingPreview";
 import { TermsAcceptanceField } from "@/components/legal/TermsAcceptanceField";
 import { useViewerContext } from "@/components/providers/ViewerContextProvider";
 import { LISTING_PICKER_COUNTRY_ZOOM } from "@/lib/maps/config";
+import { useDraftPhotoUrls } from "@/lib/images/use-draft-photo-urls";
+import {
+  buildSuggestedExactAddress,
+  formatPinNearLine,
+  hasMapPinHints,
+} from "@/lib/maps/building-address-hints";
 
 type UnitRow = {
   unitNumber: string;
@@ -109,26 +115,19 @@ export default function NewBuildingPage() {
   const [acceptTerms, setAcceptTerms] = useState(false);
   const [ownershipAttestation, setOwnershipAttestation] = useState(false);
 
+  const { getUrl: getPhotoPreviewUrl } = useDraftPhotoUrls(photos);
+
   const coverPreviewUrl = useMemo(() => {
     const primary =
       photos.find((photo) => photo.id === primaryPhotoId) ?? photos[0];
     if (!primary) return null;
-    return URL.createObjectURL(primary.file);
-  }, [photos, primaryPhotoId]);
+    return getPhotoPreviewUrl(primary);
+  }, [photos, primaryPhotoId, getPhotoPreviewUrl]);
 
   const galleryPreviewUrls = useMemo(
-    () => photos.map((photo) => URL.createObjectURL(photo.file)),
-    [photos],
+    () => photos.map((photo) => getPhotoPreviewUrl(photo)),
+    [photos, getPhotoPreviewUrl],
   );
-
-  useEffect(() => {
-    return () => {
-      if (coverPreviewUrl) URL.revokeObjectURL(coverPreviewUrl);
-      for (const url of galleryPreviewUrls) {
-        URL.revokeObjectURL(url);
-      }
-    };
-  }, [coverPreviewUrl, galleryPreviewUrls]);
 
   const cityTouched = useRef(false);
   const districtTouched = useRef(false);
@@ -211,6 +210,30 @@ export default function NewBuildingPage() {
     if (cityTouched.current || districtTouched.current) return;
     applyAddressHints(lastAddressHints.current);
   }, [step, applyAddressHints]);
+
+  const pinNearLine = formatPinNearLine({
+    areaLabel,
+    streetHint,
+    landmarkHint,
+  });
+
+  const suggestedExactAddress = buildSuggestedExactAddress({
+    addressHint,
+    streetHint,
+    landmarkHint,
+    areaLabel,
+    district,
+    city,
+  });
+
+  const showPinHintsOnDetails =
+    step === 2 &&
+    hasMapPinHints({ areaLabel, streetHint, landmarkHint, addressHint });
+
+  function applySuggestedExactAddress() {
+    if (!suggestedExactAddress.trim()) return;
+    setExactAddress(suggestedExactAddress);
+  }
 
   function validateCurrentStep(current: number): boolean {
     setError(null);
@@ -512,6 +535,51 @@ export default function NewBuildingPage() {
                   }}
                 />
               </div>
+              {showPinHintsOnDetails ? (
+                <div className="space-y-2 border border-border bg-background p-3 text-sm">
+                  <p className="font-medium text-foreground">From your map pin</p>
+                  {pinNearLine ? (
+                    <p className="text-muted">
+                      <span className="text-foreground">Near:</span> {pinNearLine}
+                    </p>
+                  ) : null}
+                  {addressHint && addressHint !== areaLabel ? (
+                    <p className="text-muted">
+                      <span className="text-foreground">Area:</span> {addressHint}
+                    </p>
+                  ) : null}
+                  {zones.length > 0 ? (
+                    <div className="flex flex-wrap gap-1.5">
+                      {zones.map((zone) => (
+                        <span
+                          key={zone}
+                          className="border border-border bg-surface px-2 py-0.5 text-xs text-muted"
+                        >
+                          {zone}
+                        </span>
+                      ))}
+                    </div>
+                  ) : null}
+                  {suggestedExactAddress ? (
+                    <p className="text-xs text-muted">
+                      Suggested exact address:{" "}
+                      <span className="text-foreground">{suggestedExactAddress}</span>
+                    </p>
+                  ) : null}
+                  {suggestedExactAddress ? (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={applySuggestedExactAddress}
+                    >
+                      {exactAddress.trim()
+                        ? "Replace with suggested address"
+                        : "Use suggested address"}
+                    </Button>
+                  ) : null}
+                </div>
+              ) : null}
               <ControlledField
                 label="Exact address"
                 name="exactAddress"
@@ -531,6 +599,7 @@ export default function NewBuildingPage() {
               <BuildingGalleryUpload
                 photos={photos}
                 primaryId={primaryPhotoId}
+                getPreviewUrl={getPhotoPreviewUrl}
                 onChange={(nextPhotos, nextPrimaryId) => {
                   setPhotos(nextPhotos);
                   setPrimaryPhotoId(nextPrimaryId);
