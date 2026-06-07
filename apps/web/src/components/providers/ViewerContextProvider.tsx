@@ -8,7 +8,7 @@ import {
   useMemo,
   useState,
 } from "react";
-import type { CountryCatalog } from "@plotpin/shared-types";
+import { DEFAULT_COUNTRY, type CountryCatalog } from "@plotpin/shared-types";
 import {
   fetchCountryCatalogClient,
   fetchFxRatesClient,
@@ -33,6 +33,7 @@ import {
   clearStoredViewerCountry,
 } from "@/lib/intl/resolve-viewer-country";
 import { fetchIpCountry } from "@/lib/intl/geo-ip";
+import { LISTING_PICKER_COUNTRY_CENTERS } from "@/lib/maps/config";
 import type { Bounds } from "@/lib/api/buildings";
 
 type ViewerContextValue = {
@@ -44,6 +45,8 @@ type ViewerContextValue = {
   setViewerCountryCode: (code: string) => void;
   resetViewerCountryOverride: () => Promise<void>;
   getDefaultMapBounds: () => Bounds | null;
+  /** Major-city center near the viewer's region for the listing picker. */
+  getDefaultMapCenter: () => { lat: number; lng: number };
   formatListingMoney: (
     amount: number,
     listingCurrency: string,
@@ -194,23 +197,30 @@ export function ViewerContextProvider({
   );
 
   const activeCountry = countriesByCode.get(viewerCountryCode) ?? countries[0];
-  const viewer = useMemo(
-    () =>
-      resolveViewerContext(
+  const viewer = useMemo<ViewerContext>(() => {
+    // ROW: no catalog row — derive USD/EUR/GBP from region hints.
+    if (viewerCountryCode === ROW_COUNTRY_CODE) {
+      return resolveViewerContext(
         {
           storedCountry: readStoredViewerCountry(),
           profileCountry: resolutionHints.profileCountry,
           ipCountry: resolutionHints.ipCountry,
         },
         countriesByCode,
-      ),
-    [
-      countriesByCode,
-      resolutionHints.ipCountry,
-      resolutionHints.profileCountry,
-      viewerCountryCode,
-    ],
-  );
+      );
+    }
+    const country = countriesByCode.get(viewerCountryCode);
+    return {
+      countryCode: viewerCountryCode,
+      displayLocale: country?.displayLocale ?? "en-UG",
+      displayCurrency: country?.currency ?? DEFAULT_COUNTRY.currency,
+    };
+  }, [
+    countriesByCode,
+    resolutionHints.ipCountry,
+    resolutionHints.profileCountry,
+    viewerCountryCode,
+  ]);
 
   const setViewerCountryCode = useCallback((code: string) => {
     writeStoredViewerCountry(code);
@@ -244,6 +254,18 @@ export function ViewerContextProvider({
     }
     return countriesByCode.get("UG")?.mapBounds ?? null;
   }, [activeCountry, countriesByCode, viewerCountryCode]);
+
+  const getDefaultMapCenter = useCallback((): { lat: number; lng: number } => {
+    // Prefer the catalog center (supply markets); fall back to the diaspora
+    // city table; final fallback Kampala (home supply market).
+    if (viewerCountryCode !== ROW_COUNTRY_CODE && activeCountry?.mapCenter) {
+      return activeCountry.mapCenter;
+    }
+    return (
+      LISTING_PICKER_COUNTRY_CENTERS[viewerCountryCode] ??
+      LISTING_PICKER_COUNTRY_CENTERS.UG
+    );
+  }, [activeCountry, viewerCountryCode]);
 
   const formatListingMoney = useCallback(
     (amount: number, listingCurrency: string, listingCountryCode?: string) =>
@@ -285,6 +307,7 @@ export function ViewerContextProvider({
       setViewerCountryCode,
       resetViewerCountryOverride,
       getDefaultMapBounds,
+      getDefaultMapCenter,
       formatListingMoney,
       formatListingRentPerMonth,
       formatUnlockFee,
@@ -298,6 +321,7 @@ export function ViewerContextProvider({
       setViewerCountryCode,
       resetViewerCountryOverride,
       getDefaultMapBounds,
+      getDefaultMapCenter,
       formatListingMoney,
       formatListingRentPerMonth,
       formatUnlockFee,

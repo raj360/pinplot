@@ -34,6 +34,7 @@ import { cn } from "@/lib/utils/cn";
 import { NewBuildingPreview } from "@/components/landlord/NewBuildingPreview";
 import { TermsAcceptanceField } from "@/components/legal/TermsAcceptanceField";
 import { useViewerContext } from "@/components/providers/ViewerContextProvider";
+import { LISTING_PICKER_COUNTRY_ZOOM } from "@/lib/maps/config";
 
 type UnitRow = {
   unitNumber: string;
@@ -77,7 +78,12 @@ const STEP_COUNT = FORM_STEPS.length;
 
 export default function NewBuildingPage() {
   const router = useRouter();
-  const { countries, countriesByCode } = useViewerContext();
+  const {
+    countries,
+    countriesByCode,
+    getDefaultMapCenter,
+    ready: viewerReady,
+  } = useViewerContext();
   const topRef = useRef<HTMLDivElement>(null);
   const stepRef = useRef(1);
   const [step, setStep] = useState(1);
@@ -127,6 +133,8 @@ export default function NewBuildingPage() {
   const cityTouched = useRef(false);
   const districtTouched = useRef(false);
   const countryTouched = useRef(false);
+  const pinTouched = useRef(false);
+  const appliedDefaultCenter = useRef(false);
   const lastAddressHints = useRef<AddressHints | null>(null);
 
   const listingCurrency =
@@ -175,6 +183,21 @@ export default function NewBuildingPage() {
     },
     [countriesByCode],
   );
+
+  /** Open the map near the landlord's region instead of always Kampala. */
+  useEffect(() => {
+    if (!viewerReady || pinTouched.current || appliedDefaultCenter.current) {
+      return;
+    }
+    appliedDefaultCenter.current = true;
+    setLocation(getDefaultMapCenter());
+  }, [viewerReady, getDefaultMapCenter]);
+
+  /** User-driven pin change (map click, drag, or "Use my location"). */
+  const handleLocationChange = useCallback((next: LatLng) => {
+    pinTouched.current = true;
+    setLocation(next);
+  }, []);
 
   /** Pin is source of truth — moving it clears manual overrides from a prior pin. */
   useEffect(() => {
@@ -381,8 +404,9 @@ export default function NewBuildingPage() {
             <>
               <LocationPinPicker
                 value={location}
-                onChange={setLocation}
+                onChange={handleLocationChange}
                 onAddressHints={applyAddressHints}
+                defaultZoom={LISTING_PICKER_COUNTRY_ZOOM}
               />
               {areaLabel ? (
                 <div className="space-y-2">
