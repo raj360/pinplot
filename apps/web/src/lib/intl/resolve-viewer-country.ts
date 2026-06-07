@@ -1,7 +1,11 @@
 import { DEFAULT_COUNTRY } from "@plotpin/shared-types";
 import type { CountryCatalog } from "@plotpin/shared-types";
+import type { ViewerContext } from "@/lib/intl/format-money";
 
 export const VIEWER_COUNTRY_STORAGE_KEY = "plotpin-viewer-country";
+
+/** Virtual code when the viewer is outside the explicit country catalog. */
+export const ROW_COUNTRY_CODE = "ROW";
 
 const SUPPORTED_COUNTRY_CODES = new Set([
   // Supply + core diaspora
@@ -36,10 +40,151 @@ const SUPPORTED_COUNTRY_CODES = new Set([
   "GH",
 ]);
 
+export function isSupportedCountryCode(code: string | null | undefined): boolean {
+  if (!code?.trim()) return false;
+  return SUPPORTED_COUNTRY_CODES.has(code.trim().toUpperCase());
+}
+
 export function normalizeCountryCode(code: string | null | undefined): string | null {
   if (!code) return null;
   const upper = code.trim().toUpperCase();
   return SUPPORTED_COUNTRY_CODES.has(upper) ? upper : null;
+}
+
+/** Two-letter ISO code from any source (supported or not). */
+function parseIsoCountryCode(code: string | null | undefined): string | null {
+  if (!code?.trim()) return null;
+  const upper = code.trim().toUpperCase();
+  return /^[A-Z]{2}$/.test(upper) ? upper : null;
+}
+
+/** Crown Dependencies & UK-adjacent — present in GBP for ROW display. */
+const GBP_ADJACENT_CODES = new Set(["IM", "GG", "JE", "FK", "GI"]);
+
+/**
+ * Pick an international display currency for viewers outside the catalog.
+ * USD default; EUR for continental Europe; GBP for UK-adjacent signals.
+ */
+export function resolveRowDisplayCurrency(hints: {
+  timeZone?: string;
+  language?: string;
+  rawCountryCode?: string | null;
+}): Pick<ViewerContext, "displayCurrency" | "displayLocale"> {
+  const tz = hints.timeZone ?? "";
+  const lang = (hints.language ?? "").toLowerCase();
+  const raw = (hints.rawCountryCode ?? "").toUpperCase();
+
+  if (
+    raw === "GB" ||
+    GBP_ADJACENT_CODES.has(raw) ||
+    tz.includes("London") ||
+    tz.startsWith("Europe/London") ||
+    lang.startsWith("en-gb")
+  ) {
+    return { displayCurrency: "GBP", displayLocale: "en-GB" };
+  }
+
+  if (
+    tz.startsWith("Europe/") ||
+    /^[a-z]{2}-(at|be|de|es|fi|fr|gr|ie|it|lu|nl|pt|sk|si|ee|lv|lt|mt|cy)$/i.test(
+      lang,
+    ) ||
+    ["de", "fr", "it", "es", "nl", "pt", "pl", "sv", "da", "nb", "fi"].some(
+      (prefix) => lang === prefix || lang.startsWith(`${prefix}-`),
+    )
+  ) {
+    return { displayCurrency: "EUR", displayLocale: "en-IE" };
+  }
+
+  return { displayCurrency: "USD", displayLocale: "en-US" };
+}
+
+export type ViewerResolutionHints = {
+  storedCountry?: string | null;
+  profileCountry?: string | null;
+  ipCountry?: string | null;
+  timeZone?: string;
+  language?: string;
+};
+
+function browserTimeZone(): string {
+  if (typeof Intl === "undefined") return "";
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone ?? "";
+  } catch {
+    return "";
+  }
+}
+
+function browserLanguage(): string {
+  if (typeof navigator === "undefined") return "";
+  return navigator.language ?? "";
+}
+
+/** First unsupported-but-valid ISO country in the precedence chain (for ROW hints). */
+export function firstRawCountryHint(input: ViewerResolutionHints): string | null {
+  return (
+    parseIsoCountryCode(input.profileCountry) ??
+    parseIsoCountryCode(input.ipCountry) ??
+    null
+  );
+}
+
+/**
+ * Resolve catalog country or ROW. Unsupported ISO codes (e.g. BR, JP) map to ROW
+ * instead of silently defaulting to Uganda.
+ */
+export function resolveViewerCountryCode(input: ViewerResolutionHints): string {
+  const stored = parseIsoCountryCode(input.storedCountry);
+  if (stored) {
+    return SUPPORTED_COUNTRY_CODES.has(stored) ? stored : ROW_COUNTRY_CODE;
+  }
+
+  const profile = parseIsoCountryCode(input.profileCountry);
+  if (profile) {
+    return SUPPORTED_COUNTRY_CODES.has(profile) ? profile : ROW_COUNTRY_CODE;
+  }
+
+  const ip = parseIsoCountryCode(input.ipCountry);
+  if (ip) {
+    return SUPPORTED_COUNTRY_CODES.has(ip) ? ip : ROW_COUNTRY_CODE;
+  }
+
+  return inferViewerCountryFromBrowser(
+    input.timeZone ?? browserTimeZone(),
+    input.language ?? browserLanguage(),
+  );
+}
+
+/** Full viewer display context — handles catalog countries and ROW fallback. */
+export function resolveViewerContext(
+  input: ViewerResolutionHints,
+  countriesByCode: Map<string, CountryCatalog>,
+): ViewerContext {
+  const timeZone = input.timeZone ?? browserTimeZone();
+  const language = input.language ?? browserLanguage();
+  const code = resolveViewerCountryCode({ ...input, timeZone, language });
+
+  if (code !== ROW_COUNTRY_CODE) {
+    const country = countriesByCode.get(code);
+    return {
+      countryCode: code,
+      displayLocale: country?.displayLocale ?? "en-UG",
+      displayCurrency: country?.currency ?? DEFAULT_COUNTRY.currency,
+    };
+  }
+
+  const row = resolveRowDisplayCurrency({
+    timeZone,
+    language,
+    rawCountryCode: firstRawCountryHint(input),
+  });
+
+  return {
+    countryCode: ROW_COUNTRY_CODE,
+    displayLocale: row.displayLocale,
+    displayCurrency: row.displayCurrency,
+  };
 }
 
 export function readStoredViewerCountry(): string | null {
@@ -82,7 +227,20 @@ function inferViewerCountryFromTimeZone(timeZone: string): string | null {
     timeZone.includes("New_York") ||
     timeZone.includes("Chicago") ||
     timeZone.includes("Los_Angeles") ||
-    timeZone.startsWith("America/")
+    timeZone.includes("Denver") ||
+    timeZone.includes("Phoenix") ||
+    timeZone.startsWith("America/New_York") ||
+    timeZone.startsWith("America/Chicago") ||
+    timeZone.startsWith("America/Los_Angeles") ||
+    timeZone.startsWith("America/Denver") ||
+    timeZone.startsWith("America/Phoenix") ||
+    timeZone.startsWith("America/Anchorage") ||
+    timeZone.startsWith("America/Boise") ||
+    timeZone.startsWith("America/Detroit") ||
+    timeZone.startsWith("America/Indiana") ||
+    timeZone.startsWith("America/Kentucky") ||
+    timeZone.startsWith("America/Nome") ||
+    timeZone.startsWith("America/Adak")
   ) {
     return "US";
   }
@@ -136,53 +294,38 @@ function inferViewerCountryFromTimeZone(timeZone: string): string | null {
   return null;
 }
 
-function inferViewerCountryFromLanguage(language: string): string | null {
+function inferViewerCountryFromLanguage(
+  language: string,
+): string | null {
   const parts = language.split("-");
   if (parts.length >= 2) {
-    return normalizeCountryCode(parts[1]);
+    const code = parts[1].toUpperCase();
+    if (SUPPORTED_COUNTRY_CODES.has(code)) return code;
+    if (/^[A-Z]{2}$/.test(code)) return ROW_COUNTRY_CODE;
   }
   return null;
 }
 
 /** Infer country from browser timezone + locale before profile is available. */
-export function inferViewerCountryFromBrowser(): string {
-  if (typeof navigator === "undefined") return DEFAULT_COUNTRY.code;
+export function inferViewerCountryFromBrowser(
+  timeZone = browserTimeZone(),
+  language = browserLanguage(),
+): string {
+  const fromTimeZone = inferViewerCountryFromTimeZone(timeZone);
+  if (fromTimeZone) return fromTimeZone;
 
-  try {
-    const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone ?? "";
-    const fromTimeZone = inferViewerCountryFromTimeZone(timeZone);
-    if (fromTimeZone) return fromTimeZone;
-  } catch {
-    /* ignore */
-  }
-
-  const fromLanguage = inferViewerCountryFromLanguage(navigator.language ?? "");
+  const fromLanguage = inferViewerCountryFromLanguage(language);
   if (fromLanguage) return fromLanguage;
 
-  return DEFAULT_COUNTRY.code;
-}
+  // Broad regions → ROW (currency refined in resolveRowDisplayCurrency).
+  if (timeZone.startsWith("Europe/")) return ROW_COUNTRY_CODE;
+  if (timeZone.startsWith("America/")) return ROW_COUNTRY_CODE;
+  if (timeZone.startsWith("Asia/") || timeZone.startsWith("Pacific/")) {
+    return ROW_COUNTRY_CODE;
+  }
+  if (timeZone.startsWith("Africa/")) return ROW_COUNTRY_CODE;
 
-/**
- * Resolve the viewer's country using an enterprise precedence chain:
- *
- *   1. storedCountry  — explicit user choice (Settings → localStorage); intent wins.
- *   2. profileCountry — authenticated account country.
- *   3. ipCountry      — edge IP geolocation (most accurate signal for anonymous viewers).
- *   4. timezone       — `Intl` timezone inference.
- *   5. language       — `navigator.language` region tag.
- *   6. default        — Uganda (primary supply market).
- */
-export function resolveViewerCountryCode(input: {
-  storedCountry?: string | null;
-  profileCountry?: string | null;
-  ipCountry?: string | null;
-}): string {
-  return (
-    normalizeCountryCode(input.storedCountry) ??
-    normalizeCountryCode(input.profileCountry) ??
-    normalizeCountryCode(input.ipCountry) ??
-    inferViewerCountryFromBrowser()
-  );
+  return DEFAULT_COUNTRY.code;
 }
 
 export function getCountryMapBounds(

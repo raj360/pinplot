@@ -21,13 +21,14 @@ import {
   formatMoney,
   formatRentPerMonthWithFootnote,
   formatViewerMoney,
-  viewerContextFromCountry,
   type FormattedMoney,
   type ViewerContext,
 } from "@/lib/intl/format-money";
 import {
   readStoredViewerCountry,
   resolveViewerCountryCode,
+  resolveViewerContext,
+  ROW_COUNTRY_CODE,
   writeStoredViewerCountry,
   clearStoredViewerCountry,
 } from "@/lib/intl/resolve-viewer-country";
@@ -97,6 +98,10 @@ export function ViewerContextProvider({
     buildFxRateMap(FALLBACK_FX),
   );
   const [viewerCountryCode, setViewerCountryCodeState] = useState("UG");
+  const [resolutionHints, setResolutionHints] = useState<{
+    profileCountry: string | null;
+    ipCountry: string | null;
+  }>({ profileCountry: null, ipCountry: null });
 
   useEffect(() => {
     let cancelled = false;
@@ -142,6 +147,8 @@ export function ViewerContextProvider({
 
       if (cancelled) return;
 
+      setResolutionHints({ profileCountry, ipCountry });
+
       const resolved = resolveViewerCountryCode({
         storedCountry: readStoredViewerCountry(),
         profileCountry,
@@ -166,6 +173,7 @@ export function ViewerContextProvider({
           .catch(() => null),
         fetchIpCountry().catch(() => null),
       ]).then(([profileCountry, ipCountry]) => {
+        setResolutionHints({ profileCountry, ipCountry });
         const resolved = resolveViewerCountryCode({
           storedCountry: readStoredViewerCountry(),
           profileCountry,
@@ -187,8 +195,21 @@ export function ViewerContextProvider({
 
   const activeCountry = countriesByCode.get(viewerCountryCode) ?? countries[0];
   const viewer = useMemo(
-    () => viewerContextFromCountry(activeCountry),
-    [activeCountry],
+    () =>
+      resolveViewerContext(
+        {
+          storedCountry: readStoredViewerCountry(),
+          profileCountry: resolutionHints.profileCountry,
+          ipCountry: resolutionHints.ipCountry,
+        },
+        countriesByCode,
+      ),
+    [
+      countriesByCode,
+      resolutionHints.ipCountry,
+      resolutionHints.profileCountry,
+      viewerCountryCode,
+    ],
   );
 
   const setViewerCountryCode = useCallback((code: string) => {
@@ -213,13 +234,16 @@ export function ViewerContextProvider({
         ipCountry,
       }),
     );
+    setResolutionHints({ profileCountry, ipCountry });
   }, [isAuthenticated]);
 
   const getDefaultMapBounds = useCallback((): Bounds | null => {
-    const bounds = activeCountry?.mapBounds;
-    if (!bounds) return null;
-    return bounds;
-  }, [activeCountry]);
+    if (viewerCountryCode !== ROW_COUNTRY_CODE) {
+      const bounds = activeCountry?.mapBounds;
+      if (bounds) return bounds;
+    }
+    return countriesByCode.get("UG")?.mapBounds ?? null;
+  }, [activeCountry, countriesByCode, viewerCountryCode]);
 
   const formatListingMoney = useCallback(
     (amount: number, listingCurrency: string, listingCountryCode?: string) =>

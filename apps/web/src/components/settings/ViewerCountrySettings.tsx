@@ -72,7 +72,7 @@ export function ViewerCountrySettings() {
           className="mt-1 w-full border border-border bg-background px-3 py-2 text-sm"
         >
           <option value={AUTO_VALUE}>
-            Auto — browser timezone, then profile, then Uganda
+            Auto — detect your region (international fallback: USD, EUR, or GBP)
           </option>
           {sortedCountries.map((country) => (
             <option key={country.code} value={country.code}>
@@ -85,7 +85,9 @@ export function ViewerCountrySettings() {
       <p className="text-xs text-muted">
         Active viewer:{" "}
         <span className="font-medium text-foreground">
-          {viewer.countryCode} · {viewer.displayCurrency}
+          {viewer.countryCode === "ROW"
+            ? `International · ${viewer.displayCurrency}`
+            : `${viewer.countryCode} · ${viewer.displayCurrency}`}
         </span>
         {storedOverride ? (
           <span> — manual override saved in this browser</span>
