@@ -20,6 +20,7 @@ import { buildFxRateMap, type FxRateMap } from "@/lib/intl/fx-rates";
 import {
   formatMoney,
   formatRentPerMonthWithFootnote,
+  formatViewerMoney,
   viewerContextFromCountry,
   type FormattedMoney,
   type ViewerContext,
@@ -52,6 +53,8 @@ type ViewerContextValue = {
     listingCurrency: string,
     listingCountryCode?: string,
   ) => string;
+  /** Format a canonical-UGX fee (e.g. unlock fee) in the viewer's currency. */
+  formatUnlockFee: (amountUgx: number) => string;
 };
 
 const ViewerContextReact = createContext<ViewerContextValue | null>(null);
@@ -243,6 +246,11 @@ export function ViewerContextProvider({
     [countriesByCode, fxRates, viewer],
   );
 
+  const formatUnlockFee = useCallback(
+    (amountUgx: number) => formatViewerMoney(amountUgx, viewer, fxRates),
+    [fxRates, viewer],
+  );
+
   const value = useMemo<ViewerContextValue>(
     () => ({
       ready,
@@ -255,6 +263,7 @@ export function ViewerContextProvider({
       getDefaultMapBounds,
       formatListingMoney,
       formatListingRentPerMonth,
+      formatUnlockFee,
     }),
     [
       ready,
@@ -267,6 +276,7 @@ export function ViewerContextProvider({
       getDefaultMapBounds,
       formatListingMoney,
       formatListingRentPerMonth,
+      formatUnlockFee,
     ],
   );
 

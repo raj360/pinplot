@@ -27,6 +27,9 @@ type PaymentRow = {
     providerTransactionId?: string;
     lemonAmountCents?: number;
     lemonCurrency?: string;
+    /** What Flutterwave was actually told to charge (payer-country currency). */
+    fwChargeAmount?: number;
+    fwChargeCurrency?: string;
   };
 };
 
@@ -83,11 +86,15 @@ export class SettleUnlockService {
       throw new BadRequestException("Payment missing unit metadata.");
     }
 
-    const expectedCharge = meta.chargeAmountUgx ?? payment.amount;
+    // Flutterwave charges in the payer-country currency; verify against what we
+    // actually told it to charge (falls back to canonical UGX for older rows).
+    const expectedAmount =
+      meta.fwChargeAmount ?? meta.chargeAmountUgx ?? payment.amount;
+    const expectedCurrency = (meta.fwChargeCurrency ?? "UGX").toUpperCase();
     if (verification?.amount != null && provider === PaymentProvider.FLUTTERWAVE) {
       if (
-        Math.round(verification.amount) !== Math.round(expectedCharge) ||
-        (verification.currency ?? "UGX").toUpperCase() !== "UGX"
+        Math.round(verification.amount) !== Math.round(expectedAmount) ||
+        (verification.currency ?? "UGX").toUpperCase() !== expectedCurrency
       ) {
         throw new BadRequestException("Flutterwave amount mismatch.");
       }

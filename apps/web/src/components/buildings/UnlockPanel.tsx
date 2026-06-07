@@ -73,6 +73,8 @@ export function UnlockPanel({
           onCheckoutMethodChange={unlocks.setCheckoutMethod}
           showMobileMoneyCheckout={unlocks.showMobileMoneyCheckout}
           profilePhone={unlocks.profilePhone}
+          listingCurrency=""
+          listingCountryCode={countryCode}
         />
       ) : null}
     </section>

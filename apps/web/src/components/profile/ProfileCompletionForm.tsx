@@ -181,7 +181,7 @@ export function ProfileCompletionForm({
           <IntlPhoneField
             id="profile-phone-secondary"
             label="Secondary phone"
-            value={field.value}
+            value={field.value ?? ""}
             onChange={field.onChange}
             onBlur={field.onBlur}
             error={fieldState.error}

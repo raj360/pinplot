@@ -7,13 +7,19 @@ import { ConfigService } from "@nestjs/config";
 
 type InitializePaymentInput = {
   txRef: string;
-  amountUgx: number;
+  /** Amount in the charge currency (already converted from canonical UGX). */
+  amount: number;
+  /** ISO 4217 currency Flutterwave charges in (e.g. UGX, KES, NGN). */
+  currency: string;
   email: string;
   name: string;
   phone: string;
   redirectUrl: string;
-  /** When true, open directly on Uganda mobile money (MTN / Airtel). */
-  mobileMoneyOnly?: boolean;
+  /**
+   * Flutterwave hosted-checkout `payment_options` (e.g. "mobilemoneyuganda",
+   * "mpesa,mobilemoneykenya", "card,banktransfer,ussd").
+   */
+  paymentOptions: string;
 };
 
 type FlutterwaveInitResponse = {
@@ -57,12 +63,10 @@ export class FlutterwaveService {
       },
       body: JSON.stringify({
         tx_ref: input.txRef,
-        amount: input.amountUgx,
-        currency: "UGX",
+        amount: input.amount,
+        currency: input.currency,
         redirect_url: input.redirectUrl,
-        payment_options: input.mobileMoneyOnly
-          ? "mobilemoneyuganda"
-          : "mobilemoneyuganda,card",
+        payment_options: input.paymentOptions,
         customer: {
           email: input.email,
           name: input.name,

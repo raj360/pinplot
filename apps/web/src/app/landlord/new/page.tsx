@@ -33,6 +33,7 @@ import {
 import { cn } from "@/lib/utils/cn";
 import { NewBuildingPreview } from "@/components/landlord/NewBuildingPreview";
 import { TermsAcceptanceField } from "@/components/legal/TermsAcceptanceField";
+import { useViewerContext } from "@/components/providers/ViewerContextProvider";
 
 type UnitRow = {
   unitNumber: string;
@@ -76,6 +77,7 @@ const STEP_COUNT = FORM_STEPS.length;
 
 export default function NewBuildingPage() {
   const router = useRouter();
+  const { countries, countriesByCode } = useViewerContext();
   const topRef = useRef<HTMLDivElement>(null);
   const stepRef = useRef(1);
   const [step, setStep] = useState(1);
@@ -87,6 +89,7 @@ export default function NewBuildingPage() {
   const [location, setLocation] = useState<LatLng>(KAMPALA_CENTER);
   const [city, setCity] = useState("Kampala");
   const [district, setDistrict] = useState("");
+  const [countryCode, setCountryCode] = useState("UG");
   const [exactAddress, setExactAddress] = useState("");
   const [addressHint, setAddressHint] = useState("");
   const [areaLabel, setAreaLabel] = useState("");
@@ -123,7 +126,11 @@ export default function NewBuildingPage() {
 
   const cityTouched = useRef(false);
   const districtTouched = useRef(false);
+  const countryTouched = useRef(false);
   const lastAddressHints = useRef<AddressHints | null>(null);
+
+  const listingCurrency =
+    countriesByCode.get(countryCode)?.currency ?? "UGX";
 
   const currentStep = FORM_STEPS[step - 1];
 
@@ -141,21 +148,33 @@ export default function NewBuildingPage() {
     topRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   }, [step]);
 
-  const applyAddressHints = useCallback((hints: AddressHints) => {
-    lastAddressHints.current = hints;
-    setAreaLabel(hints.areaLabel);
-    setAddressHint(hints.addressHint);
-    setZones(hints.zones);
-    setStreetHint(hints.street ?? "");
-    setLandmarkHint(hints.landmark ?? "");
+  const applyAddressHints = useCallback(
+    (hints: AddressHints) => {
+      lastAddressHints.current = hints;
+      setAreaLabel(hints.areaLabel);
+      setAddressHint(hints.addressHint);
+      setZones(hints.zones);
+      setStreetHint(hints.street ?? "");
+      setLandmarkHint(hints.landmark ?? "");
 
-    if (!cityTouched.current) {
-      setCity(resolveCityFromHints(hints));
-    }
-    if (!districtTouched.current) {
-      setDistrict(resolveDistrictFromHints(hints));
-    }
-  }, []);
+      if (!cityTouched.current) {
+        setCity(resolveCityFromHints(hints));
+      }
+      if (!districtTouched.current) {
+        setDistrict(resolveDistrictFromHints(hints));
+      }
+      // Auto-set the building country (and thus currency) from the pin unless
+      // the landlord has explicitly chosen one.
+      if (
+        !countryTouched.current &&
+        hints.countryCode &&
+        countriesByCode.has(hints.countryCode)
+      ) {
+        setCountryCode(hints.countryCode);
+      }
+    },
+    [countriesByCode],
+  );
 
   /** Pin is source of truth — moving it clears manual overrides from a prior pin. */
   useEffect(() => {
@@ -277,6 +296,7 @@ export default function NewBuildingPage() {
         name: buildingName.trim(),
         city: city.trim() || "Kampala",
         district: district.trim(),
+        countryCode,
         approximateLat: location.lat,
         approximateLng: location.lng,
         exactLat: location.lat,
@@ -423,6 +443,27 @@ export default function NewBuildingPage() {
                   )}
                 </select>
               </label>
+              <label className="block text-sm">
+                Country
+                <select
+                  name="countryCode"
+                  value={countryCode}
+                  onChange={(event) => {
+                    countryTouched.current = true;
+                    setCountryCode(event.target.value);
+                  }}
+                  className="mt-1 w-full border border-border bg-surface px-3 py-2"
+                >
+                  {countries.map((country) => (
+                    <option key={country.code} value={country.code}>
+                      {country.name} ({country.currency})
+                    </option>
+                  ))}
+                </select>
+                <span className="mt-1 block text-xs text-muted">
+                  Set from your map pin — rent is listed in {listingCurrency}.
+                </span>
+              </label>
               <div className="grid gap-3 sm:grid-cols-2">
                 <ControlledField
                   label="City"
@@ -499,7 +540,7 @@ export default function NewBuildingPage() {
                 <span>Unit #</span>
                 <span>Bed Rooms</span>
                 <span>Bath Rooms</span>
-                <span>Rent (UGX)</span>
+                <span>Rent ({listingCurrency})</span>
                 <span className="sr-only">Remove</span>
               </div>
 
@@ -551,7 +592,7 @@ export default function NewBuildingPage() {
                       next[i].rentAmount = Number(e.target.value);
                       setUnits(next);
                     }}
-                    aria-label={`Unit ${i + 1} rent in UGX`}
+                    aria-label={`Unit ${i + 1} rent in ${listingCurrency}`}
                     className="border border-border px-2 py-2 text-sm"
                   />
                   <button
@@ -631,6 +672,8 @@ export default function NewBuildingPage() {
               galleryPreviewUrls={galleryPreviewUrls}
               units={units}
               step={step}
+              listingCurrency={listingCurrency}
+              listingCountryCode={countryCode}
             />
           </div>
         </aside>

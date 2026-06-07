@@ -4,6 +4,7 @@ import type { CountryCatalog } from "@plotpin/shared-types";
 export const VIEWER_COUNTRY_STORAGE_KEY = "plotpin-viewer-country";
 
 const SUPPORTED_COUNTRY_CODES = new Set([
+  // Supply + core diaspora
   "UG",
   "GB",
   "US",
@@ -15,6 +16,24 @@ const SUPPORTED_COUNTRY_CODES = new Set([
   "AE",
   "CA",
   "DE",
+  // Expanded diaspora / high card+internet-adoption markets
+  "IE",
+  "NL",
+  "FR",
+  "IT",
+  "ES",
+  "BE",
+  "SE",
+  "NO",
+  "DK",
+  "CH",
+  "SA",
+  "QA",
+  "AU",
+  "NZ",
+  "IN",
+  "SG",
+  "GH",
 ]);
 
 export function normalizeCountryCode(code: string | null | undefined): string | null {
@@ -94,6 +113,26 @@ function inferViewerCountryFromTimeZone(timeZone: string): string | null {
   if (timeZone.includes("Kampala") || timeZone.startsWith("Africa/Kampala")) {
     return "UG";
   }
+  // Expanded diaspora markets.
+  if (timeZone.startsWith("Europe/Dublin")) return "IE";
+  if (timeZone.startsWith("Europe/Amsterdam")) return "NL";
+  if (timeZone.startsWith("Europe/Paris")) return "FR";
+  if (timeZone.startsWith("Europe/Rome")) return "IT";
+  if (timeZone.startsWith("Europe/Madrid")) return "ES";
+  if (timeZone.startsWith("Europe/Brussels")) return "BE";
+  if (timeZone.startsWith("Europe/Stockholm")) return "SE";
+  if (timeZone.startsWith("Europe/Oslo")) return "NO";
+  if (timeZone.startsWith("Europe/Copenhagen")) return "DK";
+  if (timeZone.startsWith("Europe/Zurich")) return "CH";
+  if (timeZone.startsWith("Asia/Riyadh")) return "SA";
+  if (timeZone.startsWith("Asia/Qatar") || timeZone.includes("Doha")) return "QA";
+  if (timeZone.startsWith("Asia/Kolkata") || timeZone.startsWith("Asia/Calcutta")) {
+    return "IN";
+  }
+  if (timeZone.startsWith("Asia/Singapore")) return "SG";
+  if (timeZone.startsWith("Australia/")) return "AU";
+  if (timeZone.startsWith("Pacific/Auckland")) return "NZ";
+  if (timeZone.startsWith("Africa/Accra")) return "GH";
   return null;
 }
 

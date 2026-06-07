@@ -1,0 +1,33 @@
+name: Refresh FX rates
+
+# Keeps fx_rates fresh for listing/fee presentment + Flutterwave charge currency.
+# Canonical pricing stays in UGX; these rates only drive conversions.
+on:
+  schedule:
+    # Daily at 03:00 UTC (06:00 EAT). Adjust cadence as needed.
+    - cron: "0 3 * * *"
+  workflow_dispatch: {}
+
+concurrency:
+  group: refresh-fx-rates
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      # Only the `pg` driver is needed; install it directly to keep the job fast.
+      - name: Install pg
+        run: npm install pg@^8.16.0 --no-save
+
+      - name: Refresh rates
+        env:
+          # Set this repo secret to your Supabase session pooler URI (port 5432).
+          DIRECT_URL: ${{ secrets.SUPABASE_DIRECT_URL }}
+        run: node scripts/refresh-fx-rates.mjs

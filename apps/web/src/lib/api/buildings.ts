@@ -135,6 +135,8 @@ export type CreateBuildingPayload = {
   description?: string;
   city: string;
   district?: string;
+  /** ISO 3166-1 alpha-2 country of the building (drives listing currency). */
+  countryCode?: string;
   approximateLat: number;
   approximateLng: number;
   exactLat?: number;

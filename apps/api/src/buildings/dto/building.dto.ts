@@ -98,6 +98,12 @@ export class CreateBuildingDto {
   @IsString()
   district?: string;
 
+  @IsOptional()
+  @IsString()
+  @MinLength(2)
+  @MaxLength(2)
+  countryCode?: string;
+
   @Type(() => Number)
   @IsNumber()
   approximateLat!: number;
