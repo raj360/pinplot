@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { buildExploreFilterChips } from "@/lib/filters/explore-filter-chips";
 import { countActivePropertyFilters } from "@/lib/filters/explore-filter-summary";
+import { useViewerContext } from "@/components/providers/ViewerContextProvider";
 import type { Bounds } from "@/lib/api/buildings";
 import type { ExploreFilterChipKey } from "@/lib/filters/explore-filter-chips";
 import type { GeoPoint } from "@/lib/geo/uganda";
@@ -73,6 +74,8 @@ export function ExploreFilters({
   inUganda = false,
   locationLoading = false,
 }: ExploreFiltersProps) {
+  const { viewer } = useViewerContext();
+
   function handleSubmit(event: FormEvent) {
     event.preventDefault();
   }
@@ -89,8 +92,12 @@ export function ExploreFilters({
   ].filter(Boolean).length;
 
   const appliedChips = useMemo(
-    () => buildExploreFilterChips(appliedFilters, appliedMapBounds),
-    [appliedFilters, appliedMapBounds],
+    () =>
+      buildExploreFilterChips(appliedFilters, appliedMapBounds, {
+        currency: viewer.displayCurrency,
+        locale: viewer.displayLocale,
+      }),
+    [appliedFilters, appliedMapBounds, viewer.displayCurrency, viewer.displayLocale],
   );
 
   function handleRemoveChip(key: ExploreFilterChipKey) {

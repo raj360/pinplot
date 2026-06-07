@@ -36,9 +36,9 @@ import { TermsAcceptanceField } from "@/components/legal/TermsAcceptanceField";
 import { useViewerContext } from "@/components/providers/ViewerContextProvider";
 import { LISTING_PICKER_COUNTRY_ZOOM } from "@/lib/maps/config";
 import { useDraftPhotoUrls } from "@/lib/images/use-draft-photo-urls";
+import { typicalMonthlyRent } from "@/lib/filters/rent-ranges";
 import {
   buildSuggestedExactAddress,
-  formatPinNearLine,
   hasMapPinHints,
 } from "@/lib/maps/building-address-hints";
 
@@ -87,6 +87,7 @@ export default function NewBuildingPage() {
   const {
     countries,
     countriesByCode,
+    fxRates,
     getDefaultMapCenter,
     ready: viewerReady,
   } = useViewerContext();
@@ -132,12 +133,30 @@ export default function NewBuildingPage() {
   const cityTouched = useRef(false);
   const districtTouched = useRef(false);
   const countryTouched = useRef(false);
+  const rentTouched = useRef(false);
   const pinTouched = useRef(false);
   const appliedDefaultCenter = useRef(false);
   const lastAddressHints = useRef<AddressHints | null>(null);
 
   const listingCurrency =
     countriesByCode.get(countryCode)?.currency ?? "UGX";
+  const listingLocale =
+    countriesByCode.get(countryCode)?.displayLocale ?? "en-UG";
+  const typicalRent = typicalMonthlyRent({
+    currency: listingCurrency,
+    locale: listingLocale,
+    fxRates,
+  });
+
+  /** Reset the placeholder rent to a believable amount for the new currency. */
+  useEffect(() => {
+    if (rentTouched.current) return;
+    setUnits((prev) =>
+      prev.every((unit) => unit.rentAmount === typicalRent)
+        ? prev
+        : prev.map((unit) => ({ ...unit, rentAmount: typicalRent })),
+    );
+  }, [typicalRent]);
 
   const currentStep = FORM_STEPS[step - 1];
 
@@ -210,12 +229,6 @@ export default function NewBuildingPage() {
     if (cityTouched.current || districtTouched.current) return;
     applyAddressHints(lastAddressHints.current);
   }, [step, applyAddressHints]);
-
-  const pinNearLine = formatPinNearLine({
-    areaLabel,
-    streetHint,
-    landmarkHint,
-  });
 
   const suggestedExactAddress = buildSuggestedExactAddress({
     addressHint,
@@ -384,7 +397,7 @@ export default function NewBuildingPage() {
         unitNumber: String(u.length + 1),
         bedrooms: 1,
         bathrooms: 1,
-        rentAmount: 500000,
+        rentAmount: typicalRent,
       },
     ]);
   }
@@ -535,62 +548,32 @@ export default function NewBuildingPage() {
                   }}
                 />
               </div>
-              {showPinHintsOnDetails ? (
-                <div className="space-y-2 border border-border bg-background p-3 text-sm">
-                  <p className="font-medium text-foreground">From your map pin</p>
-                  {pinNearLine ? (
-                    <p className="text-muted">
-                      <span className="text-foreground">Near:</span> {pinNearLine}
-                    </p>
-                  ) : null}
-                  {addressHint && addressHint !== areaLabel ? (
-                    <p className="text-muted">
-                      <span className="text-foreground">Area:</span> {addressHint}
-                    </p>
-                  ) : null}
-                  {zones.length > 0 ? (
-                    <div className="flex flex-wrap gap-1.5">
-                      {zones.map((zone) => (
-                        <span
-                          key={zone}
-                          className="border border-border bg-surface px-2 py-0.5 text-xs text-muted"
-                        >
-                          {zone}
-                        </span>
-                      ))}
-                    </div>
-                  ) : null}
-                  {suggestedExactAddress ? (
-                    <p className="text-xs text-muted">
-                      Suggested exact address:{" "}
-                      <span className="text-foreground">{suggestedExactAddress}</span>
-                    </p>
-                  ) : null}
-                  {suggestedExactAddress ? (
-                    <Button
+              <div>
+                <ControlledField
+                  label="Exact address"
+                  name="exactAddress"
+                  value={exactAddress}
+                  placeholder={
+                    suggestedExactAddress
+                      ? `e.g. ${suggestedExactAddress}`
+                      : "Plot, street, or landmark"
+                  }
+                  onChange={setExactAddress}
+                />
+                {showPinHintsOnDetails && suggestedExactAddress ? (
+                  <p className="mt-1 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-xs text-muted">
+                    <span className="shrink-0">From your pin:</span>
+                    <span className="text-foreground">{suggestedExactAddress}</span>
+                    <button
                       type="button"
-                      variant="outline"
-                      size="sm"
                       onClick={applySuggestedExactAddress}
+                      className="shrink-0 font-medium text-primary hover:underline"
                     >
-                      {exactAddress.trim()
-                        ? "Replace with suggested address"
-                        : "Use suggested address"}
-                    </Button>
-                  ) : null}
-                </div>
-              ) : null}
-              <ControlledField
-                label="Exact address"
-                name="exactAddress"
-                value={exactAddress}
-                placeholder={
-                  addressHint || streetHint || landmarkHint
-                    ? `e.g. ${[addressHint, landmarkHint].filter(Boolean).join(", ") || streetHint}, ${areaLabel || "your pin"}`
-                    : "Plot, street, or landmark"
-                }
-                onChange={setExactAddress}
-              />
+                      {exactAddress.trim() ? "Replace" : "Use"}
+                    </button>
+                  </p>
+                ) : null}
+              </div>
             </div>
           ) : null}
 
@@ -681,6 +664,7 @@ export default function NewBuildingPage() {
                     min={0}
                     value={unit.rentAmount}
                     onChange={(e) => {
+                      rentTouched.current = true;
                       const next = [...units];
                       next[i].rentAmount = Number(e.target.value);
                       setUnits(next);

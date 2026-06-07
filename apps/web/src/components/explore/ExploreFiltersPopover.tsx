@@ -9,8 +9,9 @@ import {
   countActivePropertyFilters,
   propertyFiltersSummary,
 } from "@/lib/filters/explore-filter-summary";
-import { RENT_RANGE_OPTIONS } from "@/lib/filters/rent-ranges";
+import { buildRentRangeOptions } from "@/lib/filters/rent-ranges";
 import { useAnchoredPanelPosition } from "@/lib/hooks/use-anchored-panel-position";
+import { useViewerContext } from "@/components/providers/ViewerContextProvider";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils/cn";
 
@@ -81,6 +82,14 @@ export function ExploreFiltersPopover({
   disabled = false,
   className,
 }: ExploreFiltersPopoverProps) {
+  const { viewer, fxRates } = useViewerContext();
+  const money = {
+    currency: viewer.displayCurrency,
+    locale: viewer.displayLocale,
+    fxRates,
+  };
+  const rentRangeOptions = buildRentRangeOptions(money);
+
   const triggerId = useId();
   const panelId = `${triggerId}-panel`;
   const rootRef = useRef<HTMLDivElement>(null);
@@ -94,7 +103,7 @@ export function ExploreFiltersPopover({
   });
 
   const activeCount = countActivePropertyFilters(filters);
-  const summary = propertyFiltersSummary(filters);
+  const summary = propertyFiltersSummary(filters, money);
 
   useEffect(() => {
     if (!open) setDraft(filters);
@@ -194,7 +203,7 @@ export function ExploreFiltersPopover({
                 <FilterPills
                   label="Monthly rent"
                   value={draft.priceRange}
-                  options={RENT_RANGE_OPTIONS.map(({ value, label }) => ({
+                  options={rentRangeOptions.map(({ value, label }) => ({
                     value,
                     label: label.replace(/\s*\/mo$/, ""),
                   }))}

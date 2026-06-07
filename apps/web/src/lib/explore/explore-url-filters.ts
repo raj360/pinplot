@@ -1,7 +1,7 @@
 import type { ExploreSearchFilters } from "@/components/explore/ExploreFilters";
 import type { Bounds } from "@/lib/api/buildings";
 import { BUILDING_TYPE_OPTIONS } from "@/lib/filters/building-types";
-import { RENT_RANGE_OPTIONS } from "@/lib/filters/rent-ranges";
+import { isValidRentRangeValue } from "@/lib/filters/rent-ranges";
 import { serializeMapBoundsToParams } from "@/lib/explore/map-bounds";
 
 /** Query keys for explore search (filters only — `building` / `map` are separate). */
@@ -13,7 +13,6 @@ export const EXPLORE_URL_KEYS = {
   type: "type",
 } as const;
 
-const VALID_PRICE_VALUES = new Set(RENT_RANGE_OPTIONS.map((option) => option.value));
 const VALID_TYPE_VALUES = new Set<string>(
   BUILDING_TYPE_OPTIONS.map((option) => option.value).filter(Boolean),
 );
@@ -27,7 +26,7 @@ function sanitizeMinCount(raw: string | null): string {
 
 function sanitizePriceRange(raw: string | null): string {
   if (!raw) return "";
-  return VALID_PRICE_VALUES.has(raw) ? raw : "";
+  return isValidRentRangeValue(raw) ? raw : "";
 }
 
 function sanitizeBuildingType(raw: string | null): string {
