@@ -56,7 +56,7 @@ export function AppHeader({
           {backLabel ?? "← Back"}
         </Link>
       ) : null}
-      <PlotPinLogo variant="white" height={26} priority />
+      <PlotPinLogo variant="white" height={28} priority />
     </div>
   );
 

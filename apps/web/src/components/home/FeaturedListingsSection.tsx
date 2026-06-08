@@ -6,6 +6,7 @@ import type { BuildingSummary } from "@plotpin/shared-types";
 import { FeaturedListingCard } from "@/components/home/FeaturedListingCard";
 import { HomeFeaturedSkeleton } from "@/components/home/HomePageSkeletons";
 import { fetchFeaturedBuildings } from "@/lib/api/buildings";
+import { featuredListingsSubtitle } from "@/lib/copy/supply-discovery";
 import { useViewerContext } from "@/components/providers/ViewerContextProvider";
 
 type FeaturedListingsSectionProps = {
@@ -67,8 +68,9 @@ export function FeaturedListingsSection({
             Featured listings
           </h2>
           <p className="mt-1 text-sm text-muted">
-            Verified properties promoted on PlotPin — browse free, unlock when
-            you are ready.
+            {ready
+              ? featuredListingsSubtitle(viewer.countryCode)
+              : "Verified properties promoted on PlotPin — browse free, unlock when you are ready."}
           </p>
         </div>
         <Link

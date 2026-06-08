@@ -36,8 +36,8 @@ export function PlotPinLogo({
       width={width}
       height={height}
       priority={priority}
-      className={cn("h-auto w-auto shrink-0", className)}
-      style={{ height, width: "auto", maxWidth: width }}
+      className={cn("block h-auto w-auto shrink-0", className)}
+      style={{ height, width: "auto" }}
     />
   );
 
