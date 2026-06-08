@@ -56,9 +56,7 @@ export function AppHeader({
           {backLabel ?? "← Back"}
         </Link>
       ) : null}
-      <Link href="/" className="inline-flex shrink-0 items-center">
-        <PlotPinLogo variant="white" height={26} priority />
-      </Link>
+      <PlotPinLogo variant="white" height={26} priority />
     </div>
   );
 
