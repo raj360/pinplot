@@ -10,6 +10,8 @@ export function buildFxRateMap(entries: FxRateEntry[]): FxRateMap {
   return map;
 }
 
+const HUB_CURRENCY = "UGX";
+
 export function convertMoney(
   amount: number,
   fromCurrency: string,
@@ -19,5 +21,13 @@ export function convertMoney(
   if (fromCurrency === toCurrency) return amount;
   const direct = rates.get(`${fromCurrency}:${toCurrency}`);
   if (direct != null) return amount * direct;
+
+  // Cross via canonical UGX hub (matches refresh-fx-rates.mjs seeding model).
+  if (fromCurrency !== HUB_CURRENCY && toCurrency !== HUB_CURRENCY) {
+    const toHub = rates.get(`${fromCurrency}:${HUB_CURRENCY}`);
+    const fromHub = rates.get(`${HUB_CURRENCY}:${toCurrency}`);
+    if (toHub != null && fromHub != null) return amount * toHub * fromHub;
+  }
+
   return null;
 }

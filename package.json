@@ -18,6 +18,8 @@
     "db:stop": "docker compose down",
     "db:migrate": "node scripts/migrate.mjs",
     "db:seed:dev:clean": "node scripts/seed-dev-clean.mjs",
+    "db:seed:geo": "node scripts/seed-geo-places.mjs",
+    "db:seed:countries": "node scripts/seed-countries-catalog.mjs",
     "fx:refresh": "node scripts/refresh-fx-rates.mjs"
   },
   "devDependencies": {

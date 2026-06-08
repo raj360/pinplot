@@ -317,6 +317,10 @@ export type AdminPendingBuildingDetail = {
   description: string | null;
   city: string;
   district: string | null;
+  /** ISO country of the building — drives listing currency/locale. */
+  countryCode: string;
+  /** Listing currency (e.g. UGX, GBP) — units are priced in this. */
+  currency: string;
   buildingType: string;
   exactAddress: string | null;
   coverImagePath: string | null;

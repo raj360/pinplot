@@ -25,7 +25,9 @@ import {
 } from "@/lib/api/buildings";
 import {
   boundsAround,
+  isSupplyMarket,
   resolveSearchArea,
+  supplyMarketsLabel,
 } from "@/lib/filters/search-areas";
 import { formatBuildingSummaryLine } from "@/lib/explore/building-summary-line";
 import { EXPLORE_BUILDING_FOCUS_RADIUS_DEG, EXPLORE_NEAR_ME_RADIUS_DEG } from "@/lib/maps/config";
@@ -39,7 +41,13 @@ import {
 import {
   MAP_LIVE_SEARCH_DEBOUNCE_MS,
 } from "@/lib/explore/live-search-preference";
-import { geocodePlaceInUganda } from "@/lib/maps/geocode-place";
+import { geocodePlace } from "@/lib/maps/geocode-place";
+import { useGeoPlaces } from "@/lib/hooks/use-geo-places";
+import {
+  loadRecentAreas,
+  recordRecentArea,
+  type RecentArea,
+} from "@/lib/filters/recent-areas";
 import { loadExploreBuildings } from "@/lib/explore/load-buildings";
 import { useExploreGeolocation } from "@/lib/hooks/use-explore-geolocation";
 import {
@@ -114,6 +122,7 @@ export function ExploreClient() {
   const [mapFitToken, setMapFitToken] = useState(0);
   const [mapFocusBounds, setMapFocusBounds] = useState<Bounds | null>(null);
   const [whereSegmentLabel, setWhereSegmentLabel] = useState<string | null>(null);
+  const [recentAreas, setRecentAreas] = useState<RecentArea[]>(loadRecentAreas);
   const [appliedMapBounds, setAppliedMapBounds] = useState<Bounds | null>(urlMapBounds);
   const [appliedSearchBounds, setAppliedSearchBounds] = useState<Bounds>(
     boundsForExploreSearch(urlFilters, urlMapBounds),
@@ -122,8 +131,9 @@ export function ExploreClient() {
   const { isAuthenticated } = useAuth();
   const shouldAutoGeo = !urlMapBounds && !urlFilters.city;
   const geo = useExploreGeolocation({ autoRequest: shouldAutoGeo });
-  const { getDefaultMapBounds, countriesByCode, viewer, formatListingRentPerMonth } =
+  const { getDefaultMapBounds, getDefaultMapCenter, countriesByCode, viewer, formatListingRentPerMonth } =
     useViewerContext();
+  const { presets: geoPresets } = useGeoPlaces(viewer.countryCode);
   const [unlockedLocations, setUnlockedLocations] = useState<
     Map<string, { lat: number; lng: number }>
   >(new Map());
@@ -141,9 +151,26 @@ export function ExploreClient() {
   const viewportBoundsRef = useRef<Bounds | null>(null);
   const mapZoomRef = useRef<number | null>(null);
   const suppressMapInteractionUntilRef = useRef(0);
+  // Live "search this area on pan" only applies once the user actually moves the
+  // map. Until then every viewport change is the echo of one of our programmatic
+  // fits (bootstrap / place jump / reset / select) and must never spawn a search.
+  const userHasInteractedRef = useRef(false);
 
   const suppressMapInteraction = useCallback(() => {
     suppressMapInteractionUntilRef.current = Date.now() + 900;
+    // A programmatic move takes over the view; require a fresh user gesture
+    // before live "search this area" resumes. Makes the bootstrap/fit echo
+    // impossible to misread as a pan, independent of timing.
+    userHasInteractedRef.current = false;
+  }, []);
+
+  // dragstart / zoom_changed fire for BOTH user gestures and our programmatic
+  // moves. Only count it as a real interaction when we're not inside a
+  // suppression window (which we open around every programmatic fit/zoom).
+  const handleUserMapInteraction = useCallback(() => {
+    if (Date.now() >= suppressMapInteractionUntilRef.current) {
+      userHasInteractedRef.current = true;
+    }
   }, []);
 
   const syncSelectionToUrl = useCallback(
@@ -191,13 +218,19 @@ export function ExploreClient() {
   const geoInUgandaRef = useRef(geo.inUganda);
   const geoLoadingRef = useRef(geo.loading);
   const getDefaultMapBoundsRef = useRef(getDefaultMapBounds);
+  const getDefaultMapCenterRef = useRef(getDefaultMapCenter);
   const viewerCountryCodeRef = useRef(viewer.countryCode);
   const filtersRef = useRef(filters);
 
   useEffect(() => {
     getDefaultMapBoundsRef.current = getDefaultMapBounds;
+    getDefaultMapCenterRef.current = getDefaultMapCenter;
     viewerCountryCodeRef.current = viewer.countryCode;
-  }, [getDefaultMapBounds, viewer.countryCode]);
+  }, [getDefaultMapBounds, getDefaultMapCenter, viewer.countryCode]);
+
+  const rememberArea = useCallback((value: string, label: string) => {
+    setRecentAreas(recordRecentArea({ value, label }));
+  }, []);
 
   useEffect(() => {
     selectedIdRef.current = selectedId;
@@ -757,9 +790,13 @@ export function ExploreClient() {
       }
       setWhereSegmentLabel(segmentLabel);
 
+      // Default landing view: load + fit the map but keep the URL clean
+      // (/explore). Writing the synthetic/aspect bounds here caused the
+      // double history entry + SEO-hostile param churn on first load.
       await executeSearch(next, {
         mapBounds: bounds,
         history: "replace",
+        syncUrl: false,
       });
       setLoading(false);
       initialLoadDone.current = true;
@@ -780,6 +817,7 @@ export function ExploreClient() {
         setWhereSegmentLabel(preset.label);
         const next = { ...filtersRef.current, city: preset.value };
         setFilters(next);
+        rememberArea(preset.value, preset.label);
         await executeSearch(next, { mapBounds: preset.bounds });
         return;
       }
@@ -787,11 +825,19 @@ export function ExploreClient() {
       setSearching(true);
       setSearchAlert(null);
       try {
-        const result = await geocodePlaceInUganda(trimmed);
+        const viewerCode = viewerCountryCodeRef.current;
+        const region = isSupplyMarket(viewerCode)
+          ? { countryCode: "UG", countryName: "Uganda" }
+          : {
+              countryCode: viewerCode,
+              countryName: countriesByCode.get(viewerCode)?.name,
+            };
+        const regionLabel = region.countryName ?? supplyMarketsLabel();
+        const result = await geocodePlace(trimmed, region);
         if (!result) {
           setSearchAlert({
             kind: "generic",
-            message: `Could not find “${trimmed}” in Uganda. Try a nearby city.`,
+            message: `Could not find “${trimmed}” in ${regionLabel}. Try a nearby city.`,
           });
           return;
         }
@@ -802,6 +848,7 @@ export function ExploreClient() {
         setWhereSegmentLabel(result.label);
         const next = { ...filtersRef.current, city: result.label };
         setFilters(next);
+        rememberArea(result.label, result.label);
         await executeSearch(next, { mapBounds: result.bounds });
       } catch {
         setSearchAlert({
@@ -812,7 +859,7 @@ export function ExploreClient() {
         setSearching(false);
       }
     },
-    [executeSearch, suppressMapInteraction],
+    [countriesByCode, executeSearch, rememberArea, suppressMapInteraction],
   );
 
   const handleNearMe = useCallback(async () => {
@@ -847,12 +894,52 @@ export function ExploreClient() {
     }
   }, [executeSearch, geo, suppressMapInteraction]);
 
+  const focusViewerBrowseArea = useCallback(
+    async (
+      next: ExploreSearchFilters,
+      options?: { history?: "push" | "replace"; segmentLabel?: string | null },
+    ) => {
+      const code = viewerCountryCodeRef.current;
+      if (!isSupplyMarket(code)) {
+        const bounds = getDefaultMapBoundsRef.current();
+        if (bounds) {
+          suppressMapInteraction();
+          setMapFocusBounds(bounds);
+          setMapFitToken((token) => token + 1);
+          if (options?.segmentLabel !== undefined) {
+            setWhereSegmentLabel(options.segmentLabel);
+          } else {
+            const country = countriesByCode.get(code);
+            setWhereSegmentLabel(country ? `${country.name} area` : "Map area");
+          }
+          return executeSearch(next, {
+            mapBounds: bounds,
+            history: options?.history ?? "replace",
+          });
+        }
+      }
+
+      setMapFocusBounds(null);
+      setMapFitToken((token) => token + 1);
+      if (options?.segmentLabel !== undefined) {
+        setWhereSegmentLabel(options.segmentLabel);
+      }
+      return executeSearch(next, {
+        mapBounds: null,
+        history: options?.history ?? "replace",
+      });
+    },
+    [countriesByCode, executeSearch, suppressMapInteraction],
+  );
+
   const removeMapBounds = useCallback(async () => {
-    setWhereSegmentLabel(null);
     const next = { ...appliedFilters, city: "" };
     setFilters(next);
-    await executeSearch(next, { mapBounds: null });
-  }, [appliedFilters, executeSearch]);
+    await focusViewerBrowseArea(next, {
+      history: "replace",
+      segmentLabel: null,
+    });
+  }, [appliedFilters, focusViewerBrowseArea]);
 
   const removeAppliedFilter = useCallback(
     async (key: keyof ExploreSearchFilters) => {
@@ -874,13 +961,11 @@ export function ExploreClient() {
   const runReset = useCallback(async () => {
     geo.clearLocation();
     setFilters(EMPTY_EXPLORE_FILTERS);
-    setMapFocusBounds(null);
-    setWhereSegmentLabel(null);
-    await executeSearch(EMPTY_EXPLORE_FILTERS, {
+    await focusViewerBrowseArea(EMPTY_EXPLORE_FILTERS, {
       history: "replace",
-      mapBounds: null,
+      segmentLabel: null,
     });
-  }, [executeSearch, geo]);
+  }, [focusViewerBrowseArea, geo]);
 
   const handleBrowseSupply = useCallback(async () => {
     const ugBounds = countriesByCode.get("UG")?.mapBounds;
@@ -1050,7 +1135,18 @@ export function ExploreClient() {
         return;
       }
 
-      if (Date.now() < suppressMapInteractionUntilRef.current) return;
+      // Programmatic fits (and their aspect-corrected echoes) must not trigger a
+      // search or URL change. Adopt the resulting viewport as the search baseline
+      // instead, so a later genuine pan is measured against what's on screen.
+      if (
+        !userHasInteractedRef.current ||
+        Date.now() < suppressMapInteractionUntilRef.current
+      ) {
+        appliedSearchBoundsRef.current = viewport.bounds;
+        setAppliedSearchBounds(viewport.bounds);
+        return;
+      }
+
       if (!canSearchMapViewport(viewport.zoom)) return;
       if (
         !mapViewportDiffersFromSearch(
@@ -1093,7 +1189,10 @@ export function ExploreClient() {
     gestureHandling: "greedy" as const,
     fitBoundsToken: mapFitToken,
     focusBounds: mapFocusBounds,
+    defaultCenter: getDefaultMapCenter(),
+    emptyMapCenter: getDefaultMapCenter(),
     onViewportChange: handleViewportChange,
+    onUserMapInteraction: handleUserMapInteraction,
     onProgrammaticMapMove: suppressMapInteraction,
   };
 
@@ -1129,6 +1228,8 @@ export function ExploreClient() {
             userLocation={geo.location}
             inUganda={geo.inUganda}
             locationLoading={geo.loading}
+            recentAreas={recentAreas}
+            geoPresets={geoPresets}
           />
         </ContentBand>
       </div>

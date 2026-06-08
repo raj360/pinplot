@@ -1,0 +1,182 @@
+[
+  {
+    "countryCode": "UG",
+    "kind": "neighborhood",
+    "name": "Namuwongo",
+    "slug": "namuwongo",
+    "centerLat": 0.308,
+    "centerLng": 32.612,
+    "sortOrder": 100
+  },
+  {
+    "countryCode": "UG",
+    "kind": "neighborhood",
+    "name": "Nakasero",
+    "slug": "nakasero",
+    "centerLat": 0.328,
+    "centerLng": 32.588,
+    "sortOrder": 99
+  },
+  {
+    "countryCode": "UG",
+    "kind": "neighborhood",
+    "name": "Ntinda",
+    "slug": "ntinda",
+    "centerLat": 0.352,
+    "centerLng": 32.613,
+    "sortOrder": 98
+  },
+  {
+    "countryCode": "UG",
+    "kind": "neighborhood",
+    "name": "Kololo",
+    "slug": "kololo",
+    "centerLat": 0.331,
+    "centerLng": 32.595,
+    "sortOrder": 97
+  },
+  {
+    "countryCode": "UG",
+    "kind": "neighborhood",
+    "name": "Bugolobi",
+    "slug": "bugolobi",
+    "centerLat": 0.315,
+    "centerLng": 32.61,
+    "sortOrder": 96
+  },
+  {
+    "countryCode": "UG",
+    "kind": "neighborhood",
+    "name": "Muyenga",
+    "slug": "muyenga",
+    "centerLat": 0.295,
+    "centerLng": 32.605,
+    "sortOrder": 95
+  },
+  {
+    "countryCode": "UG",
+    "kind": "neighborhood",
+    "name": "Bukoto",
+    "slug": "bukoto",
+    "centerLat": 0.358,
+    "centerLng": 32.598,
+    "sortOrder": 94
+  },
+  {
+    "countryCode": "UG",
+    "kind": "neighborhood",
+    "name": "Naguru",
+    "slug": "naguru",
+    "centerLat": 0.338,
+    "centerLng": 32.608,
+    "sortOrder": 93
+  },
+  {
+    "countryCode": "UG",
+    "kind": "neighborhood",
+    "name": "Kabalagala",
+    "slug": "kabalagala",
+    "centerLat": 0.285,
+    "centerLng": 32.585,
+    "sortOrder": 92
+  },
+  {
+    "countryCode": "UG",
+    "kind": "neighborhood",
+    "name": "Makindye",
+    "slug": "makindye",
+    "centerLat": 0.278,
+    "centerLng": 32.575,
+    "sortOrder": 91
+  },
+  {
+    "countryCode": "UG",
+    "kind": "neighborhood",
+    "name": "Wandegeya",
+    "slug": "wandegeya",
+    "centerLat": 0.345,
+    "centerLng": 32.568,
+    "sortOrder": 90
+  },
+  {
+    "countryCode": "UG",
+    "kind": "neighborhood",
+    "name": "Lubaga",
+    "slug": "lubaga",
+    "centerLat": 0.302,
+    "centerLng": 32.552,
+    "sortOrder": 89
+  },
+  {
+    "countryCode": "UG",
+    "kind": "neighborhood",
+    "name": "Kasubi",
+    "slug": "kasubi",
+    "centerLat": 0.318,
+    "centerLng": 32.538,
+    "sortOrder": 88
+  },
+  {
+    "countryCode": "UG",
+    "kind": "neighborhood",
+    "name": "Nateete",
+    "slug": "nateete",
+    "centerLat": 0.305,
+    "centerLng": 32.528,
+    "sortOrder": 87
+  },
+  {
+    "countryCode": "UG",
+    "kind": "neighborhood",
+    "name": "Naalya",
+    "slug": "naalya",
+    "centerLat": 0.368,
+    "centerLng": 32.625,
+    "sortOrder": 86
+  },
+  {
+    "countryCode": "UG",
+    "kind": "neighborhood",
+    "name": "Kyanja",
+    "slug": "kyanja",
+    "centerLat": 0.385,
+    "centerLng": 32.615,
+    "sortOrder": 85
+  },
+  {
+    "countryCode": "UG",
+    "kind": "neighborhood",
+    "name": "Munyonyo",
+    "slug": "munyonyo",
+    "centerLat": 0.268,
+    "centerLng": 32.615,
+    "sortOrder": 84
+  },
+  {
+    "countryCode": "UG",
+    "kind": "neighborhood",
+    "name": "Bunga",
+    "slug": "bunga",
+    "centerLat": 0.278,
+    "centerLng": 32.618,
+    "sortOrder": 83
+  },
+  {
+    "countryCode": "UG",
+    "kind": "neighborhood",
+    "name": "Kansanga",
+    "slug": "kansanga",
+    "centerLat": 0.288,
+    "centerLng": 32.6,
+    "sortOrder": 82
+  },
+  {
+    "countryCode": "UG",
+    "kind": "neighborhood",
+    "name": "Central Kampala",
+    "slug": "kampala-central",
+    "centerLat": 0.315,
+    "centerLng": 32.582,
+    "sortOrder": 101
+  }
+]

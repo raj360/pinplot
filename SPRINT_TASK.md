@@ -68,6 +68,38 @@ Keep `ALLOW_DEV_UNLOCK=1` in dev until Sprint **5B** webhooks enforce unlock pay
 
 ---
 
+## Sprint 5D — Global discovery, catalog & multi-currency — **✅ implemented (run migrations 023–025)**
+
+**Goal:** Open browse/discovery to **every country** while listing supply stays Uganda-only (`SUPPLY_MARKET_CODES = ["UG"]`). Dynamic, low-cost area search; viewer-aware currency everywhere.
+
+```bash
+yarn db:migrate            # applies 023, 024, 025
+yarn db:seed:countries     # full ISO catalog (~250 countries) — one-time
+yarn db:seed:geo           # geo_places search areas — one-time (~50 min)
+yarn fx:refresh            # FX rates — schedule DAILY (cron)
+```
+
+| ID | Task | Status | Notes |
+|----|------|--------|-------|
+| G-01 | Full ISO country catalog (~250) | Done | Migration `023` + `seed-countries-catalog.mjs` (dr5hn, ODbL) |
+| G-02 | `geo_places` search-area catalog | Done | Migration `024`; `seed-geo-places.mjs` (GeoNames + manual UG neighborhoods) |
+| G-03 | `GET /api/v1/geo/places?country=XX` | Done | 24h cache; zero runtime Maps/geocoder cost |
+| G-04 | Country-scoped Where picker | Done | `useGeoPlaces(viewer.countryCode)` → regions/cities/areas of viewer's country only |
+| G-05 | Recent searches (localStorage) | Done | Zero-API fallback in Where dropdown |
+| G-06 | FX **UGX-hub** model + cross-rate | Done | `refresh-fx-rates.mjs` (open.er-api.com); `convertMoney` crosses via UGX |
+| G-07 | Viewer country from real ISO (IP/profile/browser) | Done | `resolve-viewer-country.ts` — no more `ROW` collapse |
+| G-08 | Admin edit shows **listing** currency (not hardcoded UGX) | Done | `AdminEditBuildingClient` |
+| G-09 | Drop legacy `countries` fee columns | Done | Migration `025` (`tenant_unlock_fee`/`landlord_listing_fee` — never read; pricing is UGX via `pricing_rules`) |
+| G-10 | Normalize non-ISO catalog currency (AQ `AAD`→`USD`) | Done | Seed override; full FX coverage (only `KPW`/N. Korea skipped) |
+
+**Robustness:** geo seed is now **per-country atomic + streaming** (`spawn unzip`) — a failure on one country (e.g. CN/US) no longer wipes the table; resume via `GEO_COUNTRIES=<codes>`.
+
+**Current data:** 250 active countries · 153 FX-covered currencies · 16,094 geo places (246 countries) · 0 orphans.
+
+**Reseed cadence:** countries + geo = **one-time** (idempotent); **`fx:refresh` = daily cron** (rates move daily).
+
+---
+
 ## Sprint 5C — Uganda polish (P1)
 
 | ID | Task | Status |
@@ -99,6 +131,7 @@ Keep `ALLOW_DEV_UNLOCK=1` in dev until Sprint **5B** webhooks enforce unlock pay
 | Trust / terms plan | ✅ docs |
 | Sprint 5A guardrails | ✅ (run `yarn db:migrate` → 020) |
 | Live unlock (FW + LS) | ✅ (configure PSP keys + webhooks) |
+| Global discovery + catalog + FX (5D) | ✅ (migrations 023–025; run seeds; FX daily cron) |
 | Stripe / LLC | ⏸ deferred |
 
 ---
@@ -106,11 +139,11 @@ Keep `ALLOW_DEV_UNLOCK=1` in dev until Sprint **5B** webhooks enforce unlock pay
 ## Recommended build order
 
 ```
-Now:   5A (trust + terms + notifications)
-Next:  5B (S4-20 + Lemon Squeezy + Flutterwave + enforce)
-Later: 5C polish · Phase 6 featured · LLC+Stripe when justified
+Done:  5A (trust + terms + notifications) · 5B (FW + Lemon Squeezy unlock) · 5D (global catalog + geo + FX)
+Next:  5C polish · Phase 6 featured · LLC+Stripe when justified
+Ops:   yarn fx:refresh on a daily cron
 ```
 
 ---
 
-*Last updated: 2026-06-03 — Flutterwave + Lemon Squeezy; Stripe deferred*
+*Last updated: 2026-06-08 — Sprint 5D global discovery (catalog + geo_places + UGX-hub FX); migrations through 025*

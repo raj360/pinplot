@@ -13,6 +13,8 @@ import { useViewerContext } from "@/components/providers/ViewerContextProvider";
 import type { Bounds } from "@/lib/api/buildings";
 import type { ExploreFilterChipKey } from "@/lib/filters/explore-filter-chips";
 import type { GeoPoint } from "@/lib/geo/uganda";
+import type { RecentArea } from "@/lib/filters/recent-areas";
+import type { SearchAreaPreset } from "@/lib/filters/search-areas";
 import { cn } from "@/lib/utils/cn";
 
 export type ExploreSearchFilters = {
@@ -52,6 +54,10 @@ type ExploreFiltersProps = {
   userLocation?: GeoPoint | null;
   inUganda?: boolean;
   locationLoading?: boolean;
+  /** Recently searched areas (localStorage) for the Where dropdown. */
+  recentAreas?: RecentArea[];
+  /** Seeded geo catalog for the viewer's country. */
+  geoPresets?: SearchAreaPreset[];
 };
 
 export function ExploreFilters({
@@ -73,8 +79,11 @@ export function ExploreFilters({
   userLocation = null,
   inUganda = false,
   locationLoading = false,
+  recentAreas,
+  geoPresets,
 }: ExploreFiltersProps) {
-  const { viewer } = useViewerContext();
+  const { viewer, countriesByCode } = useViewerContext();
+  const viewerCountryName = countriesByCode.get(viewer.countryCode)?.name;
 
   function handleSubmit(event: FormEvent) {
     event.preventDefault();
@@ -132,6 +141,10 @@ export function ExploreFilters({
               onChange={(place) => void onPlaceJump(place)}
               userLocation={userLocation}
               inUganda={inUganda}
+              viewerCountryCode={viewer.countryCode}
+              viewerCountryName={viewerCountryName}
+              recentAreas={recentAreas}
+              seededPresets={geoPresets}
               locationLoading={locationLoading}
               active={Boolean(
                 whereDisplayOverride || filters.city || appliedMapBounds,

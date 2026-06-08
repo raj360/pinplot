@@ -25,6 +25,7 @@ import {
 import { getAccessToken } from "@/lib/api/client";
 import { REJECT_REASON_PRESETS } from "@plotpin/shared-types";
 import { formatCurrency } from "@/lib/intl/format";
+import { useViewerContext } from "@/components/providers/ViewerContextProvider";
 import {
   EMPTY_VERIFICATION_CHECKLIST,
   VerificationChecklistForm,
@@ -57,6 +58,7 @@ export default function AdminEditBuildingClient({
   buildingId: string;
 }) {
   const router = useRouter();
+  const { countriesByCode } = useViewerContext();
 
   const [building, setBuilding] = useState<AdminPendingBuildingDetail | null>(
     null,
@@ -313,6 +315,12 @@ export default function AdminEditBuildingClient({
     );
   }
 
+  const listingCurrency = building.currency || "UGX";
+  const listingLocale =
+    countriesByCode.get(building.countryCode)?.displayLocale ?? "en-UG";
+  const formatRent = (amount: number) =>
+    formatCurrency(amount, listingCurrency, listingLocale);
+
   return (
     <DashboardSection
       title={`Edit · ${building.name}`}
@@ -553,7 +561,7 @@ export default function AdminEditBuildingClient({
                     <span>Unit #</span>
                     <span>Bedrooms</span>
                     <span>Bathrooms</span>
-                    <span>Rent (UGX)</span>
+                    <span>Rent ({listingCurrency})</span>
                     <span className="sr-only">Save unit</span>
                     <span className="sr-only">Remove unit</span>
                   </div>
@@ -596,7 +604,7 @@ export default function AdminEditBuildingClient({
                           [unit.id]: { ...draft, rentAmount: value },
                         }))
                       }
-                      ariaLabel={`Unit ${draft.unitNumber} rent in UGX`}
+                      ariaLabel={`Unit ${draft.unitNumber} rent in ${listingCurrency}`}
                     />
                     <Button
                       type="button"
@@ -621,7 +629,7 @@ export default function AdminEditBuildingClient({
                     </Button>
                   </div>
                   <p className="text-xs text-muted">
-                    Current rent preview: {formatCurrency(Number(draft.rentAmount) || 0)}
+                    Current rent preview: {formatRent(Number(draft.rentAmount) || 0)}
                   </p>
                 </div>
               );
@@ -635,7 +643,7 @@ export default function AdminEditBuildingClient({
                 <span>Unit #</span>
                 <span>Bedrooms</span>
                 <span>Bathrooms</span>
-                <span>Rent (UGX)</span>
+                <span>Rent ({listingCurrency})</span>
                 <span className="sr-only">Add unit</span>
               </div>
               <div className="grid grid-cols-[repeat(4,minmax(0,1fr))_auto] items-center gap-2">
@@ -665,7 +673,7 @@ export default function AdminEditBuildingClient({
                   onChange={(value) =>
                     setNewUnit((prev) => ({ ...prev, rentAmount: value }))
                   }
-                  ariaLabel="New unit rent in UGX"
+                  ariaLabel={`New unit rent in ${listingCurrency}`}
                 />
                 <Button
                   type="button"

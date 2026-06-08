@@ -74,6 +74,10 @@ type Props = {
   fitBoundsToken?: number;
   /** When results are empty, zoom map to the searched area. */
   focusBounds?: { north: number; south: number; east: number; west: number } | null;
+  /** Initial map center before first fit (viewer region). */
+  defaultCenter?: { lat: number; lng: number };
+  /** Center when there are no listings to fit (diaspora browse). */
+  emptyMapCenter?: { lat: number; lng: number };
   onViewportChange?: (viewport: MapViewport) => void;
   onUserMapInteraction?: () => void;
   onProgrammaticMapMove?: () => void;
@@ -98,6 +102,8 @@ export function PlotPinMap({
   gestureHandling = "greedy",
   fitBoundsToken = 0,
   focusBounds = null,
+  defaultCenter = KAMPALA_CENTER,
+  emptyMapCenter = KAMPALA_CENTER,
   onViewportChange,
   onUserMapInteraction,
   onProgrammaticMapMove,
@@ -122,7 +128,7 @@ export function PlotPinMap({
     <div className={cn("relative h-full w-full", className)}>
       <APIProvider apiKey={MAPS_KEY} libraries={["marker"]}>
         <GoogleMap
-          defaultCenter={KAMPALA_CENTER}
+          defaultCenter={defaultCenter}
           defaultZoom={EXPLORE_MAP_DEFAULT_ZOOM}
           minZoom={EXPLORE_MAP_MIN_ZOOM}
           maxZoom={EXPLORE_MAP_MAX_ZOOM}
@@ -143,6 +149,7 @@ export function PlotPinMap({
             unlockedLocations={unlockedLocations}
             fitToken={fitBoundsToken}
             focusBounds={focusBounds}
+            emptyMapCenter={emptyMapCenter}
             onProgrammaticMapMove={onProgrammaticMapMove}
           />
           <ClusteredMarkers
@@ -260,12 +267,14 @@ function MapFitBounds({
   unlockedLocations,
   fitToken,
   focusBounds,
+  emptyMapCenter = KAMPALA_CENTER,
   onProgrammaticMapMove,
 }: {
   buildings: BuildingSummary[];
   unlockedLocations?: ReadonlyMap<string, { lat: number; lng: number }>;
   fitToken: number;
   focusBounds?: { north: number; south: number; east: number; west: number } | null;
+  emptyMapCenter?: { lat: number; lng: number };
   onProgrammaticMapMove?: () => void;
 }) {
   const map = useMap();
@@ -301,7 +310,7 @@ function MapFitBounds({
     }
 
     if (buildings.length === 0) {
-      map.setCenter(KAMPALA_CENTER);
+      map.setCenter(emptyMapCenter);
       map.setZoom(EXPLORE_MAP_DEFAULT_ZOOM);
       return;
     }
@@ -328,7 +337,7 @@ function MapFitBounds({
 
     map.fitBounds(bounds, 96);
     applyZoomCap();
-  }, [map, buildings, unlockedLocations, fitToken, focusBounds, onProgrammaticMapMove]);
+  }, [map, buildings, unlockedLocations, fitToken, focusBounds, emptyMapCenter, onProgrammaticMapMove]);
 
   return null;
 }

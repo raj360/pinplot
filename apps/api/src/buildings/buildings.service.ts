@@ -1002,9 +1002,11 @@ export class BuildingsService {
 
     const { rows } = await this.db.query(
       `SELECT b.*,
+              co.currency AS currency,
               p.first_name, p.last_name, p.phone, p.suspended_at,
               u.email AS landlord_email
        FROM buildings b
+       JOIN countries co ON co.code = b.country_code
        LEFT JOIN profiles p ON p.id = b.landlord_id
        LEFT JOIN auth.users u ON u.id = b.landlord_id
        WHERE b.id = $1`,
@@ -1025,6 +1027,8 @@ export class BuildingsService {
       description: row.description,
       city: row.city,
       district: row.district,
+      countryCode: row.country_code,
+      currency: row.currency,
       buildingType: row.building_type,
       exactAddress: row.exact_address,
       coverImagePath: row.cover_image_path,

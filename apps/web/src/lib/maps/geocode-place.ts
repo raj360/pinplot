@@ -23,9 +23,20 @@ type GeocodeResponse = {
   }>;
 };
 
-/** Resolve a free-text place name in Uganda via Google Geocoding (client-side). */
-export async function geocodePlaceInUganda(
+export type GeocodePlaceOptions = {
+  /** ISO 3166-1 alpha-2 region to bias/restrict the search to (e.g. "GB"). */
+  countryCode?: string;
+  /** Country display name appended to the query for disambiguation. */
+  countryName?: string;
+};
+
+/**
+ * Resolve a free-text place via Google Geocoding (client-side), biased to the
+ * viewer's region so a UK viewer resolves UK places — not Ugandan ones.
+ */
+export async function geocodePlace(
   query: string,
+  options: GeocodePlaceOptions = {},
 ): Promise<GeocodedPlace | null> {
   const trimmed = query.trim();
   if (!trimmed) return null;
@@ -33,13 +44,17 @@ export async function geocodePlaceInUganda(
   const key = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY?.trim();
   if (!key || key.startsWith("your-")) return null;
 
-  const address = /\buganda\b/i.test(trimmed)
-    ? trimmed
-    : `${trimmed}, Uganda`;
+  const countryCode = options.countryCode?.trim().toUpperCase() || "UG";
+  const countryName = options.countryName?.trim() || "Uganda";
+
+  const mentionsCountry = new RegExp(`\\b${escapeRegExp(countryName)}\\b`, "i").test(
+    trimmed,
+  );
+  const address = mentionsCountry ? trimmed : `${trimmed}, ${countryName}`;
 
   const params = new URLSearchParams({
     address,
-    components: "country:UG",
+    components: `country:${countryCode}`,
     key,
   });
 
@@ -73,4 +88,8 @@ export async function geocodePlaceInUganda(
     center: { lat, lng },
     bounds,
   };
+}
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }

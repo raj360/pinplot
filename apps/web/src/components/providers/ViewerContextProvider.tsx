@@ -29,12 +29,15 @@ import {
   readStoredViewerCountry,
   resolveViewerCountryCode,
   resolveViewerContext,
-  ROW_COUNTRY_CODE,
   writeStoredViewerCountry,
   clearStoredViewerCountry,
 } from "@/lib/intl/resolve-viewer-country";
 import { fetchIpCountry } from "@/lib/intl/geo-ip";
-import { LISTING_PICKER_COUNTRY_CENTERS } from "@/lib/maps/config";
+import { boundsAround } from "@/lib/filters/search-areas";
+import {
+  EXPLORE_CITY_RADIUS_DEG,
+  LISTING_PICKER_COUNTRY_CENTERS,
+} from "@/lib/maps/config";
 import type { Bounds } from "@/lib/api/buildings";
 
 type ViewerContextValue = {
@@ -78,6 +81,7 @@ const FALLBACK_COUNTRIES: CountryCatalog[] = [
   },
 ];
 
+/** Offline bootstrap only — live rates come from GET /api/v1/fx/rates (open.er-api.com). */
 const FALLBACK_FX: FxRateEntry[] = [
   { baseCurrency: "UGX", quoteCurrency: "UGX", rate: 1, updatedAt: "" },
   { baseCurrency: "UGX", quoteCurrency: "USD", rate: 0.00026, updatedAt: "" },
@@ -201,23 +205,14 @@ export function ViewerContextProvider({
 
   const activeCountry = countriesByCode.get(viewerCountryCode) ?? countries[0];
   const viewer = useMemo<ViewerContext>(() => {
-    // ROW: no catalog row — derive USD/EUR/GBP from region hints.
-    if (viewerCountryCode === ROW_COUNTRY_CODE) {
-      return resolveViewerContext(
-        {
-          storedCountry: readStoredViewerCountry(),
-          profileCountry: resolutionHints.profileCountry,
-          ipCountry: resolutionHints.ipCountry,
-        },
-        countriesByCode,
-      );
-    }
-    const country = countriesByCode.get(viewerCountryCode);
-    return {
-      countryCode: viewerCountryCode,
-      displayLocale: country?.displayLocale ?? "en-UG",
-      displayCurrency: country?.currency ?? DEFAULT_COUNTRY.currency,
-    };
+    return resolveViewerContext(
+      {
+        storedCountry: readStoredViewerCountry(),
+        profileCountry: resolutionHints.profileCountry,
+        ipCountry: resolutionHints.ipCountry,
+      },
+      countriesByCode,
+    );
   }, [
     countriesByCode,
     resolutionHints.ipCountry,
@@ -250,18 +245,8 @@ export function ViewerContextProvider({
     setResolutionHints({ profileCountry, ipCountry });
   }, [isAuthenticated]);
 
-  const getDefaultMapBounds = useCallback((): Bounds | null => {
-    if (viewerCountryCode !== ROW_COUNTRY_CODE) {
-      const bounds = activeCountry?.mapBounds;
-      if (bounds) return bounds;
-    }
-    return countriesByCode.get("UG")?.mapBounds ?? null;
-  }, [activeCountry, countriesByCode, viewerCountryCode]);
-
   const getDefaultMapCenter = useCallback((): { lat: number; lng: number } => {
-    // Prefer the catalog center (supply markets); fall back to the diaspora
-    // city table; final fallback Kampala (home supply market).
-    if (viewerCountryCode !== ROW_COUNTRY_CODE && activeCountry?.mapCenter) {
+    if (activeCountry?.mapCenter) {
       return activeCountry.mapCenter;
     }
     return (
@@ -269,6 +254,16 @@ export function ViewerContextProvider({
       LISTING_PICKER_COUNTRY_CENTERS.UG
     );
   }, [activeCountry, viewerCountryCode]);
+
+  const getDefaultMapBounds = useCallback((): Bounds | null => {
+    if (activeCountry?.mapBounds) {
+      return activeCountry.mapBounds;
+    }
+    // Non-supply markets have no catalog map_bounds — derive a city-level
+    // viewport from the viewer's region center instead of falling back to UG.
+    const center = getDefaultMapCenter();
+    return boundsAround(center.lat, center.lng, EXPLORE_CITY_RADIUS_DEG);
+  }, [activeCountry, getDefaultMapCenter]);
 
   const formatListingMoney = useCallback(
     (amount: number, listingCurrency: string, listingCountryCode?: string) =>

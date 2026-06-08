@@ -133,29 +133,25 @@ export function firstRawCountryHint(input: ViewerResolutionHints): string | null
 }
 
 /**
- * Resolve catalog country or ROW. Unsupported ISO codes (e.g. BR, JP) map to ROW
- * instead of silently defaulting to Uganda.
+ * Resolve viewer country — any valid ISO 3166-1 alpha-2 code from profile, IP,
+ * or browser hints. Catalog rows drive currency/locale; geo_places drives map
+ * areas for every seeded country.
  */
 export function resolveViewerCountryCode(input: ViewerResolutionHints): string {
   const stored = parseIsoCountryCode(input.storedCountry);
-  if (stored) {
-    return SUPPORTED_COUNTRY_CODES.has(stored) ? stored : ROW_COUNTRY_CODE;
-  }
+  if (stored) return stored;
 
   const profile = parseIsoCountryCode(input.profileCountry);
-  if (profile) {
-    return SUPPORTED_COUNTRY_CODES.has(profile) ? profile : ROW_COUNTRY_CODE;
-  }
+  if (profile) return profile;
 
   const ip = parseIsoCountryCode(input.ipCountry);
-  if (ip) {
-    return SUPPORTED_COUNTRY_CODES.has(ip) ? ip : ROW_COUNTRY_CODE;
-  }
+  if (ip) return ip;
 
-  return inferViewerCountryFromBrowser(
+  const inferred = inferViewerCountryFromBrowser(
     input.timeZone ?? browserTimeZone(),
     input.language ?? browserLanguage(),
   );
+  return inferred ?? DEFAULT_COUNTRY.code;
 }
 
 /** Home SSR — resolve viewer region from edge IP headers when available. */
@@ -164,7 +160,7 @@ export function resolveServerViewerCountry(headerStore: Headers): string {
   return resolveViewerCountryCode({ ipCountry });
 }
 
-/** Full viewer display context — handles catalog countries and ROW fallback. */
+/** Full viewer display context — catalog country or sensible fallbacks. */
 export function resolveViewerContext(
   input: ViewerResolutionHints,
   countriesByCode: Map<string, CountryCatalog>,
@@ -173,23 +169,24 @@ export function resolveViewerContext(
   const language = input.language ?? browserLanguage();
   const code = resolveViewerCountryCode({ ...input, timeZone, language });
 
-  if (code !== ROW_COUNTRY_CODE) {
-    const country = countriesByCode.get(code);
+  const country = countriesByCode.get(code);
+  if (country) {
     return {
       countryCode: code,
-      displayLocale: country?.displayLocale ?? "en-UG",
-      displayCurrency: country?.currency ?? DEFAULT_COUNTRY.currency,
+      displayLocale: country.displayLocale,
+      displayCurrency: country.currency,
     };
   }
 
+  // Off-catalog during rollout — region-aware currency until catalog seed completes.
   const row = resolveRowDisplayCurrency({
     timeZone,
     language,
-    rawCountryCode: firstRawCountryHint(input),
+    rawCountryCode: code,
   });
 
   return {
-    countryCode: ROW_COUNTRY_CODE,
+    countryCode: code,
     displayLocale: row.displayLocale,
     displayCurrency: row.displayCurrency,
   };
@@ -197,12 +194,12 @@ export function resolveViewerContext(
 
 export function readStoredViewerCountry(): string | null {
   if (typeof window === "undefined") return null;
-  return normalizeCountryCode(localStorage.getItem(VIEWER_COUNTRY_STORAGE_KEY));
+  return parseIsoCountryCode(localStorage.getItem(VIEWER_COUNTRY_STORAGE_KEY));
 }
 
 export function writeStoredViewerCountry(code: string) {
   if (typeof window === "undefined") return;
-  const normalized = normalizeCountryCode(code);
+  const normalized = parseIsoCountryCode(code);
   if (!normalized) return;
   localStorage.setItem(VIEWER_COUNTRY_STORAGE_KEY, normalized);
 }
@@ -306,11 +303,10 @@ function inferViewerCountryFromLanguage(
   language: string,
 ): string | null {
   const parts = language.split("-");
-  if (parts.length >= 2) {
-    const code = parts[1].toUpperCase();
-    if (SUPPORTED_COUNTRY_CODES.has(code)) return code;
-    if (/^[A-Z]{2}$/.test(code)) return ROW_COUNTRY_CODE;
-  }
+    if (parts.length >= 2) {
+      const code = parts[1].toUpperCase();
+      if (/^[A-Z]{2}$/.test(code)) return code;
+    }
   return null;
 }
 
@@ -318,22 +314,14 @@ function inferViewerCountryFromLanguage(
 export function inferViewerCountryFromBrowser(
   timeZone = browserTimeZone(),
   language = browserLanguage(),
-): string {
+): string | null {
   const fromTimeZone = inferViewerCountryFromTimeZone(timeZone);
   if (fromTimeZone) return fromTimeZone;
 
   const fromLanguage = inferViewerCountryFromLanguage(language);
   if (fromLanguage) return fromLanguage;
 
-  // Broad regions → ROW (currency refined in resolveRowDisplayCurrency).
-  if (timeZone.startsWith("Europe/")) return ROW_COUNTRY_CODE;
-  if (timeZone.startsWith("America/")) return ROW_COUNTRY_CODE;
-  if (timeZone.startsWith("Asia/") || timeZone.startsWith("Pacific/")) {
-    return ROW_COUNTRY_CODE;
-  }
-  if (timeZone.startsWith("Africa/")) return ROW_COUNTRY_CODE;
-
-  return DEFAULT_COUNTRY.code;
+  return null;
 }
 
 export function getCountryMapBounds(
