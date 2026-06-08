@@ -4,6 +4,7 @@ import { PageMain } from "@/components/layout/PageShell";
 import { HeroSection } from "@/components/home/HeroSection";
 import { FeaturedListingsSection } from "@/components/home/FeaturedListingsSection";
 import { HomeValueProps } from "@/components/home/HomeValueProps";
+import { HomeHowItWorks } from "@/components/home/HomeHowItWorks";
 import { HomeLandlordCta } from "@/components/home/HomeLandlordCta";
 import { HomeFooter } from "@/components/home/HomeFooter";
 import { fetchFeaturedBuildings } from "@/lib/api/buildings";
@@ -26,6 +27,7 @@ export default async function HomePage() {
           initialBuildings={featured}
           serverCountryCode={serverCountryCode}
         />
+        <HomeHowItWorks />
         <HomeValueProps />
         <HomeLandlordCta />
       </PageMain>
