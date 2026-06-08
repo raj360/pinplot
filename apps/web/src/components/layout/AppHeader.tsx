@@ -17,18 +17,22 @@ import {
 } from "@/lib/layout/shell";
 import { UserMenu } from "@/components/layout/UserMenu";
 import { HeaderNavSkeleton } from "@/components/layout/HeaderNavSkeleton";
+import { AppMobileNav } from "@/components/layout/AppMobileNav";
 
 type AppHeaderProps = {
   /** standard = max-w-5xl, wide = explore map, sidebar = admin grid */
   variant?: HeaderVariant;
   backHref?: string;
   backLabel?: string;
+  /** Shown in the mobile drawer when using sidebar layout (Admin / Landlord). */
+  mobileSectionTitle?: string;
 };
 
 export function AppHeader({
   variant = "standard",
   backHref,
   backLabel,
+  mobileSectionTitle,
 }: AppHeaderProps) {
   const router = useRouter();
   const { user, profile, loading, profileLoading, signOut, isAuthenticated } =
@@ -60,9 +64,9 @@ export function AppHeader({
     </div>
   );
 
-  const nav = (
+  const desktopNav = (
     <nav
-      className="flex shrink-0 items-center gap-3 text-sm"
+      className="hidden shrink-0 items-center gap-3 text-sm md:flex"
       aria-busy={navPending}
     >
       <Link href="/explore" className="hover:underline">
@@ -74,12 +78,12 @@ export function AppHeader({
       ) : isAuthenticated ? (
         <>
           {variant !== "sidebar" && showLandlord ? (
-            <Link href="/landlord/dashboard" className="hidden hover:underline sm:inline">
+            <Link href="/landlord/dashboard" className="hover:underline">
               My buildings
             </Link>
           ) : null}
           {variant !== "sidebar" && isAdmin ? (
-            <Link href="/admin" className="hidden hover:underline sm:inline">
+            <Link href="/admin" className="hover:underline">
               Admin
             </Link>
           ) : null}
@@ -100,17 +104,34 @@ export function AppHeader({
     </nav>
   );
 
+  const mobileNav = (
+    <div className="flex shrink-0 items-center md:hidden">
+      {navPending ? (
+        <div
+          className="size-9 animate-pulse border border-primary-foreground/25 bg-primary-foreground/10"
+          aria-hidden
+        />
+      ) : (
+        <AppMobileNav activeSectionTitle={mobileSectionTitle} />
+      )}
+    </div>
+  );
+
   return (
     <header className="app-header relative z-[60] rounded-none border-b border-border bg-primary text-primary-foreground">
       {variant === "sidebar" ? (
         <div className={headerSidebarShellClass()}>
           <div className={sidebarColumnClass("flex items-center")}>{brand}</div>
-          <div className={headerSidebarNavClass()}>{nav}</div>
+          <div className={headerSidebarNavClass()}>
+            {desktopNav}
+            {mobileNav}
+          </div>
         </div>
       ) : (
         <div className={headerInnerClass(variant)}>
           {brand}
-          {nav}
+          {desktopNav}
+          {mobileNav}
         </div>
       )}
     </header>
