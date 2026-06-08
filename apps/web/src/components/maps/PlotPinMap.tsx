@@ -58,7 +58,6 @@ type MapViewport = {
 type Props = {
   buildings: BuildingSummary[];
   selectedId?: string | null;
-  hoveredId?: string | null;
   hoverPreview?: HoverPreview;
   unlockedBuildingIds?: ReadonlySet<string>;
   unlockedLocations?: ReadonlyMap<string, { lat: number; lng: number }>;
@@ -90,7 +89,6 @@ type Props = {
 export function PlotPinMap({
   buildings,
   selectedId,
-  hoveredId,
   hoverPreview,
   unlockedBuildingIds,
   unlockedLocations,
@@ -155,14 +153,12 @@ export function PlotPinMap({
           <ClusteredMarkers
             buildings={buildings}
             selectedId={selectedId}
-            hoveredId={hoveredId}
             hoverPreview={hoverPreview}
             unlockedBuildingIds={unlockedBuildingIds}
             unlockedLocations={unlockedLocations}
             onSelect={onSelect}
             onHoverOpenDetail={onHoverOpenDetail}
             onAccessOpen={onAccessOpen}
-            onHover={onHover}
             persistSelectedTooltip={persistSelectedTooltip}
           />
         </GoogleMap>
@@ -434,6 +430,30 @@ function clampMapTooltip(tooltip: HTMLDivElement, map: google.maps.Map) {
   tooltip.style.setProperty("--tooltip-shift", `${-shift}px`);
 }
 
+/** Re-clamp after marker projection / map layout settles (e.g. map remount). */
+function scheduleVisibleTooltipReclamp(
+  entries: MarkerUiEntry[],
+  map: google.maps.Map,
+) {
+  const reclamp = () => {
+    for (const entry of entries) {
+      if (entry.tooltip.classList.contains("is-visible")) {
+        clampMapTooltip(entry.tooltip, map);
+      }
+    }
+  };
+
+  reclamp();
+  requestAnimationFrame(() => requestAnimationFrame(reclamp));
+
+  const idleListener = map.addListener("idle", () => {
+    idleListener.remove();
+    reclamp();
+  });
+
+  return () => idleListener.remove();
+}
+
 type MarkerStyleState = {
   selectedId?: string | null;
   hoveredId?: string | null;
@@ -499,8 +519,13 @@ function createMapTooltip() {
   const summary = document.createElement("p");
   summary.className = "plotpin-map-tooltip__summary";
 
+  const bridge = document.createElement("div");
+  bridge.className = "plotpin-map-tooltip__bridge";
+  bridge.setAttribute("aria-hidden", "true");
+
   tooltip.appendChild(titleButton);
   tooltip.appendChild(summary);
+  tooltip.appendChild(bridge);
 
   return { tooltip, titleButton, summary };
 }
@@ -508,33 +533,28 @@ function createMapTooltip() {
 function ClusteredMarkers({
   buildings,
   selectedId,
-  hoveredId,
   hoverPreview,
   unlockedBuildingIds,
   unlockedLocations,
   onSelect,
   onHoverOpenDetail,
   onAccessOpen,
-  onHover,
   persistSelectedTooltip = false,
 }: {
   buildings: BuildingSummary[];
   selectedId?: string | null;
-  hoveredId?: string | null;
   hoverPreview?: HoverPreview;
   unlockedBuildingIds?: ReadonlySet<string>;
   unlockedLocations?: ReadonlyMap<string, { lat: number; lng: number }>;
   onSelect?: (id: string) => void;
   onHoverOpenDetail?: (id: string) => void;
   onAccessOpen?: (id: string) => void;
-  onHover?: (id: string | null) => void;
   persistSelectedTooltip?: boolean;
 }) {
   const map = useMap();
   const clustererRef = useRef<MarkerClusterer | null>(null);
   const colocatedWindowRef = useRef<google.maps.InfoWindow | null>(null);
   const buildingsRef = useRef(buildings);
-  const onHoverRef = useRef(onHover);
   const onSelectRef = useRef(onSelect);
   const onHoverOpenDetailRef = useRef(onHoverOpenDetail);
   const onAccessOpenRef = useRef(onAccessOpen);
@@ -546,14 +566,17 @@ function ClusteredMarkers({
     new globalThis.Map<google.maps.marker.AdvancedMarkerElement, string>(),
   );
   const selectedIdRef = useRef(selectedId);
-  const hoveredIdRef = useRef(hoveredId);
+  const hoveredIdRef = useRef<string | null>(null);
   const hoverPreviewRef = useRef(hoverPreview);
   const persistSelectedTooltipRef = useRef(persistSelectedTooltip);
   const cameraMovingRef = useRef(false);
+  // Hover is handled entirely in the DOM (no React round-trip) so the tooltip
+  // shows/hides instantly and deterministically. restyleRef lets the marker
+  // hover handlers re-apply styles using the latest selection/camera state.
+  const restyleRef = useRef<() => void>(() => {});
 
   useEffect(() => {
     buildingsRef.current = buildings;
-    onHoverRef.current = onHover;
     onSelectRef.current = onSelect;
     onHoverOpenDetailRef.current = onHoverOpenDetail;
     onAccessOpenRef.current = onAccessOpen;
@@ -561,7 +584,6 @@ function ClusteredMarkers({
     unlockedLocationsRef.current = unlockedLocations;
   }, [
     buildings,
-    onHover,
     onHoverOpenDetail,
     onSelect,
     onAccessOpen,
@@ -638,6 +660,33 @@ function ClusteredMarkers({
     });
 
     const nextMarkerUi: MarkerUiEntry[] = [];
+    let hoverClearTimer: number | undefined;
+    const HOVER_CLEAR_MS = 200;
+
+    function bindMarkerHover(
+      wrap: HTMLElement,
+      tooltip: HTMLElement,
+      id: string,
+    ) {
+      const enter = () => {
+        window.clearTimeout(hoverClearTimer);
+        if (hoveredIdRef.current === id) return;
+        hoveredIdRef.current = id;
+        restyleRef.current();
+      };
+      const leave = () => {
+        window.clearTimeout(hoverClearTimer);
+        hoverClearTimer = window.setTimeout(() => {
+          if (hoveredIdRef.current !== id) return;
+          hoveredIdRef.current = null;
+          restyleRef.current();
+        }, HOVER_CLEAR_MS);
+      };
+      wrap.onmouseenter = enter;
+      wrap.onmouseleave = leave;
+      tooltip.onmouseenter = enter;
+      tooltip.onmouseleave = leave;
+    }
 
     for (const pos of positions) {
       const wrap = document.createElement("div");
@@ -655,8 +704,7 @@ function ClusteredMarkers({
 
       wrap.appendChild(pin);
 
-      wrap.onmouseenter = () => onHoverRef.current?.(pos.id);
-      wrap.onmouseleave = () => onHoverRef.current?.(null);
+      bindMarkerHover(wrap, tooltip, pos.id);
       wrap.onclick = (e) => {
         e.stopPropagation();
         colocatedWindowRef.current?.close();
@@ -755,6 +803,7 @@ function ClusteredMarkers({
     }
 
     return () => {
+      window.clearTimeout(hoverClearTimer);
       colocatedWindowRef.current?.close();
       clustererRef.current?.clearMarkers();
       markersRef.current.forEach((m) => (m.map = null));
@@ -762,32 +811,7 @@ function ClusteredMarkers({
   }, [map, positions]);
 
   useEffect(() => {
-    selectedIdRef.current = selectedId;
-    hoveredIdRef.current = hoveredId;
-    hoverPreviewRef.current = hoverPreview;
-    persistSelectedTooltipRef.current = persistSelectedTooltip;
-    renderMarkerStyles(markerUiRef.current, {
-      selectedId,
-      hoveredId,
-      hoverPreview,
-      persistSelectedTooltip,
-      cameraMoving: cameraMovingRef.current,
-      buildings: buildingsRef.current,
-      map,
-    });
-  }, [
-    map,
-    positions,
-    selectedId,
-    hoveredId,
-    hoverPreview,
-    persistSelectedTooltip,
-  ]);
-
-  useEffect(() => {
-    if (!map) return;
-
-    const restyle = () => {
+    restyleRef.current = () => {
       renderMarkerStyles(markerUiRef.current, {
         selectedId: selectedIdRef.current,
         hoveredId: hoveredIdRef.current,
@@ -798,16 +822,42 @@ function ClusteredMarkers({
         map,
       });
     };
+  }, [map]);
+
+  useEffect(() => {
+    selectedIdRef.current = selectedId;
+    hoverPreviewRef.current = hoverPreview;
+    persistSelectedTooltipRef.current = persistSelectedTooltip;
+    restyleRef.current();
+
+    if (!map) return;
+
+    const hasVisibleTooltip = markerUiRef.current.some((entry) =>
+      entry.tooltip.classList.contains("is-visible"),
+    );
+    if (!hasVisibleTooltip) return;
+
+    return scheduleVisibleTooltipReclamp(markerUiRef.current, map);
+  }, [
+    map,
+    positions,
+    selectedId,
+    hoverPreview,
+    persistSelectedTooltip,
+  ]);
+
+  useEffect(() => {
+    if (!map) return;
 
     const hideWhileMoving = () => {
       if (cameraMovingRef.current) return;
       cameraMovingRef.current = true;
-      restyle();
+      restyleRef.current();
     };
 
     const onIdle = () => {
       cameraMovingRef.current = false;
-      restyle();
+      restyleRef.current();
     };
 
     const zoomListener = map.addListener("zoom_changed", hideWhileMoving);

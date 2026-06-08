@@ -3,7 +3,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { fetchBuildingCached } from "@/lib/api/building-cache";
 
-const HOVER_LEAVE_MS = 120;
+/** Sidebar list highlight — debounced so brief pin→tooltip gaps do not flicker. */
+const HOVER_LEAVE_MS = 180;
 
 /** Map-driven hover highlight only — detail loads on click, not hover. */
 export function useExplorePreview() {

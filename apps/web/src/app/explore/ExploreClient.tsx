@@ -1014,12 +1014,15 @@ export function ExploreClient() {
         return;
       }
 
+      // Drop map hover so a remounted map does not reopen a tooltip that was
+      // clamped before markers finished projecting onto the canvas.
+      setHover(null);
       setDetailMode("full");
       setMapVisible(false);
       syncSelectionToUrl({ buildingId: id, hideMap: true, history: "push" });
       void loadDetail(id);
     },
-    [isMobile, loadDetail, syncSelectionToUrl],
+    [isMobile, loadDetail, setHover, syncSelectionToUrl],
   );
 
   const handleMapSelect = useCallback(
@@ -1063,29 +1066,37 @@ export function ExploreClient() {
     syncSelectionToUrl,
   ]);
 
+  useEffect(() => {
+    if (!mapVisible) {
+      setHover(null);
+    }
+  }, [mapVisible, setHover]);
+
   const handleToggleMap = useCallback(() => {
-    setMapVisible((visible) => {
-      const next = !visible;
-      if (next) {
-        setDetailMode(null);
-        if (selectedId) {
-          syncSelectionToUrl({
-            buildingId: selectedId,
-            hideMap: false,
-            history: "replace",
-          });
-        }
-      } else if (selectedId) {
-        setDetailMode("full");
+    const willShowMap = !mapVisible;
+    setMapVisible(willShowMap);
+
+    if (willShowMap) {
+      setDetailMode(null);
+      if (selectedId) {
         syncSelectionToUrl({
           buildingId: selectedId,
-          hideMap: true,
-          history: "push",
+          hideMap: false,
+          history: "replace",
         });
       }
-      return next;
-    });
-  }, [selectedId, syncSelectionToUrl]);
+      return;
+    }
+
+    if (selectedId) {
+      setDetailMode("full");
+      syncSelectionToUrl({
+        buildingId: selectedId,
+        hideMap: true,
+        history: "push",
+      });
+    }
+  }, [mapVisible, selectedId, syncSelectionToUrl]);
 
   const closeMobileSheet = useCallback(() => {
     setDetailMode(null);
@@ -1178,13 +1189,14 @@ export function ExploreClient() {
   const mapProps = {
     buildings: allBuildings,
     selectedId,
-    hoveredId,
     hoverPreview,
     unlockedBuildingIds,
     unlockedLocations: visibleUnlockLocations,
     onSelect: handleMapSelect,
     onHoverOpenDetail: handleListSelect,
-    onHover: isMobile ? undefined : setHover,
+    // Map hover tooltip is handled directly in the DOM (see PlotPinMap) to keep
+    // it instant; we intentionally do not round-trip hover through React state.
+    onHover: undefined,
     persistSelectedTooltip: isMobile,
     gestureHandling: "greedy" as const,
     fitBoundsToken: mapFitToken,
@@ -1202,7 +1214,7 @@ export function ExploreClient() {
 
   return (
     <div className="flex min-h-screen flex-col bg-background md:h-screen md:overflow-hidden">
-      <div className="sticky top-0 z-40 shrink-0 bg-background shadow-card">
+      <div className="site-chrome sticky top-0 z-40 shrink-0 rounded-none bg-background shadow-card">
         <AppHeader variant="wide" />
 
         <ContentBand width="wide" className="bg-panel" innerClassName="py-0.5 sm:py-1">

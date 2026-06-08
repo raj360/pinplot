@@ -28,12 +28,13 @@ export function HomeHeroSkeleton() {
 
 function FeaturedListingCardSkeleton() {
   return (
-    <div className="overflow-hidden border border-border bg-surface shadow-card">
-      <Skeleton className="aspect-4/3 w-full rounded-none" />
-      <div className="space-y-2 p-4">
+    <div className="flex h-full min-w-0 flex-col overflow-hidden rounded-sm border border-border bg-surface shadow-card">
+      <Skeleton className="aspect-4/3 w-full shrink-0 rounded-none" />
+      <div className="space-y-2 p-3 sm:p-4">
         <Skeleton className="h-5 w-4/5" />
         <Skeleton className="h-4 w-3/5" />
-        <Skeleton className="mt-3 h-4 w-2/3" />
+        <Skeleton className="mt-2 h-4 w-2/3" />
+        <Skeleton className="h-4 w-1/2" />
       </div>
     </div>
   );
@@ -49,9 +50,9 @@ export function HomeFeaturedSkeleton() {
         </div>
         <Skeleton className="h-4 w-28" />
       </div>
-      <ul className="grid list-none gap-4 p-0 sm:grid-cols-2 lg:grid-cols-3">
+      <ul className="grid list-none grid-cols-1 gap-4 p-0 sm:grid-cols-2 sm:gap-5 xl:grid-cols-3">
         {Array.from({ length: 3 }, (_, index) => (
-          <li key={index}>
+          <li key={index} className="min-w-0">
             <FeaturedListingCardSkeleton />
           </li>
         ))}

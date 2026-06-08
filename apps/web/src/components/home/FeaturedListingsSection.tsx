@@ -80,9 +80,9 @@ export function FeaturedListingsSection({
       </div>
 
       {buildings.length > 0 ? (
-        <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <ul className="grid list-none grid-cols-1 gap-4 p-0 sm:grid-cols-2 sm:gap-5 xl:grid-cols-3">
           {buildings.map((building) => (
-            <li key={building.id}>
+            <li key={building.id} className="min-w-0">
               <FeaturedListingCard building={building} />
             </li>
           ))}
