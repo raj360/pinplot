@@ -139,6 +139,58 @@ export function formatRentPerMonthWithFootnote(
   return `${formatted.primary}/mo`;
 }
 
+const ZERO_DECIMAL_CURRENCIES = new Set([
+  "UGX",
+  "KES",
+  "TZS",
+  "RWF",
+  "NGN",
+  "ZAR",
+]);
+
+/**
+ * Format a canonical-UGX amount (e.g. the unlock fee) in the viewer's display
+ * currency — what they'll actually be charged. Falls back to UGX when no FX
+ * rate is available. Used for unlock fee labels, not listing rent.
+ */
+export function formatViewerMoney(
+  amountUgx: number,
+  viewer: ViewerContext,
+  fxRates: FxRateMap,
+): string {
+  if (viewer.displayCurrency === "UGX") {
+    return formatCurrency(amountUgx, "UGX", viewer.displayLocale);
+  }
+  const converted = convertMoney(amountUgx, "UGX", viewer.displayCurrency, fxRates);
+  if (converted == null) {
+    return formatCurrency(amountUgx, "UGX", "en-UG");
+  }
+  const rounded = ZERO_DECIMAL_CURRENCIES.has(viewer.displayCurrency)
+    ? Math.round(converted)
+    : Math.round(converted * 100) / 100;
+  return formatCurrency(rounded, viewer.displayCurrency, viewer.displayLocale);
+}
+
+/**
+ * Unlock fee for marketing copy — leads with the viewer's currency and notes
+ * the canonical UGX charge when they differ (e.g. "£4 (~USh 20,000)").
+ */
+export function formatCanonicalUgxForViewer(
+  amountUgx: number,
+  viewer: ViewerContext,
+  fxRates: FxRateMap,
+): FormattedMoney {
+  const primary = formatViewerMoney(amountUgx, viewer, fxRates);
+  if (viewer.displayCurrency === "UGX") {
+    return { primary };
+  }
+  const canonical = formatCurrency(amountUgx, "UGX", "en-UG");
+  return {
+    primary,
+    footnote: `~${canonical}`,
+  };
+}
+
 export function viewerContextFromCountry(
   country: CountryCatalog | undefined,
 ): ViewerContext {

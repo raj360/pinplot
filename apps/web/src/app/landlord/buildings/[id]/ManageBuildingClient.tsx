@@ -14,7 +14,7 @@ import {
   type LandlordBuildingDetail,
 } from "@/lib/api/buildings";
 import { getAccessToken } from "@/lib/api/client";
-import { formatCurrency } from "@/lib/intl/format";
+import { useViewerContext } from "@/components/providers/ViewerContextProvider";
 
 type UnitAction = "AVAILABLE" | "UNAVAILABLE" | "RENTED";
 
@@ -45,12 +45,14 @@ export default function ManageBuildingClient({
   buildingId: string;
 }) {
   const router = useRouter();
+  const { formatListingRentPerMonth } = useViewerContext();
   const [building, setBuilding] = useState<LandlordBuildingDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [pendingAction, setPendingAction] = useState<PendingUnitAction | null>(
     null,
   );
+  const [bulkBusy, setBulkBusy] = useState(false);
   const [resubmitting, setResubmitting] = useState(false);
   const [resubmitMessage, setResubmitMessage] = useState<string | null>(null);
 
@@ -110,6 +112,38 @@ export default function ManageBuildingClient({
     }
   }
 
+  async function markAllAvailable() {
+    if (!building) return;
+    const targets = building.units.filter((u) => u.status === "UNAVAILABLE");
+    if (targets.length === 0) return;
+    setBulkBusy(true);
+    setError(null);
+    try {
+      const results = await Promise.all(
+        targets.map((u) => updateUnitStatus(buildingId, u.id, "AVAILABLE")),
+      );
+      const updatedById = new Map(results.map((r) => [r.unit.id, r.unit]));
+      setBuilding((prev) => {
+        if (!prev) return prev;
+        const units = prev.units.map((u) => updatedById.get(u.id) ?? u);
+        return {
+          ...prev,
+          units,
+          availableUnitCount: units.filter((u) => u.status === "AVAILABLE")
+            .length,
+        };
+      });
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Could not update all units.",
+      );
+      // Resync in case some succeeded before the failure.
+      await load();
+    } finally {
+      setBulkBusy(false);
+    }
+  }
+
   async function resubmitForReview() {
     setResubmitting(true);
     setError(null);
@@ -143,6 +177,11 @@ export default function ManageBuildingClient({
       </DashboardSection>
     );
   }
+
+  const unavailableCount = building.units.filter(
+    (u) => u.status === "UNAVAILABLE",
+  ).length;
+  const canBulkAvailable = building.isVerified && unavailableCount >= 2;
 
   return (
     <div className="space-y-4">
@@ -197,6 +236,19 @@ export default function ManageBuildingClient({
             can discover it on explore. Until then, it will not appear in search
             results.
           </p>
+          {unavailableCount > 0 ? (
+            <Button
+              type="button"
+              className="mt-3"
+              loading={bulkBusy}
+              loadingLabel="Marking units available"
+              onClick={() => void markAllAvailable()}
+            >
+              {unavailableCount === 1
+                ? "Mark the unit available"
+                : `Mark all ${unavailableCount} units available`}
+            </Button>
+          ) : null}
         </div>
       ) : null}
 
@@ -230,6 +282,20 @@ export default function ManageBuildingClient({
               ? "No units visible yet — mark units available when you are ready."
               : `${building.units.length} units — available after admin approval.`
         }
+        action={
+          canBulkAvailable && building.availableUnitCount > 0 ? (
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              loading={bulkBusy}
+              loadingLabel="Marking units available"
+              onClick={() => void markAllAvailable()}
+            >
+              Mark remaining {unavailableCount} available
+            </Button>
+          ) : undefined
+        }
       >
         {error && <p className="mb-4 text-sm text-red-600">{error}</p>}
 
@@ -252,7 +318,11 @@ export default function ManageBuildingClient({
                   </p>
                   <p className="mt-0.5 text-sm text-muted">
                     {unit.bedrooms} bed · {unit.bathrooms} bath ·{" "}
-                    {formatCurrency(unit.rentAmount)}/mo
+                    {formatListingRentPerMonth(
+                      unit.rentAmount,
+                      unit.currency,
+                      building.countryCode,
+                    )}
                   </p>
                 </div>
 

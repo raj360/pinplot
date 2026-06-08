@@ -50,7 +50,7 @@ export class BuildingsController {
   @UseGuards(ThrottlerGuard)
   @Throttle({ default: { limit: 60, ttl: 60_000 } })
   findFeatured(@Query() query: FeaturedBuildingsQueryDto) {
-    return this.buildings.findFeatured(query.limit ?? 12);
+    return this.buildings.findFeatured(query.limit ?? 12, query.countryCode);
   }
 
   @Get("mine/list")

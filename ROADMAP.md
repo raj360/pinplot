@@ -20,13 +20,13 @@ PlotPin should work for **any visitor** landing from social ads anywhere in the 
 
 ## Where we stand (product snapshot)
 
-**Phase:** Sprint 4 **complete** → **Sprint 5A trust & access** → **5B unlock payments (FW + Lemon Squeezy)**
+**Phase:** Sprint 4 ✅ → 5A trust ✅ → 5B unlock payments (FW + Lemon Squeezy) ✅ → **5D global discovery, catalog & FX ✅** → 5C Uganda polish (next)
 
 | Persona | Can do today | Next |
 |---------|--------------|------|
-| **Tenant** | Homepage v2, explore, FX, unlock (dev) | Terms gate + paid unlock (5B) |
-| **Landlord** | Submit, photos, unit status, reject + resubmit | Phone gate, attestation, notifications (5A) |
-| **Admin** | Approve/reject, coupons, featured launch (20) | Verification checklist, reports (5A) |
+| **Tenant** | Homepage v2, **global explore** (country-scoped areas), **viewer-currency FX**, paid unlock | MoMo/SMS polish (5C) |
+| **Landlord** | Submit (any country), photos, unit status, reject + resubmit, listing-currency edit | Country/currency on edit flow |
+| **Admin** | Approve/reject, coupons, featured launch, verification checklist, reports | — |
 
 **Monetization:** [docs/BUSINESS-MODEL.md](./docs/BUSINESS-MODEL.md) — free listing, paid unlock.  
 **Payments:** [docs/PAYMENTS-STRATEGY.md](./docs/PAYMENTS-STRATEGY.md) — **Flutterwave + Lemon Squeezy** now; **Stripe when US LLC exists**.
@@ -71,6 +71,23 @@ Full task list: [docs/IMPLEMENTATION-PLAN.md](./docs/IMPLEMENTATION-PLAN.md)
 
 ---
 
+## Phase 5D — Global discovery, catalog & multi-currency — **✅ complete**
+
+**Goal:** Browse/discovery works for **every country**; supply stays Uganda-only (`SUPPLY_MARKET_CODES`). Low runtime cost — no live geocoder on search.
+
+| Area | Deliverable |
+|------|-------------|
+| **Catalog** | Full ISO country catalog (~250) — migration `023` + `db:seed:countries` (dr5hn, ODbL) |
+| **Search areas** | `geo_places` table (region/district/city/neighborhood) — migration `024` + `db:seed:geo` (GeoNames + manual UG); served via cached `GET /api/v1/geo/places?country=XX` |
+| **Picker** | Where dropdown scoped to viewer's country (`useGeoPlaces`); recent-search fallback; geocode only on commit |
+| **Currency** | UGX-hub `fx_rates` + cross-rate `convertMoney`; `db:seed`/`fx:refresh`; admin edit shows listing currency |
+| **Viewer** | Country resolved from real ISO (IP / profile / browser), not collapsed to `ROW` |
+| **Cleanup** | Dropped unused `countries` fee columns — migration `025` |
+
+**Data:** 250 countries · 153 FX currencies · 16,094 geo places. **Ops:** `fx:refresh` runs **daily**; catalog/geo seeds are one-time.
+
+---
+
 ## Phase 5C — Uganda rails polish
 
 MoMo UX, USSD (TBD), SMS landlord alerts on unlock.
@@ -90,14 +107,17 @@ MoMo UX, USSD (TBD), SMS landlord alerts on unlock.
 
 | Layer | Rule |
 |-------|------|
-| **Data** | Listing currency on units; unlock fees per `country_code` in `pricing_rules` |
-| **Display** | `formatMoney` — canonical rent + optional `(~£X)` hint |
+| **Data** | Listing currency on units; unlock fees (UGX) per `country_code` in `pricing_rules`; catalog by ISO `code` |
+| **Search areas** | Seeded `geo_places` (per-place bounds) drive the picker; no live geocoder — geocode only on commit |
+| **Display** | `formatMoney` — canonical rent + optional `(~£X)` hint via UGX-hub FX |
+| **Currency** | `fx_rates` is UGX-hub; cross any pair via UGX; refresh **daily** |
+| **Supply vs browse** | Browse global via `geo_places`; listings only in `SUPPLY_MARKET_CODES` (UG) |
 | **Listing** | **Free** after admin verification |
 | **Payments** | One unlock flow; route to FW or Lemon Squeezy |
-| **Map** | Near me → GPS; deny → viewer country bounds |
+| **Map** | Near me → GPS; deny → viewer country bounds (UG fallback) |
 | **Trust** | Admin verify; phone; attestation; reports |
 | **Homepage** | Kampala D3 hero; no live Maps API on `/` |
 
 ---
 
-*Last updated: 2026-06-03 — Payments: Flutterwave + Lemon Squeezy; Stripe deferred*
+*Last updated: 2026-06-08 — Sprint 5D global discovery (full country catalog, geo_places search areas, UGX-hub FX); migrations through 025*

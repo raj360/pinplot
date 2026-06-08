@@ -18,6 +18,7 @@ import {
   resolveUnlockProvider,
   type CheckoutProviderPreference,
 } from "./payment-routing.util";
+import { resolveFlutterwaveRegion } from "./flutterwave-regions.util";
 import { randomUUID } from "node:crypto";
 
 type UnitCheckoutRow = {
@@ -123,6 +124,16 @@ export class UnlockCheckoutService {
           )
         : null;
 
+    // Flutterwave charges in the payer-country currency (UGX for Uganda).
+    const payerCountry = (
+      options?.tenantCountryCode ?? unit.country_code
+    ).toUpperCase();
+    const flutterwaveRegion = resolveFlutterwaveRegion(payerCountry);
+    const flutterwavePresentment =
+      provider === PaymentProvider.FLUTTERWAVE
+        ? await this.resolveFlutterwavePresentment(chargeUgx, flutterwaveRegion)
+        : null;
+
     const { rows } = await this.db.query<{ id: string }>(
       `INSERT INTO payments (
          user_id, provider, purpose, amount, currency, status, external_ref, metadata
@@ -148,6 +159,12 @@ export class UnlockCheckoutService {
                 lemonCurrency: lemonPresentment.quoteCurrency,
               }
             : {}),
+          ...(flutterwavePresentment
+            ? {
+                fwChargeAmount: flutterwavePresentment.amount,
+                fwChargeCurrency: flutterwavePresentment.currency,
+              }
+            : {}),
         }),
       ],
     );
@@ -164,13 +181,13 @@ export class UnlockCheckoutService {
       }
       checkoutUrl = await this.flutterwave.createPaymentLink({
         txRef,
-        amountUgx: chargeUgx,
+        amount: flutterwavePresentment!.amount,
+        currency: flutterwavePresentment!.currency,
         email: tenantEmail,
         name: resolvedName,
         phone: tenantPhone,
         redirectUrl,
-        mobileMoneyOnly:
-          options?.providerPreference === "flutterwave",
+        paymentOptions: flutterwaveRegion.mobileMoneyOptions,
       });
     } else {
       checkoutUrl = await this.lemonSqueezy.createCheckout({
@@ -194,7 +211,38 @@ export class UnlockCheckoutService {
       checkoutUrl,
       feeUgx: quote.amountUgx,
       chargeUgx,
-      currency: provider === PaymentProvider.FLUTTERWAVE ? "UGX" : "USD",
+      currency:
+        provider === PaymentProvider.FLUTTERWAVE
+          ? (flutterwavePresentment?.currency ?? "UGX")
+          : (lemonPresentment?.quoteCurrency ?? "USD"),
+    };
+  }
+
+  /**
+   * Convert the canonical UGX charge into the payer-country currency for
+   * Flutterwave. Falls back to UGX when no FX rate exists so we never present a
+   * non-UGX amount we can't price.
+   */
+  private async resolveFlutterwavePresentment(
+    chargeUgx: number,
+    region: { currency: string },
+  ): Promise<{ amount: number; currency: string }> {
+    if (region.currency === "UGX") {
+      return { amount: chargeUgx, currency: "UGX" };
+    }
+    const { rows } = await this.db.query<{ rate: string }>(
+      `SELECT rate FROM fx_rates
+       WHERE base_currency = 'UGX' AND quote_currency = $1`,
+      [region.currency],
+    );
+    const rate = Number(rows[0]?.rate ?? 0);
+    if (!rate) {
+      // No rate on file — charge canonical UGX rather than a wrong amount.
+      return { amount: chargeUgx, currency: "UGX" };
+    }
+    return {
+      amount: Math.max(1, Math.round(chargeUgx * rate)),
+      currency: region.currency,
     };
   }
 

@@ -1,6 +1,9 @@
 import type { ExploreSearchFilters } from "@/components/explore/ExploreFilters";
 import { buildingTypeLabel } from "@/lib/filters/building-types";
-import { rentRangeShortLabel } from "@/lib/filters/rent-ranges";
+import {
+  rentRangeShortLabel,
+  type RentRangeMoney,
+} from "@/lib/filters/rent-ranges";
 
 export function countActivePropertyFilters(filters: ExploreSearchFilters): number {
   return [
@@ -12,10 +15,13 @@ export function countActivePropertyFilters(filters: ExploreSearchFilters): numbe
 }
 
 /** Compact label for the composed “Filters” segment trigger. */
-export function propertyFiltersSummary(filters: ExploreSearchFilters): string {
+export function propertyFiltersSummary(
+  filters: ExploreSearchFilters,
+  money?: RentRangeMoney,
+): string {
   const parts: string[] = [];
 
-  const price = rentRangeShortLabel(filters.priceRange);
+  const price = rentRangeShortLabel(filters.priceRange, money);
   if (price) parts.push(price.replace(/\s*\/mo$/, ""));
 
   if (filters.bedrooms) {

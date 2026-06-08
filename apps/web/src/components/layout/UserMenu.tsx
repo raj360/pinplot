@@ -54,7 +54,7 @@ export function UserMenu({ initials, displayName, onSignOut }: UserMenuProps) {
     <div ref={rootRef} className="relative">
       <button
         type="button"
-        className="user-avatar flex size-8 shrink-0 items-center justify-center border-2 border-primary-foreground/40 bg-primary-foreground/15 text-[11px] font-semibold text-primary-foreground"
+        className="user-avatar flex size-8 shrink-0 items-center justify-center rounded-full border-2 border-primary-foreground/40 bg-primary-foreground/15 text-[11px] font-semibold text-primary-foreground"
         aria-label={`Account menu for ${displayName}`}
         aria-haspopup="menu"
         aria-expanded={open}

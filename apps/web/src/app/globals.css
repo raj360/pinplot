@@ -81,8 +81,39 @@ body {
   font-family: var(--font-sans), system-ui, sans-serif;
 }
 
-* {
-  border-radius: 2px;
+@layer base {
+  /**
+   * Default 2px corners on interactive + card surfaces.
+   * Do NOT use the universal * selector — it also rounds layout chrome
+   * (header, sticky explore shell) and fights Tailwind's cascade.
+   */
+  :where(
+    button:not(.user-avatar),
+    input:not([type="checkbox"]):not([type="radio"]),
+    select,
+    textarea,
+    a[class*="border"]
+  ) {
+    border-radius: var(--radius-DEFAULT);
+  }
+
+  :where(.card-elevated, .card-elevated-md, .card-elevated-lg) {
+    border-radius: var(--radius-DEFAULT);
+  }
+
+  /* Bordered content panels — matches prior * behaviour for sections/divs. */
+  :where(section, div)[class*="border-border"]:not(.site-chrome):not(
+      .site-chrome *
+    ) {
+    border-radius: var(--radius-DEFAULT);
+  }
+
+  /* Layout chrome — always square (explore sticky shell, nav, footer). */
+  :where(header, footer, nav, .site-chrome),
+  :where(header, footer, nav, .site-chrome)
+    :where(*:not(.user-avatar):not(.spinner-ring)) {
+    border-radius: 0 !important;
+  }
 }
 
 /** White card on gray canvas — consistent elevation */
@@ -121,24 +152,9 @@ body {
   }
 }
 
-/* Site chrome keeps square edges; spinners stay circular */
-header,
-header *,
-nav,
-nav *,
-footer,
-footer * {
-  border-radius: 0;
-}
-
 .spinner-ring,
 .user-avatar {
   border-radius: 9999px !important;
-}
-
-.app-header {
-  border-top-left-radius: 0 !important;
-  border-top-right-radius: 0 !important;
 }
 
 .plotpin-map-marker-wrap {
@@ -236,7 +252,7 @@ footer * {
 .plotpin-map-tooltip {
   pointer-events: none;
   position: absolute;
-  bottom: calc(100% + 8px);
+  bottom: calc(100% + 4px);
   left: 50%;
   z-index: 20;
   display: none;
@@ -279,6 +295,7 @@ footer * {
 
 .plotpin-map-tooltip.is-visible {
   display: block;
+  pointer-events: auto;
 }
 
 .plotpin-map-tooltip--rich {
@@ -315,6 +332,16 @@ footer * {
   line-height: 1.35;
   color: var(--muted);
   white-space: nowrap;
+}
+
+/* Invisible hover bridge — covers the gap between tooltip and pin. */
+.plotpin-map-tooltip__bridge {
+  position: absolute;
+  left: 50%;
+  top: 100%;
+  width: 64px;
+  height: 18px;
+  transform: translateX(-50%);
 }
 
 .plotpin-map-tooltip__row {

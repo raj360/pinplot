@@ -2,8 +2,8 @@
 
 import { MapPin } from "lucide-react";
 import { buildingTypeLabel } from "@/lib/filters/building-types";
-import { formatRentPerMonth } from "@/lib/intl/format";
 import { cn } from "@/lib/utils/cn";
+import { useViewerContext } from "@/components/providers/ViewerContextProvider";
 
 type UnitPreview = {
   unitNumber: string;
@@ -23,6 +23,10 @@ type NewBuildingPreviewProps = {
   units: UnitPreview[];
   step: number;
   className?: string;
+  /** Building's listing currency (e.g. UGX, NGN) for rent display. */
+  listingCurrency?: string;
+  /** Building's country for currency + locale resolution. */
+  listingCountryCode?: string;
 };
 
 export function NewBuildingPreview({
@@ -36,7 +40,12 @@ export function NewBuildingPreview({
   units,
   step,
   className,
+  listingCurrency = "UGX",
+  listingCountryCode,
 }: NewBuildingPreviewProps) {
+  const { formatListingRentPerMonth } = useViewerContext();
+  const formatRentPerMonth = (amount: number) =>
+    formatListingRentPerMonth(amount, listingCurrency, listingCountryCode);
   const displayName = buildingName.trim() || "Your building name";
   const locationLine =
     [district, city].filter(Boolean).join(", ") || areaLabel || "Kampala";

@@ -102,8 +102,17 @@ export class BuildingsService {
     return result;
   }
 
-  async findFeatured(limit = 12) {
+  async findFeatured(limit = 12, countryCode?: string) {
     const capped = Math.min(Math.max(limit, 1), 24);
+    const region = countryCode?.trim().toUpperCase() || null;
+    const params: unknown[] = [capped];
+    // Surface the viewer's region first, then backfill with the rest of supply
+    // so the section stays populated even where local supply is still thin.
+    let regionOrder = "";
+    if (region) {
+      params.push(region);
+      regionOrder = `(b.country_code = $${params.length}) DESC, `;
+    }
     const { rows } = await this.db.query<BuildingRow>(
       `SELECT
         b.id,
@@ -131,9 +140,9 @@ export class BuildingsService {
         AND ${EXPLORE_FEATURED_ACTIVE_SQL}
       GROUP BY b.id, co.currency, b.is_featured, b.featured_until
       HAVING COUNT(u.id) FILTER (WHERE u.status = 'AVAILABLE') > 0
-      ORDER BY b.featured_until DESC NULLS LAST, b.featured_granted_at DESC NULLS LAST, b.created_at DESC
+      ORDER BY ${regionOrder}b.featured_until DESC NULLS LAST, b.featured_granted_at DESC NULLS LAST, b.created_at DESC
       LIMIT $1`,
-      [capped],
+      params,
     );
     return rows.map((row) => this.toSummary(row));
   }
@@ -664,6 +673,9 @@ export class BuildingsService {
       [landlordId],
     );
 
+    const countryCode = await this.resolveCountryCode(dto.countryCode);
+    const currency = await this.currencyForCountry(countryCode);
+
     await this.db.query("BEGIN");
     try {
       const { rows } = await this.db.query(
@@ -671,7 +683,7 @@ export class BuildingsService {
           landlord_id, name, description, city, district, country_code,
           approximate_lat, approximate_lng, exact_address, exact_lat, exact_lng,
           total_units, video_url, building_type, is_verified, ownership_attested_at
-        ) VALUES ($1,$2,$3,$4,$5,'UG',$6,$7,$8,$9,$10,$11,$12,$13,FALSE,NOW())
+        ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,FALSE,NOW())
         RETURNING *`,
         [
           landlordId,
@@ -679,6 +691,7 @@ export class BuildingsService {
           dto.description ?? null,
           dto.city,
           dto.district ?? null,
+          countryCode,
           dto.approximateLat,
           dto.approximateLng,
           dto.exactAddress ?? null,
@@ -693,7 +706,7 @@ export class BuildingsService {
 
       if (dto.units?.length) {
         for (const unit of dto.units) {
-          await this.insertUnit(building.id, unit);
+          await this.insertUnit(building.id, unit, currency);
         }
       }
 
@@ -726,7 +739,8 @@ export class BuildingsService {
 
   async addUnit(buildingId: string, landlordId: string, dto: CreateUnitDto) {
     await this.assertLandlord(buildingId, landlordId);
-    const row = await this.insertUnit(buildingId, dto);
+    const currency = await this.currencyForBuilding(buildingId);
+    const row = await this.insertUnit(buildingId, dto, currency);
     return row;
   }
 
@@ -988,9 +1002,11 @@ export class BuildingsService {
 
     const { rows } = await this.db.query(
       `SELECT b.*,
+              co.currency AS currency,
               p.first_name, p.last_name, p.phone, p.suspended_at,
               u.email AS landlord_email
        FROM buildings b
+       JOIN countries co ON co.code = b.country_code
        LEFT JOIN profiles p ON p.id = b.landlord_id
        LEFT JOIN auth.users u ON u.id = b.landlord_id
        WHERE b.id = $1`,
@@ -1011,6 +1027,8 @@ export class BuildingsService {
       description: row.description,
       city: row.city,
       district: row.district,
+      countryCode: row.country_code,
+      currency: row.currency,
       buildingType: row.building_type,
       exactAddress: row.exact_address,
       coverImagePath: row.cover_image_path,
@@ -1464,13 +1482,53 @@ export class BuildingsService {
     return images.find((image) => image.id === imageId) ?? images[0];
   }
 
-  private async insertUnit(buildingId: string, dto: CreateUnitDto) {
+  private async insertUnit(
+    buildingId: string,
+    dto: CreateUnitDto,
+    currency = "UGX",
+  ) {
     const { rows } = await this.db.query(
-      `INSERT INTO units (building_id, unit_number, bedrooms, bathrooms, rent_amount, status)
-       VALUES ($1,$2,$3,$4,$5,'UNAVAILABLE') RETURNING *`,
-      [buildingId, dto.unitNumber, dto.bedrooms, dto.bathrooms, dto.rentAmount],
+      `INSERT INTO units (building_id, unit_number, bedrooms, bathrooms, rent_amount, currency, status)
+       VALUES ($1,$2,$3,$4,$5,$6,'UNAVAILABLE') RETURNING *`,
+      [
+        buildingId,
+        dto.unitNumber,
+        dto.bedrooms,
+        dto.bathrooms,
+        dto.rentAmount,
+        currency,
+      ],
     );
     return rows[0];
+  }
+
+  /** Validate an inbound country code against the active catalog; default UG. */
+  private async resolveCountryCode(code?: string): Promise<string> {
+    const upper = (code ?? "UG").toUpperCase();
+    const { rows } = await this.db.query(
+      `SELECT 1 FROM countries WHERE code = $1 AND is_active = TRUE`,
+      [upper],
+    );
+    return rows[0] ? upper : "UG";
+  }
+
+  private async currencyForCountry(code: string): Promise<string> {
+    const { rows } = await this.db.query<{ currency: string }>(
+      `SELECT currency FROM countries WHERE code = $1`,
+      [code],
+    );
+    return rows[0]?.currency ?? "UGX";
+  }
+
+  private async currencyForBuilding(buildingId: string): Promise<string> {
+    const { rows } = await this.db.query<{ currency: string }>(
+      `SELECT co.currency
+       FROM buildings b
+       JOIN countries co ON co.code = b.country_code
+       WHERE b.id = $1`,
+      [buildingId],
+    );
+    return rows[0]?.currency ?? "UGX";
   }
 
   private async fetchUnits(buildingId: string) {

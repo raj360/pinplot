@@ -5,6 +5,7 @@ import type { PriceQuote } from "@plotpin/shared-types";
 import { PRICING, formatPhoneDisplay, isValidStoredPhone } from "@plotpin/shared-types";
 import { exploreBuildingUrl } from "@/lib/explore/urls";
 import { formatUnitDetail, type UnitLike } from "@/lib/buildings/unit-summary";
+import { useViewerContext } from "@/components/providers/ViewerContextProvider";
 import {
   formatUnlockQuoteLine,
   unlockButtonLabel,
@@ -39,6 +40,8 @@ export function UnlockPurchasePanel({
   onCheckoutMethodChange,
   showMobileMoneyCheckout = false,
   profilePhone = null,
+  listingCurrency = "UGX",
+  listingCountryCode,
 }: {
   buildingId: string;
   availableUnits: UnitLike[];
@@ -63,11 +66,19 @@ export function UnlockPurchasePanel({
   onCheckoutMethodChange?: (method: UnlockCheckoutMethod) => void;
   showMobileMoneyCheckout?: boolean;
   profilePhone?: string | null;
+  /** Building's listing currency (e.g. NGN, UGX) for per-unit rent display. */
+  listingCurrency?: string;
+  /** Building's country for currency + locale resolution. */
+  listingCountryCode?: string;
 }) {
+  const { formatListingRentPerMonth, formatUnlockFee } = useViewerContext();
+  const formatUnitRent = (amount: number) =>
+    formatListingRentPerMonth(amount, listingCurrency, listingCountryCode);
   const defaultDescription = unlockPanelDescription({
     unlockCredits,
     primaryCreditUgx,
     quote: representativeQuote,
+    formatFee: formatUnlockFee,
   });
 
   const listClass = cn(
@@ -187,11 +198,11 @@ export function UnlockPurchasePanel({
                 <div>
                   <p className="font-medium">Unit {unit.unitNumber}</p>
                   <p className="mt-0.5 text-sm text-foreground">
-                    {formatUnitDetail(unit)}
+                    {formatUnitDetail(unit, formatUnitRent)}
                   </p>
                   {quote ? (
                     <p className="mt-1 text-xs text-muted">
-                      {formatUnlockQuoteLine(quote)}
+                      {formatUnlockQuoteLine(quote, formatUnlockFee)}
                     </p>
                   ) : (
                     <p className="mt-1 text-xs text-muted">Available now</p>
@@ -208,6 +219,7 @@ export function UnlockPurchasePanel({
                     unlockCredits,
                     primaryCreditUgx,
                     feeUgx,
+                    formatFee: formatUnlockFee,
                   })}
                 </Button>
               </li>

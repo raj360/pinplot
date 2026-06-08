@@ -1,20 +1,8 @@
 import { NextResponse } from "next/server";
 import { headers } from "next/headers";
+import { readEdgeCountryFromHeaders } from "@/lib/intl/edge-geo";
 
 export const dynamic = "force-dynamic";
-
-/**
- * Edge geolocation headers, in priority order. Covers the common enterprise
- * hosting/CDN layers so the viewer's country is detected from their IP at the
- * edge without shipping a heavy client-side IP database.
- */
-const COUNTRY_HEADERS = [
-  "x-vercel-ip-country", // Vercel
-  "cf-ipcountry", // Cloudflare
-  "x-country-code", // Fastly / generic
-  "x-geo-country", // generic / custom proxy
-  "x-appengine-country", // Google App Engine
-] as const;
 
 /** Region/city give us a finer label later (kept optional for now). */
 const REGION_HEADERS = ["x-vercel-ip-country-region", "x-geo-region"] as const;
@@ -36,13 +24,13 @@ function firstHeader(
 export async function GET() {
   const store = await headers();
 
-  const country = firstHeader(store, COUNTRY_HEADERS);
+  const country = readEdgeCountryFromHeaders(store);
   const region = firstHeader(store, REGION_HEADERS);
   const city = firstHeader(store, CITY_HEADERS);
 
   return NextResponse.json(
     {
-      country: country ? country.toUpperCase() : null,
+      country,
       region,
       city: city ? decodeURIComponent(city) : null,
       source: country ? "edge" : "none",

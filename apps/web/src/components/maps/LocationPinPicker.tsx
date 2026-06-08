@@ -8,12 +8,14 @@ import {
   useMapsLibrary,
 } from "@vis.gl/react-google-maps";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { LocateFixed } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   parseGeocoderResult,
   type AddressHints,
 } from "@/lib/maps/address-hints";
 import { requestBrowserLocation } from "@/lib/geo/browser-geolocation";
+import { LISTING_PICKER_PRECISE_ZOOM } from "@/lib/maps/config";
 
 const MAPS_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? "";
 const MAP_ID = process.env.NEXT_PUBLIC_GOOGLE_MAP_ID ?? "";
@@ -28,6 +30,8 @@ type LocationPinPickerProps = {
   readOnly?: boolean;
   showCoordinates?: boolean;
   className?: string;
+  /** Initial zoom — lower (city) for country defaults, higher for precise. */
+  defaultZoom?: number;
 };
 
 export function LocationPinPicker({
@@ -37,9 +41,11 @@ export function LocationPinPicker({
   readOnly = false,
   showCoordinates = true,
   className = "h-56",
+  defaultZoom = 15,
 }: LocationPinPickerProps) {
   const [geoLoading, setGeoLoading] = useState(false);
   const [geoError, setGeoError] = useState<string | null>(null);
+  const [targetZoom, setTargetZoom] = useState<number | undefined>(undefined);
 
   const handleUseMyLocation = useCallback(async () => {
     setGeoError(null);
@@ -47,6 +53,8 @@ export function LocationPinPicker({
     try {
       const location = await requestBrowserLocation();
       onChange(location);
+      // Zoom in so the landlord can place a roof-accurate pin.
+      setTargetZoom(LISTING_PICKER_PRECISE_ZOOM);
     } catch (err) {
       setGeoError(
         err instanceof Error ? err.message : "Could not get your location.",
@@ -68,7 +76,7 @@ export function LocationPinPicker({
         <div className={`overflow-hidden border border-border ${className}`}>
           <Map
             defaultCenter={value.lat && value.lng ? value : KAMPALA_CENTER}
-            defaultZoom={15}
+            defaultZoom={defaultZoom}
             mapId={MAP_ID}
             gestureHandling={readOnly ? "none" : "greedy"}
             disableDefaultUI={readOnly}
@@ -85,7 +93,7 @@ export function LocationPinPicker({
             }
             className="h-full w-full"
           >
-            <MapRecenter value={value} />
+            <MapRecenter value={value} zoom={targetZoom} />
             <ReverseGeocodeHints value={value} onAddressHints={onAddressHints} />
             <AdvancedMarker
               position={value}
@@ -102,21 +110,20 @@ export function LocationPinPicker({
 
         {!readOnly ? (
           <div className="space-y-2">
-            <div className="flex flex-wrap items-center gap-3">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                loading={geoLoading}
-                loadingLabel="Finding your location"
-                onClick={() => void handleUseMyLocation()}
-              >
-                Use my location
-              </Button>
-              <p className="text-xs text-muted">
-                Tap or drag the pin to set the map marker.
-              </p>
-            </div>
+            <Button
+              type="button"
+              className="w-full sm:w-auto"
+              loading={geoLoading}
+              loadingLabel="Finding your location"
+              onClick={() => void handleUseMyLocation()}
+            >
+              <LocateFixed className="size-4" aria-hidden />
+              Use my current location
+            </Button>
+            <p className="text-xs text-muted">
+              Fastest way to start — then tap or drag the pin to fine-tune the
+              exact spot.
+            </p>
             {geoError ? (
               <p className="text-xs text-red-600" role="alert">
                 {geoError}
@@ -167,13 +174,20 @@ function ReverseGeocodeHints({
   return null;
 }
 
-function MapRecenter({ value }: { value: LatLng }) {
+function MapRecenter({ value, zoom }: { value: LatLng; zoom?: number }) {
   const map = useMap();
 
   useEffect(() => {
     if (!map) return;
     map.panTo(value);
   }, [map, value.lat, value.lng]);
+
+  // Apply zoom only when the target changes (e.g. "Use my location"), so manual
+  // zooming isn't overridden on every pin drag.
+  useEffect(() => {
+    if (!map || zoom == null) return;
+    map.setZoom(zoom);
+  }, [map, zoom]);
 
   return null;
 }

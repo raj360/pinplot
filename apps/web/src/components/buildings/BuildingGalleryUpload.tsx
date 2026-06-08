@@ -17,6 +17,8 @@ type BuildingGalleryUploadProps = {
   photos: DraftPhoto[];
   primaryId: string | null;
   onChange: (photos: DraftPhoto[], primaryId: string | null) => void;
+  /** Stable blob URL — pass from `useDraftPhotoUrls` in multi-step wizards. */
+  getPreviewUrl?: (photo: DraftPhoto) => string;
   /** Remaining slots (defaults to full listing limit). */
   maxPhotos?: number;
   error?: string | null;
@@ -35,6 +37,7 @@ export function BuildingGalleryUpload({
   photos,
   primaryId,
   onChange,
+  getPreviewUrl: getPreviewUrlProp,
   maxPhotos = MAX_BUILDING_PHOTOS,
   error,
   onValidationError,
@@ -44,21 +47,29 @@ export function BuildingGalleryUpload({
   const [dragOver, setDragOver] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
 
-  const previewUrls = useMemo(() => {
+  const internalPreviewUrls = useMemo(() => {
+    if (getPreviewUrlProp) return null;
     const map = new Map<string, string>();
     for (const photo of photos) {
       map.set(photo.id, URL.createObjectURL(photo.file));
     }
     return map;
-  }, [photos]);
+  }, [getPreviewUrlProp, photos]);
 
   useEffect(() => {
+    if (!internalPreviewUrls) return;
     return () => {
-      for (const url of previewUrls.values()) {
+      for (const url of internalPreviewUrls.values()) {
         URL.revokeObjectURL(url);
       }
     };
-  }, [previewUrls]);
+  }, [internalPreviewUrls]);
+
+  const resolvePreviewUrl = useCallback(
+    (photo: DraftPhoto) =>
+      getPreviewUrlProp?.(photo) ?? internalPreviewUrls?.get(photo.id) ?? "",
+    [getPreviewUrlProp, internalPreviewUrls],
+  );
 
   const displayError = error ?? localError;
   const limitLabel = `Up to ${MAX_BUILDING_PHOTOS} photos total (cover included).`;
@@ -133,7 +144,7 @@ export function BuildingGalleryUpload({
         <ul className="grid list-none grid-cols-2 gap-3 p-0 sm:grid-cols-4">
           {photos.map((photo) => {
             const isCover = photo.id === primaryId;
-            const previewUrl = previewUrls.get(photo.id);
+            const previewUrl = resolvePreviewUrl(photo);
 
             return (
               <li

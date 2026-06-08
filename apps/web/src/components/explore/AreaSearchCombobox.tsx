@@ -13,12 +13,16 @@ import { createPortal } from "react-dom";
 import {
   filterAreaOptions,
   formatDistanceKm,
+  isSupplyMarket,
   rankAreaOptions,
   resolveSearchArea,
   searchAreaLabel,
+  supplyMarketsLabel,
   type AreaSearchOption,
+  type SearchAreaPreset,
 } from "@/lib/filters/search-areas";
 import { useAnchoredPanelPosition } from "@/lib/hooks/use-anchored-panel-position";
+import { recentAreaOptions, type RecentArea } from "@/lib/filters/recent-areas";
 import type { GeoPoint } from "@/lib/geo/uganda";
 import { cn } from "@/lib/utils/cn";
 
@@ -28,6 +32,14 @@ type AreaSearchComboboxProps = {
   onChange: (value: string) => void;
   userLocation?: GeoPoint | null;
   inUganda?: boolean;
+  /** Viewer's resolved country (for region-aware area sections). */
+  viewerCountryCode?: string;
+  /** Viewer's country display name (for region section headers). */
+  viewerCountryName?: string;
+  /** Recently searched areas — surfaced as a dynamic "Recent" section. */
+  recentAreas?: RecentArea[];
+  /** Seeded geo catalog from GET /geo/places (falls back to static presets). */
+  seededPresets?: SearchAreaPreset[];
   onRequestLocation?: () => void;
   onClearLocation?: () => void;
   locationLoading?: boolean;
@@ -57,6 +69,10 @@ export function AreaSearchCombobox({
   onChange,
   userLocation = null,
   inUganda = false,
+  viewerCountryCode,
+  viewerCountryName,
+  recentAreas,
+  seededPresets,
   onRequestLocation,
   onClearLocation,
   locationLoading = false,
@@ -79,9 +95,23 @@ export function AreaSearchCombobox({
   const [searchDraft, setSearchDraft] = useState("");
   const panelStyle = useAnchoredPanelPosition(open, triggerRef, { minWidth: 320 });
 
+  const viewerInSupplyMarket = isSupplyMarket(viewerCountryCode);
+  const marketsLabel = supplyMarketsLabel();
+  /** Region-aware header: viewer's own cities when abroad, else supply cities. */
+  const citiesHeader = viewerInSupplyMarket
+    ? "Cities & towns"
+    : viewerCountryName
+      ? `Explore in ${viewerCountryName}`
+      : "Explore your area";
+
   const allOptions = useMemo(
-    () => rankAreaOptions(userLocation, inUganda),
-    [inUganda, userLocation],
+    () => rankAreaOptions(userLocation, inUganda, viewerCountryCode, seededPresets),
+    [inUganda, seededPresets, userLocation, viewerCountryCode],
+  );
+
+  const recentOptions = useMemo(
+    () => filterAreaOptions(recentAreaOptions(recentAreas ?? [], value), searchDraft),
+    [recentAreas, searchDraft, value],
   );
 
   const filteredOptions = useMemo(
@@ -90,15 +120,34 @@ export function AreaSearchCombobox({
   );
 
   const groups = useMemo((): OptionGroup[] => {
+    // Don't repeat a recent that's already a curated quick-pick.
+    const curatedValues = new Set(filteredOptions.map((o) => o.value));
+    const recents = recentOptions.filter((o) => !curatedValues.has(o.value));
+
     if (!inUganda || !userLocation || searchDraft.trim()) {
+      const regions = filteredOptions.filter((o) => o.section === "regions");
       const cities = filteredOptions.filter((o) => o.section === "cities");
+      const areas = filteredOptions.filter((o) => o.section === "areas");
+      const supply = filteredOptions.filter((o) => o.section === "supply");
       const kampala = filteredOptions.filter(
         (o) => o.section === "kampala" || o.section === "nearby" || o.section === "all",
       );
       const result: OptionGroup[] = [];
       const browse = filteredOptions.filter((o) => !o.value);
       if (browse.length) result.push({ header: null, options: browse });
-      if (cities.length) result.push({ header: "Cities & towns", options: cities });
+      if (recents.length) {
+        result.push({ header: "Recent", options: recents });
+      }
+      if (regions.length) {
+        result.push({ header: "Regions", options: regions });
+      }
+      if (cities.length) result.push({ header: citiesHeader, options: cities });
+      if (areas.length) {
+        result.push({ header: "Areas", options: areas });
+      }
+      if (supply.length) {
+        result.push({ header: `Listings in ${marketsLabel}`, options: supply });
+      }
       if (kampala.length) {
         result.push({
           header: cities.length ? "Kampala areas" : null,
@@ -121,16 +170,27 @@ export function AreaSearchCombobox({
     const result: OptionGroup[] = [];
     const browse = filteredOptions.filter((o) => !o.value);
     if (browse.length) result.push({ header: null, options: browse });
+    if (recents.length) {
+      result.push({ header: "Recent", options: recents });
+    }
     if (nearby.length > 0) {
       result.push({ header: "Near you", options: nearby });
     }
-    if (cities.length) result.push({ header: "Cities & towns", options: cities });
+    if (cities.length) result.push({ header: citiesHeader, options: cities });
     result.push({
       header: nearby.length > 0 || cities.length ? "Kampala areas" : null,
       options: kampala,
     });
     return result;
-  }, [filteredOptions, inUganda, searchDraft, userLocation]);
+  }, [
+    citiesHeader,
+    filteredOptions,
+    inUganda,
+    marketsLabel,
+    recentOptions,
+    searchDraft,
+    userLocation,
+  ]);
 
   const flatOptions = useMemo(
     () => groups.flatMap((group) => group.options),
@@ -388,10 +448,21 @@ export function AreaSearchCombobox({
                   />
                 </div>
                 <p className="mt-1.5 px-0.5 text-[11px] leading-snug text-muted">
-                  Pick a city or neighbourhood, or press Enter to geocode a custom
-                  place in Uganda.
+                  {viewerInSupplyMarket
+                    ? `Pick a city or neighbourhood, or press Enter to geocode a place in ${marketsLabel}.`
+                    : `Pick a city${viewerCountryName ? ` in ${viewerCountryName}` : ""}, or press Enter to geocode any place.`}
                 </p>
               </div>
+
+              {!viewerInSupplyMarket ? (
+                <div className="border-b border-border bg-primary/4 px-3 py-2 text-[11px] leading-snug text-muted">
+                  <span className="font-medium text-foreground">
+                    Listings are in {marketsLabel} for now.
+                  </span>{" "}
+                  Explore the map{viewerCountryName ? ` in ${viewerCountryName}` : ""}, or
+                  jump to {marketsLabel} to see available homes.
+                </div>
+              ) : null}
 
               <ul className="min-h-0 flex-1 overflow-y-auto p-1">
                 {flatOptions.length === 0 ? (

@@ -19,6 +19,7 @@ import {
 } from "@/lib/unlocks/unlock-pricing";
 import { useBuildingUnlocks } from "@/lib/unlocks/use-building-unlocks";
 import { useAuth } from "@/lib/auth/use-auth";
+import { useViewerContext } from "@/components/providers/ViewerContextProvider";
 
 type BuildingDetailExperienceProps = {
   building: BuildingDetail;
@@ -39,6 +40,7 @@ export function BuildingDetailExperience({
   hideHeader = false,
 }: BuildingDetailExperienceProps) {
   const { profile } = useAuth();
+  const { formatUnlockFee } = useViewerContext();
   const unlocks = useBuildingUnlocks(building.id, building.units, {
     buildingType: building.buildingType,
     countryCode: building.countryCode,
@@ -75,12 +77,15 @@ export function BuildingDetailExperience({
     onCheckoutMethodChange: unlocks.setCheckoutMethod,
     showMobileMoneyCheckout: unlocks.showMobileMoneyCheckout,
     profilePhone: unlocks.profilePhone,
+    listingCurrency: building.currency,
+    listingCountryCode: building.countryCode,
   } as const;
 
   const firstUnlockDescription = unlockPanelDescription({
     unlockCredits: unlocks.unlockCredits,
     primaryCreditUgx: unlocks.primaryCreditUgx,
     quote: unlocks.representativeQuote,
+    formatFee: formatUnlockFee,
   });
 
   if (variant === "compact") {

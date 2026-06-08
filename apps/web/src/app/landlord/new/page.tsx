@@ -33,6 +33,14 @@ import {
 import { cn } from "@/lib/utils/cn";
 import { NewBuildingPreview } from "@/components/landlord/NewBuildingPreview";
 import { TermsAcceptanceField } from "@/components/legal/TermsAcceptanceField";
+import { useViewerContext } from "@/components/providers/ViewerContextProvider";
+import { LISTING_PICKER_COUNTRY_ZOOM } from "@/lib/maps/config";
+import { useDraftPhotoUrls } from "@/lib/images/use-draft-photo-urls";
+import { typicalMonthlyRent } from "@/lib/filters/rent-ranges";
+import {
+  buildSuggestedExactAddress,
+  hasMapPinHints,
+} from "@/lib/maps/building-address-hints";
 
 type UnitRow = {
   unitNumber: string;
@@ -76,6 +84,13 @@ const STEP_COUNT = FORM_STEPS.length;
 
 export default function NewBuildingPage() {
   const router = useRouter();
+  const {
+    countries,
+    countriesByCode,
+    fxRates,
+    getDefaultMapCenter,
+    ready: viewerReady,
+  } = useViewerContext();
   const topRef = useRef<HTMLDivElement>(null);
   const stepRef = useRef(1);
   const [step, setStep] = useState(1);
@@ -87,6 +102,7 @@ export default function NewBuildingPage() {
   const [location, setLocation] = useState<LatLng>(KAMPALA_CENTER);
   const [city, setCity] = useState("Kampala");
   const [district, setDistrict] = useState("");
+  const [countryCode, setCountryCode] = useState("UG");
   const [exactAddress, setExactAddress] = useState("");
   const [addressHint, setAddressHint] = useState("");
   const [areaLabel, setAreaLabel] = useState("");
@@ -100,30 +116,47 @@ export default function NewBuildingPage() {
   const [acceptTerms, setAcceptTerms] = useState(false);
   const [ownershipAttestation, setOwnershipAttestation] = useState(false);
 
+  const { getUrl: getPhotoPreviewUrl } = useDraftPhotoUrls(photos);
+
   const coverPreviewUrl = useMemo(() => {
     const primary =
       photos.find((photo) => photo.id === primaryPhotoId) ?? photos[0];
     if (!primary) return null;
-    return URL.createObjectURL(primary.file);
-  }, [photos, primaryPhotoId]);
+    return getPhotoPreviewUrl(primary);
+  }, [photos, primaryPhotoId, getPhotoPreviewUrl]);
 
   const galleryPreviewUrls = useMemo(
-    () => photos.map((photo) => URL.createObjectURL(photo.file)),
-    [photos],
+    () => photos.map((photo) => getPhotoPreviewUrl(photo)),
+    [photos, getPhotoPreviewUrl],
   );
-
-  useEffect(() => {
-    return () => {
-      if (coverPreviewUrl) URL.revokeObjectURL(coverPreviewUrl);
-      for (const url of galleryPreviewUrls) {
-        URL.revokeObjectURL(url);
-      }
-    };
-  }, [coverPreviewUrl, galleryPreviewUrls]);
 
   const cityTouched = useRef(false);
   const districtTouched = useRef(false);
+  const countryTouched = useRef(false);
+  const rentTouched = useRef(false);
+  const pinTouched = useRef(false);
+  const appliedDefaultCenter = useRef(false);
   const lastAddressHints = useRef<AddressHints | null>(null);
+
+  const listingCurrency =
+    countriesByCode.get(countryCode)?.currency ?? "UGX";
+  const listingLocale =
+    countriesByCode.get(countryCode)?.displayLocale ?? "en-UG";
+  const typicalRent = typicalMonthlyRent({
+    currency: listingCurrency,
+    locale: listingLocale,
+    fxRates,
+  });
+
+  /** Reset the placeholder rent to a believable amount for the new currency. */
+  useEffect(() => {
+    if (rentTouched.current) return;
+    setUnits((prev) =>
+      prev.every((unit) => unit.rentAmount === typicalRent)
+        ? prev
+        : prev.map((unit) => ({ ...unit, rentAmount: typicalRent })),
+    );
+  }, [typicalRent]);
 
   const currentStep = FORM_STEPS[step - 1];
 
@@ -141,20 +174,47 @@ export default function NewBuildingPage() {
     topRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   }, [step]);
 
-  const applyAddressHints = useCallback((hints: AddressHints) => {
-    lastAddressHints.current = hints;
-    setAreaLabel(hints.areaLabel);
-    setAddressHint(hints.addressHint);
-    setZones(hints.zones);
-    setStreetHint(hints.street ?? "");
-    setLandmarkHint(hints.landmark ?? "");
+  const applyAddressHints = useCallback(
+    (hints: AddressHints) => {
+      lastAddressHints.current = hints;
+      setAreaLabel(hints.areaLabel);
+      setAddressHint(hints.addressHint);
+      setZones(hints.zones);
+      setStreetHint(hints.street ?? "");
+      setLandmarkHint(hints.landmark ?? "");
 
-    if (!cityTouched.current) {
-      setCity(resolveCityFromHints(hints));
+      if (!cityTouched.current) {
+        setCity(resolveCityFromHints(hints));
+      }
+      if (!districtTouched.current) {
+        setDistrict(resolveDistrictFromHints(hints));
+      }
+      // Auto-set the building country (and thus currency) from the pin unless
+      // the landlord has explicitly chosen one.
+      if (
+        !countryTouched.current &&
+        hints.countryCode &&
+        countriesByCode.has(hints.countryCode)
+      ) {
+        setCountryCode(hints.countryCode);
+      }
+    },
+    [countriesByCode],
+  );
+
+  /** Open the map near the landlord's region instead of always Kampala. */
+  useEffect(() => {
+    if (!viewerReady || pinTouched.current || appliedDefaultCenter.current) {
+      return;
     }
-    if (!districtTouched.current) {
-      setDistrict(resolveDistrictFromHints(hints));
-    }
+    appliedDefaultCenter.current = true;
+    setLocation(getDefaultMapCenter());
+  }, [viewerReady, getDefaultMapCenter]);
+
+  /** User-driven pin change (map click, drag, or "Use my location"). */
+  const handleLocationChange = useCallback((next: LatLng) => {
+    pinTouched.current = true;
+    setLocation(next);
   }, []);
 
   /** Pin is source of truth — moving it clears manual overrides from a prior pin. */
@@ -169,6 +229,24 @@ export default function NewBuildingPage() {
     if (cityTouched.current || districtTouched.current) return;
     applyAddressHints(lastAddressHints.current);
   }, [step, applyAddressHints]);
+
+  const suggestedExactAddress = buildSuggestedExactAddress({
+    addressHint,
+    streetHint,
+    landmarkHint,
+    areaLabel,
+    district,
+    city,
+  });
+
+  const showPinHintsOnDetails =
+    step === 2 &&
+    hasMapPinHints({ areaLabel, streetHint, landmarkHint, addressHint });
+
+  function applySuggestedExactAddress() {
+    if (!suggestedExactAddress.trim()) return;
+    setExactAddress(suggestedExactAddress);
+  }
 
   function validateCurrentStep(current: number): boolean {
     setError(null);
@@ -277,6 +355,7 @@ export default function NewBuildingPage() {
         name: buildingName.trim(),
         city: city.trim() || "Kampala",
         district: district.trim(),
+        countryCode,
         approximateLat: location.lat,
         approximateLng: location.lng,
         exactLat: location.lat,
@@ -318,7 +397,7 @@ export default function NewBuildingPage() {
         unitNumber: String(u.length + 1),
         bedrooms: 1,
         bathrooms: 1,
-        rentAmount: 500000,
+        rentAmount: typicalRent,
       },
     ]);
   }
@@ -361,8 +440,9 @@ export default function NewBuildingPage() {
             <>
               <LocationPinPicker
                 value={location}
-                onChange={setLocation}
+                onChange={handleLocationChange}
                 onAddressHints={applyAddressHints}
+                defaultZoom={LISTING_PICKER_COUNTRY_ZOOM}
               />
               {areaLabel ? (
                 <div className="space-y-2">
@@ -423,6 +503,27 @@ export default function NewBuildingPage() {
                   )}
                 </select>
               </label>
+              <label className="block text-sm">
+                Country
+                <select
+                  name="countryCode"
+                  value={countryCode}
+                  onChange={(event) => {
+                    countryTouched.current = true;
+                    setCountryCode(event.target.value);
+                  }}
+                  className="mt-1 w-full border border-border bg-surface px-3 py-2"
+                >
+                  {countries.map((country) => (
+                    <option key={country.code} value={country.code}>
+                      {country.name} ({country.currency})
+                    </option>
+                  ))}
+                </select>
+                <span className="mt-1 block text-xs text-muted">
+                  Set from your map pin — rent is listed in {listingCurrency}.
+                </span>
+              </label>
               <div className="grid gap-3 sm:grid-cols-2">
                 <ControlledField
                   label="City"
@@ -447,17 +548,32 @@ export default function NewBuildingPage() {
                   }}
                 />
               </div>
-              <ControlledField
-                label="Exact address"
-                name="exactAddress"
-                value={exactAddress}
-                placeholder={
-                  addressHint || streetHint || landmarkHint
-                    ? `e.g. ${[addressHint, landmarkHint].filter(Boolean).join(", ") || streetHint}, ${areaLabel || "your pin"}`
-                    : "Plot, street, or landmark"
-                }
-                onChange={setExactAddress}
-              />
+              <div>
+                <ControlledField
+                  label="Exact address"
+                  name="exactAddress"
+                  value={exactAddress}
+                  placeholder={
+                    suggestedExactAddress
+                      ? `e.g. ${suggestedExactAddress}`
+                      : "Plot, street, or landmark"
+                  }
+                  onChange={setExactAddress}
+                />
+                {showPinHintsOnDetails && suggestedExactAddress ? (
+                  <p className="mt-1 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-xs text-muted">
+                    <span className="shrink-0">From your pin:</span>
+                    <span className="text-foreground">{suggestedExactAddress}</span>
+                    <button
+                      type="button"
+                      onClick={applySuggestedExactAddress}
+                      className="shrink-0 font-medium text-primary hover:underline"
+                    >
+                      {exactAddress.trim() ? "Replace" : "Use"}
+                    </button>
+                  </p>
+                ) : null}
+              </div>
             </div>
           ) : null}
 
@@ -466,6 +582,7 @@ export default function NewBuildingPage() {
               <BuildingGalleryUpload
                 photos={photos}
                 primaryId={primaryPhotoId}
+                getPreviewUrl={getPhotoPreviewUrl}
                 onChange={(nextPhotos, nextPrimaryId) => {
                   setPhotos(nextPhotos);
                   setPrimaryPhotoId(nextPrimaryId);
@@ -499,7 +616,7 @@ export default function NewBuildingPage() {
                 <span>Unit #</span>
                 <span>Bed Rooms</span>
                 <span>Bath Rooms</span>
-                <span>Rent (UGX)</span>
+                <span>Rent ({listingCurrency})</span>
                 <span className="sr-only">Remove</span>
               </div>
 
@@ -547,11 +664,12 @@ export default function NewBuildingPage() {
                     min={0}
                     value={unit.rentAmount}
                     onChange={(e) => {
+                      rentTouched.current = true;
                       const next = [...units];
                       next[i].rentAmount = Number(e.target.value);
                       setUnits(next);
                     }}
-                    aria-label={`Unit ${i + 1} rent in UGX`}
+                    aria-label={`Unit ${i + 1} rent in ${listingCurrency}`}
                     className="border border-border px-2 py-2 text-sm"
                   />
                   <button
@@ -631,6 +749,8 @@ export default function NewBuildingPage() {
               galleryPreviewUrls={galleryPreviewUrls}
               units={units}
               step={step}
+              listingCurrency={listingCurrency}
+              listingCountryCode={countryCode}
             />
           </div>
         </aside>

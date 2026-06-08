@@ -48,6 +48,7 @@ export function ExploreEmptyResults({
   const suggestions = buildExploreEmptySuggestions(
     appliedFilters,
     appliedMapBounds,
+    { currency: viewer.displayCurrency, locale: viewer.displayLocale },
   );
   const hasActiveFilters = suggestions.length > 0;
   const outsideSupply =

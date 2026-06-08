@@ -1,7 +1,10 @@
 import type { ExploreSearchFilters } from "@/components/explore/ExploreFilters";
 import type { Bounds } from "@/lib/api/buildings";
 import { buildingTypeLabel } from "@/lib/filters/building-types";
-import { rentRangeShortLabel } from "@/lib/filters/rent-ranges";
+import {
+  rentRangeShortLabel,
+  type RentRangeMoney,
+} from "@/lib/filters/rent-ranges";
 import { searchAreaLabel } from "@/lib/filters/search-areas";
 import { mapAreaChipLabel } from "@/lib/explore/map-bounds";
 
@@ -15,6 +18,7 @@ export type ExploreFilterChip = {
 export function buildExploreFilterChips(
   filters: ExploreSearchFilters,
   mapBounds?: Bounds | null,
+  money?: RentRangeMoney,
 ): ExploreFilterChip[] {
   const chips: ExploreFilterChip[] = [];
 
@@ -31,7 +35,7 @@ export function buildExploreFilterChips(
     }
   }
 
-  const price = rentRangeShortLabel(filters.priceRange);
+  const price = rentRangeShortLabel(filters.priceRange, money);
   if (price) {
     chips.push({ key: "priceRange", label: price });
   }

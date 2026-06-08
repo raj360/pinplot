@@ -17,9 +17,9 @@ export function FeaturedListingCard({ building }: FeaturedListingCardProps) {
   return (
     <Link
       href={`/explore?building=${building.id}`}
-      className="group flex flex-col overflow-hidden border border-border bg-surface shadow-card transition-shadow hover:shadow-card-md"
+      className="group flex h-full min-w-0 flex-col overflow-hidden rounded-sm border border-border bg-surface shadow-card transition-shadow hover:shadow-card-md"
     >
-      <div className="relative aspect-[4/3] bg-panel">
+      <div className="relative aspect-4/3 shrink-0 bg-panel">
         {building.coverThumbUrl ? (
           <>
             <FeaturedListingBadge variant="overlay" />
@@ -37,21 +37,24 @@ export function FeaturedListingCard({ building }: FeaturedListingCardProps) {
           </div>
         )}
       </div>
-      <div className="flex flex-1 flex-col p-4">
-        <h3 className="line-clamp-2 text-base font-semibold leading-snug text-primary group-hover:underline">
+      <div className="flex min-h-0 flex-1 flex-col p-3 sm:p-4">
+        <h3 className="line-clamp-2 text-sm font-semibold leading-snug text-primary group-hover:underline sm:text-base">
           {building.name}
         </h3>
         {location ? (
-          <p className="mt-1.5 flex items-center gap-1.5 text-sm text-muted">
-            <MapPin className="size-3.5 shrink-0" aria-hidden />
-            <span className="line-clamp-1">{location}</span>
+          <p className="mt-1 flex min-w-0 items-start gap-1.5 text-xs text-muted sm:mt-1.5 sm:text-sm">
+            <MapPin className="mt-0.5 size-3.5 shrink-0" aria-hidden />
+            <span className="line-clamp-2 min-w-0 break-words">{location}</span>
           </p>
         ) : null}
-        <p className="mt-auto pt-3 text-sm text-muted">
+        <p className="mt-auto space-y-0.5 pt-2 text-xs leading-snug text-muted sm:pt-3 sm:text-sm">
           {building.availableUnitCount > 0 ? (
             <>
-              {building.availableUnitCount} available · from{" "}
-              <span className="font-medium text-foreground">
+              <span className="block">
+                {building.availableUnitCount} available
+              </span>
+              <span className="block font-medium text-foreground">
+                from{" "}
                 {formatListingRentPerMonth(
                   building.rentFrom,
                   building.currency,

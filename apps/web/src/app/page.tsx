@@ -1,3 +1,4 @@
+import { headers } from "next/headers";
 import { AppHeader } from "@/components/layout/AppHeader";
 import { PageMain } from "@/components/layout/PageShell";
 import { HeroSection } from "@/components/home/HeroSection";
@@ -6,9 +7,14 @@ import { HomeValueProps } from "@/components/home/HomeValueProps";
 import { HomeLandlordCta } from "@/components/home/HomeLandlordCta";
 import { HomeFooter } from "@/components/home/HomeFooter";
 import { fetchFeaturedBuildings } from "@/lib/api/buildings";
+import { resolveServerViewerCountry } from "@/lib/intl/resolve-viewer-country";
 
 export default async function HomePage() {
-  let featured = await fetchFeaturedBuildings(12).catch(() => []);
+  const headerStore = await headers();
+  const serverCountryCode = resolveServerViewerCountry(headerStore);
+  const featured = await fetchFeaturedBuildings(12, serverCountryCode).catch(
+    () => [],
+  );
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
@@ -16,7 +22,10 @@ export default async function HomePage() {
 
       <PageMain className="flex flex-1 flex-col gap-12 sm:gap-14">
         <HeroSection />
-        <FeaturedListingsSection buildings={featured} />
+        <FeaturedListingsSection
+          initialBuildings={featured}
+          serverCountryCode={serverCountryCode}
+        />
         <HomeValueProps />
         <HomeLandlordCta />
       </PageMain>

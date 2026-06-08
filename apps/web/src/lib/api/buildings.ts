@@ -83,8 +83,10 @@ export async function fetchBuildingsInBounds(
 
 export async function fetchFeaturedBuildings(
   limit = 12,
+  countryCode?: string,
 ): Promise<BuildingSummary[]> {
   const params = new URLSearchParams({ limit: String(limit) });
+  if (countryCode) params.set("countryCode", countryCode);
   const res = await fetch(`${API_URL}/api/v1/buildings/featured?${params}`, {
     next: { revalidate: 60 },
   });
@@ -135,6 +137,8 @@ export type CreateBuildingPayload = {
   description?: string;
   city: string;
   district?: string;
+  /** ISO 3166-1 alpha-2 country of the building (drives listing currency). */
+  countryCode?: string;
   approximateLat: number;
   approximateLng: number;
   exactLat?: number;
@@ -313,6 +317,10 @@ export type AdminPendingBuildingDetail = {
   description: string | null;
   city: string;
   district: string | null;
+  /** ISO country of the building — drives listing currency/locale. */
+  countryCode: string;
+  /** Listing currency (e.g. UGX, GBP) — units are priced in this. */
+  currency: string;
   buildingType: string;
   exactAddress: string | null;
   coverImagePath: string | null;

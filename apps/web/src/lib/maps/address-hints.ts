@@ -10,6 +10,8 @@ export type AddressHints = {
   zones: string[];
   street?: string;
   landmark?: string;
+  /** ISO 3166-1 alpha-2 country of the pin (e.g. "UG", "NG"), if resolved. */
+  countryCode?: string;
 };
 
 function getComponent(
@@ -17,6 +19,13 @@ function getComponent(
   type: string,
 ) {
   return components.find((c) => c.types.includes(type))?.long_name;
+}
+
+function getComponentShort(
+  components: google.maps.GeocoderAddressComponent[],
+  type: string,
+) {
+  return components.find((c) => c.types.includes(type))?.short_name;
 }
 
 function uniqueNames(names: string[]): string[] {
@@ -149,6 +158,11 @@ export function parseGeocoderResult(
 
   const district = resolveDistrictFromParts(city, zones, areaLabel);
 
+  const countryShort = getComponentShort(components, "country");
+  const countryCode = countryShort
+    ? countryShort.trim().toUpperCase()
+    : undefined;
+
   return {
     city,
     district,
@@ -157,6 +171,7 @@ export function parseGeocoderResult(
     zones,
     street: street || undefined,
     landmark,
+    countryCode,
   };
 }
 

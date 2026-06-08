@@ -81,6 +81,13 @@ export class FeaturedBuildingsQueryDto {
   @Min(1)
   @Max(24)
   limit?: number;
+
+  /** Viewer region — prioritizes listings in this country, then fills the rest. */
+  @IsOptional()
+  @IsString()
+  @MinLength(2)
+  @MaxLength(2)
+  countryCode?: string;
 }
 
 export class CreateBuildingDto {
@@ -97,6 +104,12 @@ export class CreateBuildingDto {
   @IsOptional()
   @IsString()
   district?: string;
+
+  @IsOptional()
+  @IsString()
+  @MinLength(2)
+  @MaxLength(2)
+  countryCode?: string;
 
   @Type(() => Number)
   @IsNumber()

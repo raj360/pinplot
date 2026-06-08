@@ -8,7 +8,7 @@ import {
   useMemo,
   useState,
 } from "react";
-import type { CountryCatalog } from "@plotpin/shared-types";
+import { DEFAULT_COUNTRY, type CountryCatalog } from "@plotpin/shared-types";
 import {
   fetchCountryCatalogClient,
   fetchFxRatesClient,
@@ -20,17 +20,24 @@ import { buildFxRateMap, type FxRateMap } from "@/lib/intl/fx-rates";
 import {
   formatMoney,
   formatRentPerMonthWithFootnote,
-  viewerContextFromCountry,
+  formatViewerMoney,
   type FormattedMoney,
   type ViewerContext,
+  formatCanonicalUgxForViewer,
 } from "@/lib/intl/format-money";
 import {
   readStoredViewerCountry,
   resolveViewerCountryCode,
+  resolveViewerContext,
   writeStoredViewerCountry,
   clearStoredViewerCountry,
 } from "@/lib/intl/resolve-viewer-country";
 import { fetchIpCountry } from "@/lib/intl/geo-ip";
+import { boundsAround } from "@/lib/filters/search-areas";
+import {
+  EXPLORE_CITY_RADIUS_DEG,
+  LISTING_PICKER_COUNTRY_CENTERS,
+} from "@/lib/maps/config";
 import type { Bounds } from "@/lib/api/buildings";
 
 type ViewerContextValue = {
@@ -42,6 +49,8 @@ type ViewerContextValue = {
   setViewerCountryCode: (code: string) => void;
   resetViewerCountryOverride: () => Promise<void>;
   getDefaultMapBounds: () => Bounds | null;
+  /** Major-city center near the viewer's region for the listing picker. */
+  getDefaultMapCenter: () => { lat: number; lng: number };
   formatListingMoney: (
     amount: number,
     listingCurrency: string,
@@ -52,6 +61,10 @@ type ViewerContextValue = {
     listingCurrency: string,
     listingCountryCode?: string,
   ) => string;
+  /** Format a canonical-UGX fee (e.g. unlock fee) in the viewer's currency. */
+  formatUnlockFee: (amountUgx: number) => string;
+  /** Unlock fee for hero/marketing — viewer currency first, UGX footnote when different. */
+  formatUnlockFeeLabel: (amountUgx: number) => FormattedMoney;
 };
 
 const ViewerContextReact = createContext<ViewerContextValue | null>(null);
@@ -68,6 +81,7 @@ const FALLBACK_COUNTRIES: CountryCatalog[] = [
   },
 ];
 
+/** Offline bootstrap only — live rates come from GET /api/v1/fx/rates (open.er-api.com). */
 const FALLBACK_FX: FxRateEntry[] = [
   { baseCurrency: "UGX", quoteCurrency: "UGX", rate: 1, updatedAt: "" },
   { baseCurrency: "UGX", quoteCurrency: "USD", rate: 0.00026, updatedAt: "" },
@@ -94,6 +108,10 @@ export function ViewerContextProvider({
     buildFxRateMap(FALLBACK_FX),
   );
   const [viewerCountryCode, setViewerCountryCodeState] = useState("UG");
+  const [resolutionHints, setResolutionHints] = useState<{
+    profileCountry: string | null;
+    ipCountry: string | null;
+  }>({ profileCountry: null, ipCountry: null });
 
   useEffect(() => {
     let cancelled = false;
@@ -139,6 +157,8 @@ export function ViewerContextProvider({
 
       if (cancelled) return;
 
+      setResolutionHints({ profileCountry, ipCountry });
+
       const resolved = resolveViewerCountryCode({
         storedCountry: readStoredViewerCountry(),
         profileCountry,
@@ -163,6 +183,7 @@ export function ViewerContextProvider({
           .catch(() => null),
         fetchIpCountry().catch(() => null),
       ]).then(([profileCountry, ipCountry]) => {
+        setResolutionHints({ profileCountry, ipCountry });
         const resolved = resolveViewerCountryCode({
           storedCountry: readStoredViewerCountry(),
           profileCountry,
@@ -183,10 +204,21 @@ export function ViewerContextProvider({
   );
 
   const activeCountry = countriesByCode.get(viewerCountryCode) ?? countries[0];
-  const viewer = useMemo(
-    () => viewerContextFromCountry(activeCountry),
-    [activeCountry],
-  );
+  const viewer = useMemo<ViewerContext>(() => {
+    return resolveViewerContext(
+      {
+        storedCountry: readStoredViewerCountry(),
+        profileCountry: resolutionHints.profileCountry,
+        ipCountry: resolutionHints.ipCountry,
+      },
+      countriesByCode,
+    );
+  }, [
+    countriesByCode,
+    resolutionHints.ipCountry,
+    resolutionHints.profileCountry,
+    viewerCountryCode,
+  ]);
 
   const setViewerCountryCode = useCallback((code: string) => {
     writeStoredViewerCountry(code);
@@ -210,13 +242,28 @@ export function ViewerContextProvider({
         ipCountry,
       }),
     );
+    setResolutionHints({ profileCountry, ipCountry });
   }, [isAuthenticated]);
 
+  const getDefaultMapCenter = useCallback((): { lat: number; lng: number } => {
+    if (activeCountry?.mapCenter) {
+      return activeCountry.mapCenter;
+    }
+    return (
+      LISTING_PICKER_COUNTRY_CENTERS[viewerCountryCode] ??
+      LISTING_PICKER_COUNTRY_CENTERS.UG
+    );
+  }, [activeCountry, viewerCountryCode]);
+
   const getDefaultMapBounds = useCallback((): Bounds | null => {
-    const bounds = activeCountry?.mapBounds;
-    if (!bounds) return null;
-    return bounds;
-  }, [activeCountry]);
+    if (activeCountry?.mapBounds) {
+      return activeCountry.mapBounds;
+    }
+    // Non-supply markets have no catalog map_bounds — derive a city-level
+    // viewport from the viewer's region center instead of falling back to UG.
+    const center = getDefaultMapCenter();
+    return boundsAround(center.lat, center.lng, EXPLORE_CITY_RADIUS_DEG);
+  }, [activeCountry, getDefaultMapCenter]);
 
   const formatListingMoney = useCallback(
     (amount: number, listingCurrency: string, listingCountryCode?: string) =>
@@ -243,6 +290,16 @@ export function ViewerContextProvider({
     [countriesByCode, fxRates, viewer],
   );
 
+  const formatUnlockFee = useCallback(
+    (amountUgx: number) => formatViewerMoney(amountUgx, viewer, fxRates),
+    [fxRates, viewer],
+  );
+
+  const formatUnlockFeeLabel = useCallback(
+    (amountUgx: number) => formatCanonicalUgxForViewer(amountUgx, viewer, fxRates),
+    [fxRates, viewer],
+  );
+
   const value = useMemo<ViewerContextValue>(
     () => ({
       ready,
@@ -253,8 +310,11 @@ export function ViewerContextProvider({
       setViewerCountryCode,
       resetViewerCountryOverride,
       getDefaultMapBounds,
+      getDefaultMapCenter,
       formatListingMoney,
       formatListingRentPerMonth,
+      formatUnlockFee,
+      formatUnlockFeeLabel,
     }),
     [
       ready,
@@ -265,8 +325,11 @@ export function ViewerContextProvider({
       setViewerCountryCode,
       resetViewerCountryOverride,
       getDefaultMapBounds,
+      getDefaultMapCenter,
       formatListingMoney,
       formatListingRentPerMonth,
+      formatUnlockFee,
+      formatUnlockFeeLabel,
     ],
   );
 
