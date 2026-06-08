@@ -1,6 +1,7 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { PostmarkService } from "../notifications/postmark.service";
+import { TransactionalEmailBuilder } from "../notifications/transactional-email-builder.service";
 
 export type ListingRejectedNotification = {
   landlordId: string;
@@ -32,6 +33,7 @@ export class LandlordNotificationsService {
   constructor(
     private readonly postmark: PostmarkService,
     private readonly config: ConfigService,
+    private readonly emails: TransactionalEmailBuilder,
   ) {}
 
   private appUrl(path: string) {
@@ -55,21 +57,17 @@ export class LandlordNotificationsService {
     const manageUrl = this.appUrl(
       `/landlord/buildings/${payload.buildingId}`,
     );
-    const subject = `PlotPin: tenant unlocked Unit ${payload.unitNumber}`;
-    const textBody = [
-      `A tenant unlocked contact for "${payload.buildingName}" — Unit ${payload.unitNumber}.`,
-      "",
-      "They have a time-limited exclusive window to reach you. Respond promptly while the listing is fresh.",
-      "",
+    const { html, text } = this.emails.buildUnlockReceivedEmail(
+      payload.buildingName,
+      payload.unitNumber,
       manageUrl,
-      "",
-      "— PlotPin",
-    ].join("\n");
+    );
 
     const result = await this.postmark.sendEmail({
       to: email,
-      subject,
-      textBody,
+      subject: `PlotPin: tenant unlocked Unit ${payload.unitNumber}`,
+      textBody: text,
+      htmlBody: html,
       tag: "landlord_unlock_received",
     });
 
@@ -93,21 +91,16 @@ export class LandlordNotificationsService {
     const manageUrl = this.appUrl(
       `/landlord/buildings/${payload.buildingId}`,
     );
-    const subject = `PlotPin: "${payload.buildingName}" is approved`;
-    const textBody = [
-      `Your listing "${payload.buildingName}" has been approved on PlotPin.`,
-      "",
-      "Listing is free. Mark at least one unit as available when you are ready for tenants to discover it on the map.",
-      "",
-      `Manage your building: ${manageUrl}`,
-      "",
-      "— PlotPin",
-    ].join("\n");
+    const { html, text } = this.emails.buildListingApprovedEmail(
+      payload.buildingName,
+      manageUrl,
+    );
 
     const result = await this.postmark.sendEmail({
       to: email,
-      subject,
-      textBody,
+      subject: `PlotPin: "${payload.buildingName}" is approved`,
+      textBody: text,
+      htmlBody: html,
       tag: "landlord_listing_approved",
     });
 
@@ -134,24 +127,17 @@ export class LandlordNotificationsService {
     }
 
     const dashboardUrl = this.appUrl("/landlord/dashboard");
-    const subject = `PlotPin: "${payload.buildingName}" needs changes`;
-    const textBody = [
-      `Your listing "${payload.buildingName}" was not approved yet.`,
-      "",
-      "Reason:",
+    const { html, text } = this.emails.buildListingRejectedEmail(
+      payload.buildingName,
       payload.reason,
-      "",
-      "Fix the issues in your dashboard and resubmit for review.",
-      "",
       dashboardUrl,
-      "",
-      "— PlotPin",
-    ].join("\n");
+    );
 
     const result = await this.postmark.sendEmail({
       to: email,
-      subject,
-      textBody,
+      subject: `PlotPin: "${payload.buildingName}" needs changes`,
+      textBody: text,
+      htmlBody: html,
       tag: "landlord_listing_rejected",
     });
 

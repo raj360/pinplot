@@ -1,6 +1,8 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { DatabaseService } from "../database/database.service";
+import { PostmarkService } from "../notifications/postmark.service";
+import { TransactionalEmailBuilder } from "../notifications/transactional-email-builder.service";
 import {
   CODE_LENGTH,
   DEFAULT_TTL_SECONDS,
@@ -10,22 +12,25 @@ import {
 export class EmailDeliveryService {
   private readonly logger = new Logger(EmailDeliveryService.name);
 
-  constructor(private readonly config: ConfigService) {}
+  constructor(
+    private readonly config: ConfigService,
+    private readonly postmark: PostmarkService,
+    private readonly emails: TransactionalEmailBuilder,
+  ) {}
 
-  /**
-   * Dev: log code to API terminal.
-   * Prod (later): Postmark transactional email from PlotPin.
-   */
   async sendLoginCode(email: string, code: string): Promise<boolean> {
-    const postmarkToken = this.config.get<string>("POSTMARK_SERVER_TOKEN");
-    const fromEmail =
-      this.config.get<string>("POSTMARK_FROM_EMAIL") ?? "noreply@plotpin.app";
+    const { html, text } = this.emails.buildLoginCodeEmail(code);
 
-    if (postmarkToken?.trim()) {
-      // Postmark integration — wire in when credentials are ready.
-      this.logger.warn(
-        `POSTMARK_SERVER_TOKEN is set but Postmark sender is not implemented yet (${fromEmail})`,
-      );
+    if (this.postmark.isConfigured()) {
+      const result = await this.postmark.sendEmail({
+        to: email,
+        subject: `${code} is your PlotPin sign-in code`,
+        textBody: text,
+        htmlBody: html,
+        tag: "auth_login_code",
+      });
+      if (result.delivered) return true;
+      this.logger.error(`Postmark login code failed for ${email}`);
       return false;
     }
 

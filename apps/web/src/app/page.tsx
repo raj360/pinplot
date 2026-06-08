@@ -20,7 +20,7 @@ export default async function HomePage() {
     <div className="flex min-h-screen flex-col bg-background">
       <AppHeader />
 
-      <PageMain className="flex flex-1 flex-col gap-12 sm:gap-14">
+      <PageMain className="flex flex-1 flex-col gap-12 bg-linear-to-b from-primary/[0.04] via-background to-background sm:gap-14">
         <HeroSection />
         <FeaturedListingsSection
           initialBuildings={featured}

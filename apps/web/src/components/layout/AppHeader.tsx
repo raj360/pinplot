@@ -2,8 +2,8 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { APP_NAME } from "@plotpin/shared-types";
 import { useAuth } from "@/lib/auth/use-auth";
+import { PlotPinLogo } from "@/components/brand/PlotPinLogo";
 import {
   getUserDisplayLabel,
   getUserInitials,
@@ -21,14 +21,12 @@ import { HeaderNavSkeleton } from "@/components/layout/HeaderNavSkeleton";
 type AppHeaderProps = {
   /** standard = max-w-5xl, wide = explore map, sidebar = admin grid */
   variant?: HeaderVariant;
-  centerLabel?: string;
   backHref?: string;
   backLabel?: string;
 };
 
 export function AppHeader({
   variant = "standard",
-  centerLabel,
   backHref,
   backLabel,
 }: AppHeaderProps) {
@@ -58,8 +56,8 @@ export function AppHeader({
           {backLabel ?? "← Back"}
         </Link>
       ) : null}
-      <Link href="/" className="shrink-0 text-base font-semibold tracking-tight">
-        {centerLabel ?? APP_NAME}
+      <Link href="/" className="inline-flex shrink-0 items-center">
+        <PlotPinLogo variant="white" height={26} priority />
       </Link>
     </div>
   );

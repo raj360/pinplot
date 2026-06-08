@@ -19,9 +19,9 @@ export function HomeValueProps() {
       {VALUE_PROPS.map((card) => (
         <article
           key={card.title}
-          className="border border-border bg-surface p-4 shadow-xs"
+          className="border border-border bg-surface p-5 shadow-xs transition-shadow hover:shadow-card"
         >
-          <h2 className="font-semibold">{card.title}</h2>
+          <h2 className="font-semibold text-primary">{card.title}</h2>
           <p className="mt-2 text-sm leading-relaxed text-muted">{card.body}</p>
         </article>
       ))}

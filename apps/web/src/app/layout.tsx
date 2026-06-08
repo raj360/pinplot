@@ -14,10 +14,29 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "PlotPin — Find rental units on the map",
+  title: {
+    default: "PlotPin — Find verified rentals on the map",
+    template: "%s · PlotPin",
+  },
   description:
-    "Map-first property discovery for tenants and landlords. Uganda launch, global-ready.",
+    "Map-first rental discovery. Browse approximate pins for free, unlock landlord contact when you are ready. Uganda supply, global discovery.",
   applicationName: "PlotPin",
+  icons: {
+    icon: [
+      { url: "/favicon.ico", sizes: "any" },
+      { url: "/favicon.svg", type: "image/svg+xml" },
+      { url: "/favicon-96x96.png", sizes: "96x96", type: "image/png" },
+    ],
+    apple: [{ url: "/apple-touch-icon.png", sizes: "180x180" }],
+  },
+  manifest: "/site.webmanifest",
+  openGraph: {
+    title: "PlotPin — Find verified rentals on the map",
+    description:
+      "Browse rentals on the map. Pay once to unlock the landlord. Uganda supply, global discovery.",
+    siteName: "PlotPin",
+    type: "website",
+  },
 };
 
 export const viewport: Viewport = {

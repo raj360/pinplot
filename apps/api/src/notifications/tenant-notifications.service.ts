@@ -1,6 +1,7 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
-import { PostmarkService } from "./postmark.service";
+import { PostmarkService } from "../notifications/postmark.service";
+import { TransactionalEmailBuilder } from "../notifications/transactional-email-builder.service";
 
 export type UnlockReceiptNotification = {
   tenantId: string;
@@ -17,6 +18,7 @@ export class TenantNotificationsService {
   constructor(
     private readonly postmark: PostmarkService,
     private readonly config: ConfigService,
+    private readonly emails: TransactionalEmailBuilder,
   ) {}
 
   async notifyUnlockReceipt(
@@ -29,20 +31,18 @@ export class TenantNotificationsService {
     }
 
     const unlocksUrl = this.appUrl("/tenant/unlocks");
+    const { html, text } = this.emails.buildUnlockReceiptEmail(
+      payload.buildingName,
+      payload.unitNumber,
+      payload.amountUgx,
+      unlocksUrl,
+    );
+
     const result = await this.postmark.sendEmail({
       to: email,
       subject: `PlotPin unlock — ${payload.buildingName} Unit ${payload.unitNumber}`,
-      textBody: [
-        "Your unlock is active.",
-        "",
-        `Building: ${payload.buildingName}`,
-        `Unit: ${payload.unitNumber}`,
-        `Fee: ${payload.amountUgx.toLocaleString()} UGX (or equivalent charged at checkout)`,
-        "",
-        `View contact and directions: ${unlocksUrl}`,
-        "",
-        "— PlotPin",
-      ].join("\n"),
+      textBody: text,
+      htmlBody: html,
       tag: "tenant_unlock_receipt",
     });
 

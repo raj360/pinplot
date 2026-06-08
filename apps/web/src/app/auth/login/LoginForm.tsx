@@ -11,8 +11,11 @@ import { sendLoginCode, verifyLoginCode } from "@/lib/api/auth";
 import { fetchMyProfile } from "@/lib/api/profiles";
 import { isProfileIncomplete } from "@/lib/auth/profile-complete";
 import { syncProfileAfterAuth } from "@/lib/auth/sync-profile";
+import { PlotPinLogo } from "@/components/brand/PlotPinLogo";
+import { GoogleIcon } from "@/components/icons/GoogleIcon";
 import { Button } from "@/components/ui/button";
 import { FormField } from "@/components/ui/form-field";
+import { cn } from "@/lib/utils/cn";
 
 const emailSchema = z.object({
   email: z.string().email({ message: "Enter a valid email address" }),
@@ -145,117 +148,188 @@ export function LoginForm() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background p-4">
-      <div className="w-full max-w-md border border-border bg-surface p-6">
-        <h1 className="text-xl font-bold">Sign in to PlotPin</h1>
-        <p className="mt-1 text-sm text-muted">
-          Enter your email and we&apos;ll send a 6-digit code from PlotPin — no
-          password required.
-        </p>
+    <div className="flex min-h-screen bg-background">
+      {/* Brand panel — desktop only */}
+      <aside
+        className="relative hidden w-[min(42%,480px)] shrink-0 overflow-hidden bg-primary lg:flex lg:flex-col lg:justify-between lg:p-10"
+        aria-hidden
+      >
+        <div
+          className="pointer-events-none absolute inset-0 bg-linear-to-br from-primary via-primary to-[#1e40af] opacity-100"
+          aria-hidden
+        />
+        <div
+          className="pointer-events-none absolute -right-16 -top-24 size-64 rounded-full bg-white/10 blur-3xl"
+          aria-hidden
+        />
+        <div
+          className="pointer-events-none absolute -bottom-20 -left-12 size-72 rounded-full bg-white/5 blur-3xl"
+          aria-hidden
+        />
 
-        {step === "email" ? (
-          <form
-            onSubmit={emailForm.handleSubmit(onSendCode)}
-            className="mt-6 space-y-4"
-            noValidate
-          >
-            <FormField<EmailFormData>
-              id="login-email"
-              label="Email"
-              name="email"
-              type="email"
-              autoComplete="email"
-              placeholder="you@example.com"
-              register={emailForm.register}
-              error={emailForm.formState.errors.email}
-            />
-            {error && <p className="text-sm text-red-600">{error}</p>}
-            <Button
-              type="submit"
-              className="w-full"
-              loading={loading}
-              loadingLabel="Sending sign-in code"
-            >
-              Continue with email
-            </Button>
-          </form>
-        ) : (
-          <form
-            onSubmit={otpForm.handleSubmit(onVerifyCode)}
-            className="mt-6 space-y-4"
-            noValidate
-          >
-            <p className="text-sm text-muted">
-              Enter the 6-digit code for <strong>{email}</strong>.
-            </p>
-            {devHint && (
-              <p className="border border-primary/30 bg-primary/5 px-3 py-2 text-xs text-muted">
-                {devHint}
-              </p>
-            )}
-            <FormField<OtpFormData>
-              id="login-code"
-              label="Verification code"
-              name="code"
-              autoComplete="one-time-code"
-              inputMode="numeric"
-              maxLength={6}
-              placeholder="123456"
-              register={otpForm.register}
-              registerOptions={{
-                setValueAs: (value: string) =>
-                  value.replace(/\D/g, "").slice(0, 6),
-              }}
-              error={otpForm.formState.errors.code}
-            />
-            {error && <p className="text-sm text-red-600">{error}</p>}
-            <Button
-              type="submit"
-              className="w-full"
-              loading={loading}
-              loadingLabel="Verifying code"
-            >
-              Verify and sign in
-            </Button>
-            <Button
-              type="button"
-              variant="ghost"
-              className="w-full"
-              onClick={backToEmail}
-            >
-              Use a different email
-            </Button>
-          </form>
-        )}
-
-        <div className="relative my-6">
-          <div className="absolute inset-0 flex items-center">
-            <span className="w-full border-t border-border" />
-          </div>
-          <div className="relative flex justify-center text-xs uppercase">
-            <span className="bg-surface px-2 text-muted">Or</span>
-          </div>
+        <div className="relative z-10">
+          <PlotPinLogo variant="white" height={32} href="/" priority />
         </div>
 
-        <Button
-          type="button"
-          variant="outline"
-          className="w-full"
-          loading={oauthLoading}
-          loadingLabel="Redirecting to Google"
-          onClick={signInWithGoogle}
-        >
-          Continue with Google
-        </Button>
+        <div className="relative z-10 space-y-4">
+          <p className="text-sm font-medium uppercase tracking-widest text-primary-foreground/70">
+            Map-first rentals
+          </p>
+          <h1 className="max-w-sm text-2xl font-bold leading-snug text-primary-foreground">
+            Browse on the map. Unlock the landlord when you are ready.
+          </h1>
+          <p className="max-w-sm text-sm leading-relaxed text-primary-foreground/80">
+            Uganda supply, global discovery — prices shown in your familiar
+            currency.
+          </p>
+        </div>
 
-        <p className="mt-4 text-xs text-muted">
-          In development the code is printed in the API terminal. Production
-          email delivery via Postmark is planned.
+        <p className="relative z-10 text-xs text-primary-foreground/60">
+          © PlotPin
         </p>
+      </aside>
 
-        <Link href="/" className="mt-4 block text-sm text-muted">
-          ← Back home
-        </Link>
+      {/* Form panel */}
+      <div className="flex flex-1 flex-col items-center justify-center p-4 sm:p-8">
+        <div className="w-full max-w-md">
+          <div className="mb-8 flex flex-col items-center text-center lg:hidden">
+            <PlotPinLogo variant="icon" height={48} href="/" priority />
+            <div className="mt-3">
+              <PlotPinLogo variant="colored" height={24} href={null} />
+            </div>
+          </div>
+
+          <div className="border border-border bg-surface p-6 shadow-card sm:p-8">
+            <div className="mb-6 hidden text-center lg:block">
+              <PlotPinLogo variant="icon" height={44} href={null} />
+            </div>
+
+            <h2 className="text-xl font-bold tracking-tight">Sign in</h2>
+            <p className="mt-1 text-sm text-muted">
+              {step === "email"
+                ? "Enter your email — we will send a 6-digit code. No password needed."
+                : "Enter the code we sent to your inbox."}
+            </p>
+
+            {step === "email" ? (
+              <form
+                onSubmit={emailForm.handleSubmit(onSendCode)}
+                className="mt-6 space-y-4"
+                noValidate
+              >
+                <FormField<EmailFormData>
+                  id="login-email"
+                  label="Email"
+                  name="email"
+                  type="email"
+                  autoComplete="email"
+                  placeholder="you@example.com"
+                  register={emailForm.register}
+                  error={emailForm.formState.errors.email}
+                />
+                {error ? <p className="text-sm text-red-600">{error}</p> : null}
+                <Button
+                  type="submit"
+                  className="w-full"
+                  loading={loading}
+                  loadingLabel="Sending sign-in code"
+                >
+                  Continue with email
+                </Button>
+              </form>
+            ) : (
+              <form
+                onSubmit={otpForm.handleSubmit(onVerifyCode)}
+                className="mt-6 space-y-4"
+                noValidate
+              >
+                <p className="text-sm text-muted">
+                  Code sent to <strong className="text-foreground">{email}</strong>
+                </p>
+                {devHint ? (
+                  <p className="border border-primary/30 bg-primary/5 px-3 py-2 text-xs text-muted">
+                    {devHint}
+                  </p>
+                ) : null}
+                <FormField<OtpFormData>
+                  id="login-code"
+                  label="Verification code"
+                  name="code"
+                  autoComplete="one-time-code"
+                  inputMode="numeric"
+                  maxLength={6}
+                  placeholder="123456"
+                  register={otpForm.register}
+                  registerOptions={{
+                    setValueAs: (value: string) =>
+                      value.replace(/\D/g, "").slice(0, 6),
+                  }}
+                  error={otpForm.formState.errors.code}
+                />
+                {error ? <p className="text-sm text-red-600">{error}</p> : null}
+                <Button
+                  type="submit"
+                  className="w-full"
+                  loading={loading}
+                  loadingLabel="Verifying code"
+                >
+                  Verify and sign in
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className="w-full"
+                  onClick={backToEmail}
+                >
+                  Use a different email
+                </Button>
+              </form>
+            )}
+
+            <div className="relative my-6">
+              <div className="absolute inset-0 flex items-center">
+                <span className="w-full border-t border-border" />
+              </div>
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-surface px-2 text-muted">Or</span>
+              </div>
+            </div>
+
+            <Button
+              type="button"
+              variant="outline"
+              className={cn(
+                "w-full gap-2.5 bg-surface font-medium",
+                "hover:bg-neutral-25",
+              )}
+              loading={oauthLoading}
+              loadingLabel="Redirecting to Google"
+              onClick={signInWithGoogle}
+            >
+              {!oauthLoading ? <GoogleIcon className="shrink-0" /> : null}
+              Continue with Google
+            </Button>
+
+            <p className="mt-4 text-xs leading-relaxed text-muted">
+              By signing in you agree to our{" "}
+              <Link href="/terms" className="text-primary hover:underline">
+                Terms
+              </Link>{" "}
+              and{" "}
+              <Link href="/privacy" className="text-primary hover:underline">
+                Privacy Policy
+              </Link>
+              .
+            </p>
+          </div>
+
+          <Link
+            href="/"
+            className="mt-6 block text-center text-sm text-muted hover:text-foreground"
+          >
+            ← Back home
+          </Link>
+        </div>
       </div>
     </div>
   );
