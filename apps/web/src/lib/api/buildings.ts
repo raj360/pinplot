@@ -187,6 +187,25 @@ export async function fetchMyBuilding(id: string) {
   return apiFetch<LandlordBuildingDetail>(`/buildings/mine/${id}`);
 }
 
+export type UpdateMyBuildingPayload = {
+  name?: string;
+  description?: string;
+  city?: string;
+  district?: string;
+  countryCode?: string;
+  buildingType?: string;
+};
+
+export async function updateMyBuilding(
+  id: string,
+  payload: UpdateMyBuildingPayload,
+) {
+  return apiFetch<LandlordBuildingDetail>(`/buildings/mine/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+  });
+}
+
 export type UpdateUnitStatusResult = {
   unit: LandlordBuildingDetail["units"][number];
 };

@@ -17,6 +17,7 @@ import {
   CreateBuildingDto,
   CreateUnitDto,
   FeaturedBuildingsQueryDto,
+  LandlordUpdateBuildingDto,
   LaunchFeaturedGrantDto,
   RegisterImageDto,
   RejectBuildingDto,
@@ -63,6 +64,16 @@ export class BuildingsController {
   @UseGuards(SupabaseAuthGuard)
   findMineOne(@Param("id") id: string, @CurrentUser() user: AuthUser) {
     return this.buildings.findMineById(id, user.id);
+  }
+
+  @Patch("mine/:id")
+  @UseGuards(SupabaseAuthGuard)
+  updateMine(
+    @Param("id") id: string,
+    @CurrentUser() user: AuthUser,
+    @Body() dto: LandlordUpdateBuildingDto,
+  ) {
+    return this.buildings.updateMineBuilding(id, user.id, dto);
   }
 
   @Patch("mine/:id/resubmit-review")

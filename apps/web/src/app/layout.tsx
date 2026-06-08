@@ -13,13 +13,22 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+const siteUrl =
+  process.env.NEXT_PUBLIC_APP_URL?.trim() ||
+  (process.env.VERCEL_URL
+    ? `https://${process.env.VERCEL_URL}`
+    : process.env.NODE_ENV === "production"
+      ? "https://plotpin.net"
+      : "http://localhost:3000");
+
 export const metadata: Metadata = {
+  metadataBase: new URL(siteUrl),
   title: {
     default: "PlotPin — Find verified rentals on the map",
     template: "%s · PlotPin",
   },
   description:
-    "Map-first rental discovery. Browse approximate pins for free, unlock landlord contact when you are ready. Uganda supply, global discovery.",
+    "Map-first rental discovery. Browse approximate pins for free, unlock landlord contact when you are ready.",
   applicationName: "PlotPin",
   icons: {
     icon: [
@@ -33,9 +42,17 @@ export const metadata: Metadata = {
   openGraph: {
     title: "PlotPin — Find verified rentals on the map",
     description:
-      "Browse rentals on the map. Pay once to unlock the landlord. Uganda supply, global discovery.",
+      "Browse rentals on the map. Pay once to unlock the landlord.",
     siteName: "PlotPin",
+    url: siteUrl,
     type: "website",
+    locale: "en_US",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "PlotPin — Find verified rentals on the map",
+    description:
+      "Browse rentals on the map. Pay once to unlock the landlord.",
   },
 };
 

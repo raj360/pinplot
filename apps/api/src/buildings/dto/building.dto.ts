@@ -280,6 +280,34 @@ export class AdminUpdateBuildingDto {
   buildingType?: string;
 }
 
+export class LandlordUpdateBuildingDto {
+  @IsOptional()
+  @IsString()
+  name?: string;
+
+  @IsOptional()
+  @IsString()
+  description?: string;
+
+  @IsOptional()
+  @IsString()
+  city?: string;
+
+  @IsOptional()
+  @IsString()
+  district?: string;
+
+  @IsOptional()
+  @IsString()
+  @MinLength(2)
+  @MaxLength(2)
+  countryCode?: string;
+
+  @IsOptional()
+  @IsIn([...BUILDING_TYPES])
+  buildingType?: string;
+}
+
 export class UpdateUnitDto {
   @IsOptional()
   @IsString()
