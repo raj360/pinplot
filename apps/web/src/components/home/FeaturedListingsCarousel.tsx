@@ -8,11 +8,13 @@ import { FeaturedListingCard } from "@/components/home/FeaturedListingCard";
 type FeaturedListingsCarouselProps = {
   buildings: BuildingSummary[];
   ariaLabel: string;
+  showExploreLinks?: boolean;
 };
 
 export function FeaturedListingsCarousel({
   buildings,
   ariaLabel,
+  showExploreLinks = false,
 }: FeaturedListingsCarouselProps) {
   const trackRef = useRef<HTMLDivElement>(null);
   const [canScrollPrev, setCanScrollPrev] = useState(false);
@@ -59,7 +61,11 @@ export function FeaturedListingsCarousel({
             data-carousel-card
             className="w-[min(85vw,320px)] shrink-0 snap-start sm:w-[300px]"
           >
-            <FeaturedListingCard building={building} showCountry />
+            <FeaturedListingCard
+              building={building}
+              showCountry
+              showExploreLink={showExploreLinks}
+            />
           </div>
         ))}
       </div>

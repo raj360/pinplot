@@ -62,3 +62,14 @@ export function featuredListingsGlobalHint(viewerCountryName: string): string {
   const supply = supplyMarketsLabel();
   return `Verified ${supply} supply and other markets — discover from ${viewerCountryName}.`;
 }
+
+export function featuredListingsGlobalStats(
+  marketCount: number,
+  unitCount: number,
+): string {
+  const markets =
+    marketCount === 1 ? "1 market" : `${marketCount} markets`;
+  const units =
+    unitCount === 1 ? "1 unit available" : `${unitCount} units available`;
+  return `${markets} · ${units}`;
+}

@@ -10,6 +10,7 @@ import { fetchFeaturedBuildings } from "@/lib/api/buildings";
 import {
   featuredListingsGlobalHeading,
   featuredListingsGlobalHint,
+  featuredListingsGlobalStats,
   featuredListingsHeadline,
   featuredListingsIntro,
   featuredListingsLocalHeading,
@@ -85,6 +86,11 @@ export function FeaturedListingsSection({
     countriesByCode.get(viewer.countryCode)?.name ?? viewer.countryCode;
   const hasLocal = feed.local.length > 0;
   const hasGlobal = feed.global.length > 0;
+  const globalMarketCount = new Set(feed.global.map((b) => b.countryCode)).size;
+  const globalUnitCount = feed.global.reduce(
+    (sum, building) => sum + building.availableUnitCount,
+    0,
+  );
 
   if (showSkeleton) {
     return <HomeFeaturedSkeleton />;
@@ -135,10 +141,16 @@ export function FeaturedListingsSection({
             <p className="mt-1 text-sm text-muted">
               {featuredListingsGlobalHint(viewerCountryName)}
             </p>
+            {globalMarketCount > 0 && globalUnitCount > 0 ? (
+              <p className="mt-1 text-xs font-medium text-foreground/80">
+                {featuredListingsGlobalStats(globalMarketCount, globalUnitCount)}
+              </p>
+            ) : null}
           </div>
           <FeaturedListingsCarousel
             buildings={feed.global}
             ariaLabel="Featured rentals around the world"
+            showExploreLinks
           />
         </div>
       ) : null}
