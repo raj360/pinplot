@@ -107,18 +107,26 @@ export function ViewerContextProvider({
   const [fxRates, setFxRates] = useState<FxRateMap>(() =>
     buildFxRateMap(FALLBACK_FX),
   );
-  const [viewerCountryCode, setViewerCountryCodeState] = useState(() =>
-    resolveViewerCountryCode({
-      storedCountry: readStoredViewerCountry(),
-      profileCountry: null,
-      ipCountry: null,
-    }),
+  // SSR-stable default. localStorage / browser signals are only consulted after
+  // mount (below) so the first client render matches the server and we never
+  // trip a hydration mismatch on viewer-dynamic copy.
+  const [viewerCountryCode, setViewerCountryCodeState] = useState<string>(
+    DEFAULT_COUNTRY.code,
   );
+  const [hydrated, setHydrated] = useState(false);
   const [resolutionHints, setResolutionHints] = useState<{
     profileCountry: string | null;
     ipCountry: string | null;
   }>({ profileCountry: null, ipCountry: null });
   const [viewerGeoPlaces, setViewerGeoPlaces] = useState<GeoPlace[]>([]);
+
+  // Apply the stored override immediately after hydration (fast path for
+  // returning visitors) before the async profile/IP resolution completes.
+  useEffect(() => {
+    setHydrated(true);
+    const stored = readStoredViewerCountry();
+    if (stored) setViewerCountryCodeState(stored);
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -232,15 +240,27 @@ export function ViewerContextProvider({
 
   const activeCountry = countriesByCode.get(viewerCountryCode) ?? countries[0];
   const viewer = useMemo<ViewerContext>(() => {
+    // Before hydration, mirror the server (DEFAULT_COUNTRY) exactly so the first
+    // client render is byte-identical and React doesn't throw a hydration error.
+    if (!hydrated) {
+      return {
+        countryCode: DEFAULT_COUNTRY.code,
+        displayLocale: "en-UG",
+        displayCurrency: DEFAULT_COUNTRY.currency,
+      };
+    }
+    // Drive entirely off resolved state (no localStorage / browser reads during
+    // render) so the value is deterministic once hydrated.
     return resolveViewerContext(
       {
-        storedCountry: readStoredViewerCountry(),
+        storedCountry: viewerCountryCode,
         profileCountry: resolutionHints.profileCountry,
         ipCountry: resolutionHints.ipCountry,
       },
       countriesByCode,
     );
   }, [
+    hydrated,
     countriesByCode,
     resolutionHints.ipCountry,
     resolutionHints.profileCountry,

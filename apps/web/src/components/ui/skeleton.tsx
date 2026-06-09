@@ -30,15 +30,17 @@ export function ExploreResultRowSkeleton({
 
   return (
     <li className="border-b border-border">
-      <div className="flex min-h-[5.75rem] items-stretch">
-        <Skeleton className="w-16 shrink-0 rounded-none sm:w-24" />
-        <div className="flex min-w-0 flex-1 flex-col justify-center gap-2.5 px-3 py-3.5 sm:px-4">
-          <Skeleton className="h-[15px] rounded" style={{ width: titleWidths[i] }} />
+      <div className="flex min-h-[5.75rem] items-center gap-3 px-3 py-3 sm:gap-4 sm:px-4">
+        {/* Inset rounded thumbnail so stacked rows read as separate cards, not a
+            single jointed grey column. */}
+        <Skeleton className="size-16 shrink-0 rounded-lg sm:h-[4.25rem] sm:w-24" />
+        <div className="flex min-w-0 flex-1 flex-col gap-2.5">
+          <Skeleton className="h-[15px] rounded-sm" style={{ width: titleWidths[i] }} />
           <div className="flex items-center gap-1.5">
             <Skeleton className="size-3.5 shrink-0 rounded-full" />
-            <Skeleton className="h-3 rounded" style={{ width: metaWidths[i] }} />
+            <Skeleton className="h-3 rounded-sm" style={{ width: metaWidths[i] }} />
           </div>
-          <Skeleton className="h-3 w-2/5 rounded" />
+          <Skeleton className="h-3 w-2/5 rounded-sm" />
         </div>
       </div>
     </li>

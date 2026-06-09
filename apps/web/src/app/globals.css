@@ -136,9 +136,10 @@ body {
   box-shadow: var(--shadow-card-lg);
 }
 
-/** Loading placeholder — left-to-right shimmer (avoids the synced "blob" pulse). */
+/** Loading placeholder — left-to-right shimmer (avoids the synced "blob" pulse).
+ *  Radius is intentionally NOT set here so Tailwind `rounded-*` utilities on the
+ *  element win (the Skeleton component supplies a `rounded-md` default). */
 .skeleton-block {
-  border-radius: 6px;
   background-color: var(--skeleton);
   background-image: linear-gradient(
     90deg,
