@@ -301,6 +301,7 @@ export function ExploreClient() {
       setHover(id);
 
       if (selectedDetailRef.current?.id === id) {
+        setSelectedLoading(false);
         return;
       }
 
@@ -456,7 +457,14 @@ export function ExploreClient() {
       let building = buildings.find((item) => item.id === buildingId);
       if (!building) {
         const detail = await loadSelectedDetail(buildingId);
-        if (!detail) return;
+        if (!detail) {
+          // Detail fetch failed (transient network / cache miss / removed
+          // listing). Clear the pending spinner so the panel never hangs.
+          setSelectedLoading(false);
+          setSelectedDetail(null);
+          selectedDetailRef.current = null;
+          return;
+        }
         building = detail;
         setAllBuildings((prev) =>
           prev.some((item) => item.id === buildingId)
@@ -813,6 +821,29 @@ export function ExploreClient() {
     },
     [countriesByCode, executeSearch, suppressMapInteraction],
   );
+
+  // Safety net: the landing search is normally kicked off by the map's `idle`
+  // event (handleViewportChange). When the map is hidden on load (deep link with
+  // map=0), absent, or simply never emits idle, that event never fires and the
+  // list, "All" counter, and any deep-linked detail spin forever. Run the same
+  // bootstrap directly so loading always resolves regardless of the map.
+  useEffect(() => {
+    if (!bootstrapPendingRef.current) return;
+
+    const fire = () => {
+      if (!bootstrapPendingRef.current) return;
+      const bounds =
+        viewportBoundsRef.current ??
+        getDefaultMapBoundsRef.current() ??
+        appliedSearchBoundsRef.current;
+      void runBootstrapSearch(bounds);
+    };
+
+    const waitMs =
+      geoLoadingRef.current || geoPlacesLoadingRef.current ? 1800 : 700;
+    const timer = window.setTimeout(fire, waitMs);
+    return () => window.clearTimeout(timer);
+  }, [runBootstrapSearch]);
 
   const handlePlaceJump = useCallback(
     async (query: string) => {

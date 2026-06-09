@@ -61,7 +61,7 @@ export function ExploreResultsList({
       {loading && buildings.length === 0 ? (
         <>
           {Array.from({ length: 6 }).map((_, index) => (
-            <ExploreResultRowSkeleton key={index} />
+            <ExploreResultRowSkeleton key={index} seed={index} />
           ))}
         </>
       ) : null}
