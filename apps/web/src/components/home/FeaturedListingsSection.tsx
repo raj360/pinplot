@@ -4,28 +4,55 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import type { BuildingSummary } from "@plotpin/shared-types";
 import { FeaturedListingCard } from "@/components/home/FeaturedListingCard";
+import { FeaturedListingsCarousel } from "@/components/home/FeaturedListingsCarousel";
 import { HomeFeaturedSkeleton } from "@/components/home/HomePageSkeletons";
 import { fetchFeaturedBuildings } from "@/lib/api/buildings";
-import { featuredListingsSubtitle } from "@/lib/copy/supply-discovery";
+import {
+  featuredListingsGlobalHeading,
+  featuredListingsGlobalHint,
+  featuredListingsHeadline,
+  featuredListingsIntro,
+  featuredListingsLocalHeading,
+} from "@/lib/copy/supply-discovery";
 import { useViewerContext } from "@/components/providers/ViewerContextProvider";
 
+type FeaturedFeed = {
+  local: BuildingSummary[];
+  global: BuildingSummary[];
+};
+
 type FeaturedListingsSectionProps = {
-  /** SSR list for the edge-detected region — shown once viewer context matches. */
-  initialBuildings: BuildingSummary[];
+  /** SSR feed for the edge-detected region — shown once viewer context matches. */
+  initialFeed: FeaturedFeed;
   serverCountryCode: string;
 };
 
+async function loadFeaturedFeed(countryCode: string): Promise<FeaturedFeed> {
+  const [local, global] = await Promise.all([
+    fetchFeaturedBuildings({
+      limit: 6,
+      countryCode,
+      localOnly: true,
+    }),
+    fetchFeaturedBuildings({
+      limit: 12,
+      excludeCountryCode: countryCode,
+    }),
+  ]);
+  return { local, global };
+}
+
 export function FeaturedListingsSection({
-  initialBuildings,
+  initialFeed,
   serverCountryCode,
 }: FeaturedListingsSectionProps) {
-  const { ready, viewer } = useViewerContext();
-  const needsAltList = ready && viewer.countryCode !== serverCountryCode;
-  const [altList, setAltList] = useState<BuildingSummary[] | null>(null);
-  const [altListRegion, setAltListRegion] = useState<string | null>(null);
+  const { ready, viewer, countriesByCode } = useViewerContext();
+  const needsAltFeed = ready && viewer.countryCode !== serverCountryCode;
+  const [altFeed, setAltFeed] = useState<FeaturedFeed | null>(null);
+  const [altFeedRegion, setAltFeedRegion] = useState<string | null>(null);
 
-  const altListCurrent =
-    altListRegion === viewer.countryCode ? altList : null;
+  const altFeedCurrent =
+    altFeedRegion === viewer.countryCode ? altFeed : null;
 
   useEffect(() => {
     if (!ready || viewer.countryCode === serverCountryCode) return;
@@ -33,43 +60,46 @@ export function FeaturedListingsSection({
     const region = viewer.countryCode;
     let cancelled = false;
 
-    void fetchFeaturedBuildings(12, region)
+    void loadFeaturedFeed(region)
       .then((next) => {
         if (!cancelled) {
-          setAltList(next.length > 0 ? next : initialBuildings);
-          setAltListRegion(region);
+          setAltFeed(next);
+          setAltFeedRegion(region);
         }
       })
       .catch(() => {
         if (!cancelled) {
-          setAltList(initialBuildings);
-          setAltListRegion(region);
+          setAltFeed(initialFeed);
+          setAltFeedRegion(region);
         }
       });
 
     return () => {
       cancelled = true;
     };
-  }, [ready, viewer.countryCode, serverCountryCode, initialBuildings]);
+  }, [ready, viewer.countryCode, serverCountryCode, initialFeed]);
 
-  const showSkeleton = !ready || (needsAltList && altListCurrent === null);
-  const buildings =
-    needsAltList && altListCurrent ? altListCurrent : initialBuildings;
+  const showSkeleton = !ready || (needsAltFeed && altFeedCurrent === null);
+  const feed = needsAltFeed && altFeedCurrent ? altFeedCurrent : initialFeed;
+  const viewerCountryName =
+    countriesByCode.get(viewer.countryCode)?.name ?? viewer.countryCode;
+  const hasLocal = feed.local.length > 0;
+  const hasGlobal = feed.global.length > 0;
 
   if (showSkeleton) {
     return <HomeFeaturedSkeleton />;
   }
 
   return (
-    <section className="space-y-5">
+    <section className="space-y-8">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h2 className="text-xl font-bold tracking-tight sm:text-2xl">
-            Featured listings
+            {featuredListingsHeadline()}
           </h2>
           <p className="mt-1 text-sm text-muted">
             {ready
-              ? featuredListingsSubtitle(viewer.countryCode)
+              ? featuredListingsIntro(viewerCountryName, hasLocal, hasGlobal)
               : "Verified properties promoted on PlotPin — browse free, unlock when you are ready."}
           </p>
         </div>
@@ -81,15 +111,39 @@ export function FeaturedListingsSection({
         </Link>
       </div>
 
-      {buildings.length > 0 ? (
-        <ul className="grid list-none grid-cols-1 gap-4 p-0 sm:grid-cols-2 sm:gap-5 xl:grid-cols-3">
-          {buildings.map((building) => (
-            <li key={building.id} className="min-w-0">
-              <FeaturedListingCard building={building} />
-            </li>
-          ))}
-        </ul>
-      ) : (
+      {hasLocal ? (
+        <div className="space-y-4">
+          <h3 className="text-sm font-semibold tracking-tight text-foreground">
+            {featuredListingsLocalHeading(viewerCountryName)}
+          </h3>
+          <ul className="grid list-none grid-cols-1 gap-4 p-0 sm:grid-cols-2 sm:gap-5 xl:grid-cols-3">
+            {feed.local.map((building) => (
+              <li key={building.id} className="min-w-0">
+                <FeaturedListingCard building={building} />
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+
+      {hasGlobal ? (
+        <div className="space-y-4">
+          <div>
+            <h3 className="text-sm font-semibold tracking-tight text-foreground">
+              {featuredListingsGlobalHeading()}
+            </h3>
+            <p className="mt-1 text-sm text-muted">
+              {featuredListingsGlobalHint(viewerCountryName)}
+            </p>
+          </div>
+          <FeaturedListingsCarousel
+            buildings={feed.global}
+            ariaLabel="Featured rentals around the world"
+          />
+        </div>
+      ) : null}
+
+      {!hasLocal && !hasGlobal ? (
         <div className="border border-dashed border-border bg-surface p-8 text-center">
           <p className="text-sm text-muted">
             Featured listings will appear here as verified supply grows. Explore
@@ -102,7 +156,7 @@ export function FeaturedListingsSection({
             Open map explorer
           </Link>
         </div>
-      )}
+      ) : null}
     </section>
   );
 }

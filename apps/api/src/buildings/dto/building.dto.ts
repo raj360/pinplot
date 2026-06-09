@@ -13,7 +13,7 @@ import {
   MinLength,
   ValidateNested,
 } from "class-validator";
-import { Type } from "class-transformer";
+import { Transform, Type } from "class-transformer";
 import {
   BUILDING_TYPES,
   type AdminVerificationChecklist,
@@ -88,6 +88,19 @@ export class FeaturedBuildingsQueryDto {
   @MinLength(2)
   @MaxLength(2)
   countryCode?: string;
+
+  /** When true with countryCode, return only featured listings in that country. */
+  @IsOptional()
+  @Transform(({ value }) => value === true || value === "true")
+  @IsBoolean()
+  localOnly?: boolean;
+
+  /** Omit featured listings from this country (e.g. viewer market already shown above). */
+  @IsOptional()
+  @IsString()
+  @MinLength(2)
+  @MaxLength(2)
+  excludeCountryCode?: string;
 }
 
 export class CreateBuildingDto {

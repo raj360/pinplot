@@ -27,13 +27,38 @@ export function supplyDiscoveryHeroHint(
   return `${supply} listings with rent in local currency — browse from ${viewerCountryName} with a familiar FX hint.`;
 }
 
-/** Featured listings section — clarifies supply location for diaspora viewers. */
-export function featuredListingsSubtitle(
-  viewerCountryCode: string,
+/** Featured listings section — local-first with optional worldwide strip. */
+export function featuredListingsHeadline(): string {
+  return "Featured listings";
+}
+
+export function featuredListingsIntro(
+  viewerCountryName: string,
+  hasLocalFeatured: boolean,
+  hasGlobalFeatured: boolean,
 ): string {
-  const supply = supplyMarketsLabel();
-  if (isSupplyMarket(viewerCountryCode)) {
-    return "Verified properties promoted on PlotPin — browse free, unlock when you are ready.";
+  if (hasLocalFeatured && hasGlobalFeatured) {
+    return `Promoted homes in ${viewerCountryName}, plus featured rentals from our other markets.`;
   }
-  return `Verified ${supply} properties — browse free from anywhere, unlock when you are ready.`;
+  if (hasLocalFeatured) {
+    return `Promoted homes in ${viewerCountryName} — browse free, unlock when you are ready.`;
+  }
+  if (hasGlobalFeatured) {
+    const supply = supplyMarketsLabel();
+    return `Featured ${supply} rentals — browse from ${viewerCountryName}, unlock when you are ready.`;
+  }
+  return "Verified properties promoted on PlotPin — browse free, unlock when you are ready.";
+}
+
+export function featuredListingsLocalHeading(viewerCountryName: string): string {
+  return `In ${viewerCountryName}`;
+}
+
+export function featuredListingsGlobalHeading(): string {
+  return "Featured around the world";
+}
+
+export function featuredListingsGlobalHint(viewerCountryName: string): string {
+  const supply = supplyMarketsLabel();
+  return `Verified ${supply} supply and other markets — discover from ${viewerCountryName}.`;
 }

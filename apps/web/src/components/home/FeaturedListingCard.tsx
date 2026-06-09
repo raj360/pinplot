@@ -8,11 +8,18 @@ import type { BuildingSummary } from "@plotpin/shared-types";
 
 type FeaturedListingCardProps = {
   building: BuildingSummary;
+  /** Show country label — useful when listing is outside the viewer's market. */
+  showCountry?: boolean;
 };
 
-export function FeaturedListingCard({ building }: FeaturedListingCardProps) {
-  const { formatListingRentPerMonth } = useViewerContext();
+export function FeaturedListingCard({
+  building,
+  showCountry = false,
+}: FeaturedListingCardProps) {
+  const { formatListingRentPerMonth, countriesByCode } = useViewerContext();
   const location = [building.district, building.city].filter(Boolean).join(", ");
+  const countryName =
+    countriesByCode.get(building.countryCode)?.name ?? building.countryCode;
 
   return (
     <Link
@@ -23,6 +30,11 @@ export function FeaturedListingCard({ building }: FeaturedListingCardProps) {
         {building.coverThumbUrl ? (
           <>
             <FeaturedListingBadge variant="overlay" />
+            {showCountry ? (
+              <span className="absolute bottom-2 left-2 z-10 rounded-sm bg-background/90 px-2 py-0.5 text-[11px] font-medium text-foreground shadow-sm backdrop-blur-sm">
+                {countryName}
+              </span>
+            ) : null}
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={building.coverThumbUrl}
@@ -33,6 +45,9 @@ export function FeaturedListingCard({ building }: FeaturedListingCardProps) {
         ) : (
           <div className="flex h-full flex-col items-center justify-center gap-2 p-4 text-center">
             <FeaturedListingBadge variant="inline" />
+            {showCountry ? (
+              <span className="text-xs font-medium text-muted">{countryName}</span>
+            ) : null}
             <span className="text-sm font-medium text-muted">Photo coming soon</span>
           </div>
         )}

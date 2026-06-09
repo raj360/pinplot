@@ -103,17 +103,38 @@ export class BuildingsService {
     return result;
   }
 
-  async findFeatured(limit = 12, countryCode?: string) {
+  async findFeatured(
+    limit = 12,
+    options: {
+      countryCode?: string;
+      localOnly?: boolean;
+      excludeCountryCode?: string;
+    } = {},
+  ) {
     const capped = Math.min(Math.max(limit, 1), 24);
-    const region = countryCode?.trim().toUpperCase() || null;
+    const region = options.countryCode?.trim().toUpperCase() || null;
+    const exclude =
+      options.excludeCountryCode?.trim().toUpperCase() || null;
     const params: unknown[] = [capped];
-    // Surface the viewer's region first, then backfill with the rest of supply
-    // so the section stays populated even where local supply is still thin.
+    const filters: string[] = [
+      "b.is_verified = TRUE",
+      EXPLORE_FEATURED_ACTIVE_SQL,
+    ];
     let regionOrder = "";
-    if (region) {
+
+    if (options.localOnly && region) {
+      params.push(region);
+      filters.push(`b.country_code = $${params.length}`);
+    } else if (region) {
       params.push(region);
       regionOrder = `(b.country_code = $${params.length}) DESC, `;
     }
+
+    if (exclude) {
+      params.push(exclude);
+      filters.push(`b.country_code <> $${params.length}`);
+    }
+
     const { rows } = await this.db.query<BuildingRow>(
       `SELECT
         b.id,
@@ -137,8 +158,7 @@ export class BuildingsService {
       FROM buildings b
       JOIN countries co ON co.code = b.country_code
       LEFT JOIN units u ON u.building_id = b.id
-      WHERE b.is_verified = TRUE
-        AND ${EXPLORE_FEATURED_ACTIVE_SQL}
+      WHERE ${filters.join("\n        AND ")}
       GROUP BY b.id, co.currency, b.is_featured, b.featured_until
       HAVING COUNT(u.id) FILTER (WHERE u.status = 'AVAILABLE') > 0
       ORDER BY ${regionOrder}b.featured_until DESC NULLS LAST, b.featured_granted_at DESC NULLS LAST, b.created_at DESC

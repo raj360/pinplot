@@ -14,9 +14,17 @@ import { resolveServerViewerCountry } from "@/lib/intl/resolve-viewer-country";
 export default async function HomePage() {
   const headerStore = await headers();
   const serverCountryCode = resolveServerViewerCountry(headerStore);
-  const featured = await fetchFeaturedBuildings(12, serverCountryCode).catch(
-    () => [],
-  );
+  const [localFeatured, globalFeatured] = await Promise.all([
+    fetchFeaturedBuildings({
+      limit: 6,
+      countryCode: serverCountryCode,
+      localOnly: true,
+    }).catch(() => []),
+    fetchFeaturedBuildings({
+      limit: 12,
+      excludeCountryCode: serverCountryCode,
+    }).catch(() => []),
+  ]);
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
@@ -27,7 +35,7 @@ export default async function HomePage() {
         <HomeTrustStrip />
         <HomeHowItWorks />
         <FeaturedListingsSection
-          initialBuildings={featured}
+          initialFeed={{ local: localFeatured, global: globalFeatured }}
           serverCountryCode={serverCountryCode}
         />
         <HomeValueProps />

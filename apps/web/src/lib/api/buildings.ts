@@ -81,12 +81,32 @@ export async function fetchBuildingsInBounds(
   return res.json();
 }
 
+export type FetchFeaturedOptions = {
+  limit?: number;
+  countryCode?: string;
+  /** Only listings in countryCode (no cross-market backfill). */
+  localOnly?: boolean;
+  /** Omit listings from this country (for a worldwide strip). */
+  excludeCountryCode?: string;
+};
+
 export async function fetchFeaturedBuildings(
-  limit = 12,
+  limitOrOptions: number | FetchFeaturedOptions = 12,
   countryCode?: string,
 ): Promise<BuildingSummary[]> {
+  const options: FetchFeaturedOptions =
+    typeof limitOrOptions === "number"
+      ? { limit: limitOrOptions, countryCode }
+      : limitOrOptions;
+  const limit = options.limit ?? 12;
+
   const params = new URLSearchParams({ limit: String(limit) });
-  if (countryCode) params.set("countryCode", countryCode);
+  if (options.countryCode) params.set("countryCode", options.countryCode);
+  if (options.localOnly) params.set("localOnly", "true");
+  if (options.excludeCountryCode) {
+    params.set("excludeCountryCode", options.excludeCountryCode);
+  }
+
   const res = await fetch(`${API_URL}/api/v1/buildings/featured?${params}`, {
     next: { revalidate: 60 },
   });
