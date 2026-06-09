@@ -105,7 +105,7 @@ export function ExploreResultsList({
               <button
                 type="button"
                 onClick={() => onSelect(building.id)}
-                className="min-w-0 flex-1 px-3 py-3.5 text-left sm:px-4 sm:py-3.5"
+                className="min-w-0 flex-1 cursor-pointer px-3 py-3.5 text-left sm:px-4 sm:py-3.5"
               >
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
@@ -167,7 +167,7 @@ export function ExploreResultsList({
                 <button
                   type="button"
                   onClick={() => onOpenAccess(building.id)}
-                  className="shrink-0 self-center border-l border-border/70 px-3 py-2 text-[11px] font-medium text-lime-700 underline decoration-lime-600/40 underline-offset-2 hover:bg-lime-50/80 hover:text-lime-800"
+                  className="shrink-0 cursor-pointer self-center border-l border-border/70 px-3 py-2 text-[11px] font-medium text-lime-700 underline decoration-lime-600/40 underline-offset-2 hover:bg-lime-50/80 hover:text-lime-800"
                 >
                   Your access
                 </button>

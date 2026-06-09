@@ -89,11 +89,10 @@ export function useBuildingUnlocks(
   );
   const [unlockingId, setUnlockingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  // Default to mobile money for payers in Flutterwave MoMo markets (e.g. Uganda);
-  // diaspora/card markets default to card (Lemon Squeezy).
-  const prefersMobileMoney =
-    isFlutterwaveMoMoCountry(pricingContext?.tenantCountryCode) ||
-    isFlutterwaveMoMoCountry(pricingContext?.countryCode);
+  // Default to mobile money only for payers in Flutterwave MoMo markets (e.g.
+  // Uganda); diaspora / card markets default to Lemon Squeezy card checkout.
+  const payerCountryCode = pricingContext?.tenantCountryCode;
+  const prefersMobileMoney = isFlutterwaveMoMoCountry(payerCountryCode);
   const [checkoutMethod, setCheckoutMethod] = useState<UnlockCheckoutMethod>(
     prefersMobileMoney ? "mobile_money" : "card",
   );
@@ -135,6 +134,12 @@ export function useBuildingUnlocks(
     showMobileMoneyCheckout && checkoutMethod === "mobile_money"
       ? "mobile_money"
       : "card";
+
+  useEffect(() => {
+    setCheckoutMethod(
+      isFlutterwaveMoMoCountry(payerCountryCode) ? "mobile_money" : "card",
+    );
+  }, [payerCountryCode]);
 
   useEffect(() => {
     if (!isAuthenticated || authLoading) return;

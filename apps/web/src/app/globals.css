@@ -115,6 +115,25 @@ body {
     :where(*:not(.user-avatar):not(.spinner-ring)) {
     border-radius: 0 !important;
   }
+
+  /* Pointer on interactive controls — many links/buttons omit explicit cursor utilities. */
+  :where(
+    a[href]:not([aria-disabled="true"]),
+    button:not(:disabled):not([aria-disabled="true"]),
+    [role="button"]:not([aria-disabled="true"]),
+    [role="link"]:not([aria-disabled="true"]),
+    input[type="button"]:not(:disabled),
+    input[type="submit"]:not(:disabled),
+    input[type="reset"]:not(:disabled),
+    input[type="checkbox"]:not(:disabled),
+    input[type="radio"]:not(:disabled),
+    select:not(:disabled),
+    summary,
+    label:has(> input[type="checkbox"]),
+    label:has(> input[type="radio"])
+  ) {
+    cursor: pointer;
+  }
 }
 
 /** White card on gray canvas — consistent elevation */
@@ -182,6 +201,10 @@ body {
 .spinner-ring,
 .user-avatar {
   border-radius: 9999px !important;
+}
+
+button.user-avatar {
+  cursor: pointer;
 }
 
 .plotpin-map-marker-wrap {
