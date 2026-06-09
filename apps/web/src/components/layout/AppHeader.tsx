@@ -106,14 +106,7 @@ export function AppHeader({
 
   const mobileNav = (
     <div className="flex shrink-0 items-center md:hidden">
-      {navPending ? (
-        <div
-          className="size-9 animate-pulse border border-primary-foreground/25 bg-primary-foreground/10"
-          aria-hidden
-        />
-      ) : (
-        <AppMobileNav activeSectionTitle={mobileSectionTitle} />
-      )}
+      <AppMobileNav activeSectionTitle={mobileSectionTitle} />
     </div>
   );
 

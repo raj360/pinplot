@@ -13,7 +13,7 @@ function buildClusterSvg(count: number, fill: string): string {
 <circle cx="120" cy="120" opacity=".65" r="70" />
 <circle cx="120" cy="120" opacity=".35" r="90" />
 <circle cx="120" cy="120" opacity=".2" r="110" />
-<text x="50%" y="50%" style="fill:#fff" text-anchor="middle" font-size="50" dominant-baseline="middle" font-family="var(--font-geist-sans), system-ui, sans-serif" font-weight="600">${count}</text>
+<text x="50%" y="50%" style="fill:#fff" text-anchor="middle" font-size="50" dominant-baseline="middle" font-family="system-ui, sans-serif" font-weight="600">${count}</text>
 </svg>`;
 }
 

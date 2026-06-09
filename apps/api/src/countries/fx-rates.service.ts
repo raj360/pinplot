@@ -1,5 +1,6 @@
 import { Injectable } from "@nestjs/common";
 import { DatabaseService } from "../database/database.service";
+import { createInMemoryCache } from "../common/in-memory-cache";
 
 export type FxRateEntry = {
   baseCurrency: string;
@@ -10,9 +11,14 @@ export type FxRateEntry = {
 
 @Injectable()
 export class FxRatesService {
+  private readonly cache = createInMemoryCache<FxRateEntry[]>(15 * 60 * 1000);
+
   constructor(private readonly db: DatabaseService) {}
 
   async listRates(): Promise<FxRateEntry[]> {
+    const cached = this.cache.get();
+    if (cached) return cached;
+
     const { rows } = await this.db.query<{
       base_currency: string;
       quote_currency: string;
@@ -24,11 +30,13 @@ export class FxRatesService {
        ORDER BY base_currency, quote_currency`,
     );
 
-    return rows.map((row) => ({
+    const mapped = rows.map((row) => ({
       baseCurrency: row.base_currency,
       quoteCurrency: row.quote_currency,
       rate: Number(row.rate),
       updatedAt: row.updated_at.toISOString(),
     }));
+    this.cache.set(mapped);
+    return mapped;
   }
 }

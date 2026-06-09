@@ -1,18 +1,12 @@
-import { SidebarAppShell } from "@/components/layout/SidebarAppShell";
+import type { ReactNode } from "react";
+import { AppHeader } from "@/components/layout/AppHeader";
+import { PageMain } from "@/components/layout/PageShell";
 
-const TENANT_NAV = [
-  { href: "/explore", label: "Explore map", exact: true },
-  { href: "/tenant/unlocks", label: "My unlocks", exact: true },
-] as const;
-
-export default function TenantUnlocksLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function TenantLayout({ children }: { children: ReactNode }) {
   return (
-    <SidebarAppShell sectionLabel="Tenant" navItems={[...TENANT_NAV]}>
-      {children}
-    </SidebarAppShell>
+    <div className="flex min-h-screen flex-col bg-background">
+      <AppHeader />
+      <PageMain className="flex-1 bg-panel">{children}</PageMain>
+    </div>
   );
 }

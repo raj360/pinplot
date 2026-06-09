@@ -6,7 +6,6 @@ import {
   SidebarNav,
   type SidebarNavItem,
 } from "@/components/layout/SidebarNav";
-import { SectionMobileNav } from "@/components/layout/SectionMobileNav";
 import {
   pageMainBesideSidebarClass,
   sidebarColumnClass,
@@ -29,13 +28,6 @@ export function SidebarAppShell({
   return (
     <div className="flex h-dvh flex-col overflow-hidden bg-background">
       <AppHeader variant="sidebar" mobileSectionTitle={sectionLabel} />
-
-      <div className="flex shrink-0 items-center justify-between gap-3 border-b border-border bg-surface px-4 py-2 md:hidden">
-        <p className="text-xs font-semibold uppercase tracking-wide text-muted">
-          {sectionLabel}
-        </p>
-        <SectionMobileNav sectionLabel={sectionLabel} navItems={navItems} />
-      </div>
 
       <div className="flex min-h-0 flex-1 flex-col md:flex-row">
         <aside

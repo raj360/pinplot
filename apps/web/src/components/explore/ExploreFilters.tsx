@@ -48,6 +48,7 @@ type ExploreFiltersProps = {
   searching: boolean;
   filterLoading?: boolean;
   mapVisible: boolean;
+  mapToggleBusy?: boolean;
   onToggleMap: () => void;
   resultCount?: number;
   /** For sorting areas inside the Where dropdown only. */
@@ -74,6 +75,7 @@ export function ExploreFilters({
   searching,
   filterLoading = false,
   mapVisible,
+  mapToggleBusy = false,
   onToggleMap,
   resultCount,
   userLocation = null,
@@ -122,7 +124,7 @@ export function ExploreFilters({
   return (
     <form
       onSubmit={handleSubmit}
-      className="relative isolate z-20 px-3 py-1.5 sm:px-4 sm:py-2"
+      className="relative isolate z-20 px-3 py-1 sm:px-4 sm:py-1.5"
     >
       {filterLoading ? (
         <div
@@ -133,7 +135,7 @@ export function ExploreFilters({
 
       <div className="card-elevated overflow-visible rounded-lg">
         <div className="flex flex-col overflow-visible sm:flex-row sm:items-stretch">
-          <div className="flex min-w-0 flex-1 divide-y divide-border overflow-visible sm:divide-x sm:divide-y-0">
+          <div className="flex min-w-0 flex-1 flex-row items-stretch divide-x divide-border overflow-visible">
             <AreaSearchCombobox
               variant="segment"
               value={filters.city}
@@ -183,31 +185,27 @@ export function ExploreFilters({
         chips={appliedChips}
         onRemove={handleRemoveChip}
         disabled={searching}
-        className="mt-1.5"
+        className="mt-1"
       />
 
-      <div className="mt-1.5 flex flex-wrap items-center justify-between gap-x-3 gap-y-1 border-t border-border/70 pt-2 text-sm">
-        <div className="flex flex-wrap items-center gap-x-2.5 gap-y-0.5">
+      <div className="mt-1 flex min-h-8 flex-wrap items-center justify-between gap-x-3 gap-y-0.5 text-xs">
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
           {searching ? (
-            <span className="inline-flex min-h-8 items-center gap-1.5 text-xs text-muted">
-              <Spinner className="size-3.5" label="Updating map results" />
-              Updating results…
+            <span className="inline-flex items-center gap-1.5 text-muted">
+              <Spinner className="size-3" label="Updating map results" />
+              Updating…
             </span>
-          ) : (
-            <span className="text-xs text-muted">
-              Pan the map to explore — listings update automatically
-            </span>
-          )}
+          ) : null}
           <button
             type="button"
             onClick={onReset}
             disabled={searching}
-            className="min-h-8 px-0.5 text-xs font-medium text-primary hover:underline disabled:opacity-60"
+            className="font-medium text-primary hover:underline disabled:opacity-60"
           >
             Reset all
           </button>
           {activeCount > 0 ? (
-            <span className="text-xs text-muted">
+            <span className="text-muted">
               {activeCount} active
               {propertyFilterCount > 0 && appliedMapBounds
                 ? ` (${propertyFilterCount} property)`
@@ -217,7 +215,7 @@ export function ExploreFilters({
                 : ""}
             </span>
           ) : resultCount != null ? (
-            <span className="text-xs text-muted">
+            <span className="text-muted">
               {resultCount} result{resultCount === 1 ? "" : "s"}
             </span>
           ) : null}
@@ -225,9 +223,21 @@ export function ExploreFilters({
         <button
           type="button"
           onClick={onToggleMap}
-          className={cn("min-h-8 shrink-0 text-xs font-medium text-primary hover:underline")}
+          disabled={mapToggleBusy}
+          className={cn(
+            "inline-flex shrink-0 items-center gap-1.5 font-medium text-primary hover:underline disabled:opacity-60",
+          )}
         >
-          {mapVisible ? "Hide map" : "Show map"}
+          {mapToggleBusy ? (
+            <>
+              <Spinner className="size-3" label="Loading listing" />
+              Opening…
+            </>
+          ) : mapVisible ? (
+            "Hide map"
+          ) : (
+            "Show map"
+          )}
         </button>
       </div>
     </form>

@@ -59,8 +59,10 @@
   --color-neutral-100: var(--neutral-100);
   --color-neutral-200: var(--neutral-200);
   --color-neutral-300: var(--neutral-300);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial,
+    sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+    "Liberation Mono", "Courier New", monospace;
   --radius-sm: 2px;
   --radius-DEFAULT: 2px;
   --radius-md: 2px;
@@ -162,6 +164,7 @@ body {
   height: 0;
   cursor: pointer;
   overflow: visible;
+  touch-action: manipulation;
 }
 
 .plotpin-map-marker {

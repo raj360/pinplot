@@ -33,11 +33,11 @@ import {
   clearStoredViewerCountry,
 } from "@/lib/intl/resolve-viewer-country";
 import { fetchIpCountry } from "@/lib/intl/geo-ip";
-import { boundsAround } from "@/lib/filters/search-areas";
+import { fetchGeoPlacesClient, type GeoPlace } from "@/lib/api/geo-places";
 import {
-  EXPLORE_CITY_RADIUS_DEG,
-  LISTING_PICKER_COUNTRY_CENTERS,
-} from "@/lib/maps/config";
+  resolveCountryMapBounds,
+  resolveCountryMapCenter,
+} from "@/lib/maps/country-map-defaults";
 import type { Bounds } from "@/lib/api/buildings";
 
 type ViewerContextValue = {
@@ -102,16 +102,44 @@ export function ViewerContextProvider({
   children: React.ReactNode;
 }) {
   const { isAuthenticated } = useAuth();
-  const [ready, setReady] = useState(false);
+  const [ready, setReady] = useState(true);
   const [countries, setCountries] = useState<CountryCatalog[]>(FALLBACK_COUNTRIES);
   const [fxRates, setFxRates] = useState<FxRateMap>(() =>
     buildFxRateMap(FALLBACK_FX),
   );
-  const [viewerCountryCode, setViewerCountryCodeState] = useState("UG");
+  const [viewerCountryCode, setViewerCountryCodeState] = useState(() =>
+    resolveViewerCountryCode({
+      storedCountry: readStoredViewerCountry(),
+      profileCountry: null,
+      ipCountry: null,
+    }),
+  );
   const [resolutionHints, setResolutionHints] = useState<{
     profileCountry: string | null;
     ipCountry: string | null;
   }>({ profileCountry: null, ipCountry: null });
+  const [viewerGeoPlaces, setViewerGeoPlaces] = useState<GeoPlace[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const code = viewerCountryCode.trim().toUpperCase();
+    if (!code) {
+      setViewerGeoPlaces([]);
+      return;
+    }
+
+    void fetchGeoPlacesClient(code)
+      .then((rows) => {
+        if (!cancelled) setViewerGeoPlaces(rows);
+      })
+      .catch(() => {
+        if (!cancelled) setViewerGeoPlaces([]);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [viewerCountryCode]);
 
   useEffect(() => {
     let cancelled = false;
@@ -166,7 +194,6 @@ export function ViewerContextProvider({
       });
 
       setViewerCountryCodeState(resolved);
-      setReady(true);
     }
 
     void resolveViewer();
@@ -246,24 +273,12 @@ export function ViewerContextProvider({
   }, [isAuthenticated]);
 
   const getDefaultMapCenter = useCallback((): { lat: number; lng: number } => {
-    if (activeCountry?.mapCenter) {
-      return activeCountry.mapCenter;
-    }
-    return (
-      LISTING_PICKER_COUNTRY_CENTERS[viewerCountryCode] ??
-      LISTING_PICKER_COUNTRY_CENTERS.UG
-    );
-  }, [activeCountry, viewerCountryCode]);
+    return resolveCountryMapCenter(activeCountry, viewerGeoPlaces);
+  }, [activeCountry, viewerGeoPlaces]);
 
   const getDefaultMapBounds = useCallback((): Bounds | null => {
-    if (activeCountry?.mapBounds) {
-      return activeCountry.mapBounds;
-    }
-    // Non-supply markets have no catalog map_bounds — derive a city-level
-    // viewport from the viewer's region center instead of falling back to UG.
-    const center = getDefaultMapCenter();
-    return boundsAround(center.lat, center.lng, EXPLORE_CITY_RADIUS_DEG);
-  }, [activeCountry, getDefaultMapCenter]);
+    return resolveCountryMapBounds(activeCountry, viewerGeoPlaces);
+  }, [activeCountry, viewerGeoPlaces]);
 
   const formatListingMoney = useCallback(
     (amount: number, listingCurrency: string, listingCountryCode?: string) =>
