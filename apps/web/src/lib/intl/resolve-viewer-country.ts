@@ -126,8 +126,8 @@ function browserLanguage(): string {
 /** First unsupported-but-valid ISO country in the precedence chain (for ROW hints). */
 export function firstRawCountryHint(input: ViewerResolutionHints): string | null {
   return (
-    parseIsoCountryCode(input.profileCountry) ??
     parseIsoCountryCode(input.ipCountry) ??
+    parseIsoCountryCode(input.profileCountry) ??
     null
   );
 }
@@ -138,12 +138,14 @@ export function firstRawCountryHint(input: ViewerResolutionHints): string | null
  * areas for every seeded country.
  */
 export function resolveViewerCountryCode(input: ViewerResolutionHints): string {
+  // 1) Explicit choice (country switcher) always wins.
   const stored = parseIsoCountryCode(input.storedCountry);
   if (stored) return stored;
 
-  const profile = parseIsoCountryCode(input.profileCountry);
-  if (profile) return profile;
-
+  // 2) Current location wins over the account/home country so the experience
+  //    follows where the viewer actually is. IP first (most reliable in
+  //    production), then device timezone/locale (also reflects the device, and
+  //    is what DevTools "Sensors" overrides during local testing).
   const ip = parseIsoCountryCode(input.ipCountry);
   if (ip) return ip;
 
@@ -151,7 +153,14 @@ export function resolveViewerCountryCode(input: ViewerResolutionHints): string {
     input.timeZone ?? browserTimeZone(),
     input.language ?? browserLanguage(),
   );
-  return inferred ?? DEFAULT_COUNTRY.code;
+  if (inferred) return inferred;
+
+  // 3) Account/home country is only a fallback for display (it still drives
+  //    billing/payment region elsewhere).
+  const profile = parseIsoCountryCode(input.profileCountry);
+  if (profile) return profile;
+
+  return DEFAULT_COUNTRY.code;
 }
 
 /** Home SSR — resolve viewer region from edge IP headers when available. */

@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import { cookies } from "next/headers";
 import { AppProviders } from "@/components/providers/AppProviders";
 import "./globals.css";
 
@@ -51,15 +52,21 @@ export const viewport: Viewport = {
   initialScale: 1,
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const cookieStore = await cookies();
+  const initialCountryCode =
+    cookieStore.get("plotpin-country-hint")?.value ?? null;
+
   return (
     <html lang="en" suppressHydrationWarning>
       <body className="min-h-screen antialiased" suppressHydrationWarning>
-        <AppProviders>{children}</AppProviders>
+        <AppProviders initialCountryCode={initialCountryCode}>
+          {children}
+        </AppProviders>
       </body>
     </html>
   );

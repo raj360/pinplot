@@ -73,10 +73,15 @@ export function formatMoney(
     countriesByCode,
   );
 
-  const primary = formatCurrency(amount, effectiveListingCurrency, listingLocale);
+  const nativeFormatted = formatCurrency(
+    amount,
+    effectiveListingCurrency,
+    listingLocale,
+  );
 
+  // Listing is already in the viewer's currency → one clean value, no reference.
   if (effectiveListingCurrency === viewer.displayCurrency) {
-    return { primary };
+    return { primary: nativeFormatted };
   }
 
   const converted = convertMoney(
@@ -86,29 +91,26 @@ export function formatMoney(
     fxRates,
   );
 
+  // No FX rate available — fall back to the listing's native price as the lead.
   if (converted == null) {
-    return { primary };
+    return { primary: nativeFormatted };
   }
 
-  const rounded =
-    viewer.displayCurrency === "UGX" ||
-    viewer.displayCurrency === "KES" ||
-    viewer.displayCurrency === "TZS" ||
-    viewer.displayCurrency === "RWF" ||
-    viewer.displayCurrency === "NGN" ||
-    viewer.displayCurrency === "ZAR"
-      ? Math.round(converted)
-      : Math.round(converted * 100) / 100;
+  const rounded = ZERO_DECIMAL_CURRENCIES.has(viewer.displayCurrency)
+    ? Math.round(converted)
+    : Math.round(converted * 100) / 100;
 
-  const footnoteValue = formatCurrency(
+  const viewerFormatted = formatCurrency(
     rounded,
     viewer.displayCurrency,
     viewer.displayLocale,
   );
 
+  // Lead with the viewer's currency; show the listing's local price as a
+  // reference (the "~" marks the viewer value as a converted estimate).
   return {
-    primary,
-    footnote: `~${footnoteValue}`,
+    primary: `~${viewerFormatted}`,
+    footnote: nativeFormatted,
   };
 }
 
