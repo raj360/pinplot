@@ -38,14 +38,8 @@ export type TransactionalEmailFrameOptions = {
   privacyUrl?: string | null;
   year?: number;
   logoSrc?: string | null;
+  tagline?: string | null;
 };
-
-export function resolveEmailLogoSrc(webBaseUrl: string | null): string {
-  if (webBaseUrl?.trim()) {
-    return `${webBaseUrl.replace(/\/$/, "")}/plotpin-logo-email.png`;
-  }
-  return "";
-}
 
 export function frameTransactionalEmailHtml(
   opts: TransactionalEmailFrameOptions,
@@ -73,13 +67,15 @@ export function frameTransactionalEmailHtml(
       ? `${opts.webBaseUrl.replace(/\/$/, "")}/privacy`
       : null);
 
-  const logoSrc =
-    opts.logoSrc?.trim() ||
-    (opts.webBaseUrl ? resolveEmailLogoSrc(opts.webBaseUrl) : "");
+  const logoSrc = opts.logoSrc?.trim() ?? "";
 
   const logoBlock = logoSrc
-    ? `<img src="${escapeHtml(logoSrc)}" width="36" height="36" alt="PlotPin" style="display:block;border:0;outline:none;text-decoration:none;height:36px;width:auto;">`
+    ? `<img src="${escapeHtml(logoSrc)}" width="99" height="46" alt="PlotPin" style="display:block;border:0;outline:none;text-decoration:none;height:32px;width:auto;">`
     : `<span style="font-size:22px;font-weight:700;color:${primaryForeground};">PlotPin</span>`;
+
+  const tagline =
+    opts.tagline?.trim() ||
+    "Map-first rentals · Uganda supply, global discovery";
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -105,15 +101,12 @@ ${escapeHtml(opts.preheader)}
 <table role="presentation" border="0" cellspacing="0" cellpadding="0">
 <tbody>
 <tr>
-<td style="vertical-align:middle;padding-right:12px;">${logoBlock}</td>
-<td style="vertical-align:middle;">
-<span style="font-size:20px;font-weight:700;letter-spacing:-0.02em;color:${primaryForeground};font-family:${FONT};">PlotPin</span>
-</td>
+<td style="vertical-align:middle;">${logoBlock}</td>
 </tr>
 </tbody>
 </table>
 <p style="margin:12px 0 0;font-size:13px;line-height:1.5;color:${primaryForeground};opacity:0.85;font-family:${FONT};">
-Map-first rentals · Uganda supply, global discovery
+${escapeHtml(tagline)}
 </p>
 </td>
 </tr>

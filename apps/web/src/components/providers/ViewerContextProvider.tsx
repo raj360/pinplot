@@ -33,11 +33,11 @@ import {
   clearStoredViewerCountry,
 } from "@/lib/intl/resolve-viewer-country";
 import { fetchIpCountry } from "@/lib/intl/geo-ip";
-import { boundsAround } from "@/lib/filters/search-areas";
+import { fetchGeoPlacesClient, type GeoPlace } from "@/lib/api/geo-places";
 import {
-  EXPLORE_CITY_RADIUS_DEG,
-  LISTING_PICKER_COUNTRY_CENTERS,
-} from "@/lib/maps/config";
+  resolveCountryMapBounds,
+  resolveCountryMapCenter,
+} from "@/lib/maps/country-map-defaults";
 import type { Bounds } from "@/lib/api/buildings";
 
 type ViewerContextValue = {
@@ -69,6 +69,9 @@ type ViewerContextValue = {
 
 const ViewerContextReact = createContext<ViewerContextValue | null>(null);
 
+/** Minimal currency/locale rows so SSR + first paint render the right name and
+ *  currency for the cookie-resolved country before the full catalog loads. Map
+ *  bounds are seeded only for UG; other markets resolve via geo_places at runtime. */
 const FALLBACK_COUNTRIES: CountryCatalog[] = [
   {
     code: "UG",
@@ -79,6 +82,45 @@ const FALLBACK_COUNTRIES: CountryCatalog[] = [
     mapBounds: { north: 0.4, south: 0.28, east: 32.72, west: 32.52 },
     defaultMapZoom: 13,
   },
+  ...(
+    [
+      ["GB", "United Kingdom", "GBP", "en-GB"],
+      ["US", "United States", "USD", "en-US"],
+      ["KE", "Kenya", "KES", "en-KE"],
+      ["TZ", "Tanzania", "TZS", "en-TZ"],
+      ["RW", "Rwanda", "RWF", "en-RW"],
+      ["NG", "Nigeria", "NGN", "en-NG"],
+      ["ZA", "South Africa", "ZAR", "en-ZA"],
+      ["AE", "United Arab Emirates", "AED", "en-AE"],
+      ["CA", "Canada", "CAD", "en-CA"],
+      ["DE", "Germany", "EUR", "de-DE"],
+      ["IE", "Ireland", "EUR", "en-IE"],
+      ["NL", "Netherlands", "EUR", "nl-NL"],
+      ["FR", "France", "EUR", "fr-FR"],
+      ["IT", "Italy", "EUR", "it-IT"],
+      ["ES", "Spain", "EUR", "es-ES"],
+      ["BE", "Belgium", "EUR", "nl-BE"],
+      ["SE", "Sweden", "SEK", "sv-SE"],
+      ["NO", "Norway", "NOK", "nb-NO"],
+      ["DK", "Denmark", "DKK", "da-DK"],
+      ["CH", "Switzerland", "CHF", "de-CH"],
+      ["SA", "Saudi Arabia", "SAR", "en-SA"],
+      ["QA", "Qatar", "QAR", "en-QA"],
+      ["AU", "Australia", "AUD", "en-AU"],
+      ["NZ", "New Zealand", "NZD", "en-NZ"],
+      ["IN", "India", "INR", "en-IN"],
+      ["SG", "Singapore", "SGD", "en-SG"],
+      ["GH", "Ghana", "GHS", "en-GH"],
+    ] as const
+  ).map(([code, name, currency, displayLocale]) => ({
+    code,
+    name,
+    currency,
+    displayLocale,
+    mapCenter: null,
+    mapBounds: null,
+    defaultMapZoom: 12,
+  })),
 ];
 
 /** Offline bootstrap only — live rates come from GET /api/v1/fx/rates (open.er-api.com). */
@@ -98,20 +140,70 @@ const FALLBACK_FX: FxRateEntry[] = [
 
 export function ViewerContextProvider({
   children,
+  initialCountryCode,
 }: {
   children: React.ReactNode;
+  /** Country resolved from the SSR cookie hint — keeps the first paint correct. */
+  initialCountryCode?: string | null;
 }) {
   const { isAuthenticated } = useAuth();
-  const [ready, setReady] = useState(false);
+  const [ready, setReady] = useState(true);
   const [countries, setCountries] = useState<CountryCatalog[]>(FALLBACK_COUNTRIES);
   const [fxRates, setFxRates] = useState<FxRateMap>(() =>
     buildFxRateMap(FALLBACK_FX),
   );
-  const [viewerCountryCode, setViewerCountryCodeState] = useState("UG");
+  // Seeded from the server-readable cookie hint so SSR and the first client
+  // render are identical (no hydration mismatch) AND show the viewer's real
+  // country immediately (no "Uganda" flash). localStorage / browser signals are
+  // only consulted after mount.
+  const ssrInitialCountry =
+    initialCountryCode && /^[A-Za-z]{2}$/.test(initialCountryCode)
+      ? initialCountryCode.toUpperCase()
+      : DEFAULT_COUNTRY.code;
+  const [viewerCountryCode, setViewerCountryCodeState] =
+    useState<string>(ssrInitialCountry);
+  const [hydrated, setHydrated] = useState(false);
   const [resolutionHints, setResolutionHints] = useState<{
     profileCountry: string | null;
     ipCountry: string | null;
   }>({ profileCountry: null, ipCountry: null });
+  const [viewerGeoPlaces, setViewerGeoPlaces] = useState<GeoPlace[]>([]);
+
+  // Apply the stored override immediately after hydration (fast path for
+  // returning visitors) before the async profile/IP resolution completes.
+  useEffect(() => {
+    setHydrated(true);
+    const stored = readStoredViewerCountry();
+    if (stored) setViewerCountryCodeState(stored);
+  }, []);
+
+  // Persist the resolved country to a server-readable cookie so the next refresh
+  // can render the correct country on the first paint (kills the UG flash).
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    document.cookie = `plotpin-country-hint=${viewerCountryCode}; path=/; max-age=31536000; samesite=lax`;
+  }, [viewerCountryCode]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const code = viewerCountryCode.trim().toUpperCase();
+    if (!code) {
+      setViewerGeoPlaces([]);
+      return;
+    }
+
+    void fetchGeoPlacesClient(code)
+      .then((rows) => {
+        if (!cancelled) setViewerGeoPlaces(rows);
+      })
+      .catch(() => {
+        if (!cancelled) setViewerGeoPlaces([]);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [viewerCountryCode]);
 
   useEffect(() => {
     let cancelled = false;
@@ -166,7 +258,6 @@ export function ViewerContextProvider({
       });
 
       setViewerCountryCodeState(resolved);
-      setReady(true);
     }
 
     void resolveViewer();
@@ -205,15 +296,36 @@ export function ViewerContextProvider({
 
   const activeCountry = countriesByCode.get(viewerCountryCode) ?? countries[0];
   const viewer = useMemo<ViewerContext>(() => {
+    // Catalog hit (incl. the SSR fallback rows) → deterministic on server and
+    // first client render, so no hydration mismatch and no UG flash.
+    const country = countriesByCode.get(viewerCountryCode);
+    if (country) {
+      return {
+        countryCode: viewerCountryCode,
+        displayLocale: country.displayLocale,
+        displayCurrency: country.currency,
+      };
+    }
+    // Off-catalog before hydration → safe default with no browser reads (keeps
+    // SSR === first client render).
+    if (!hydrated) {
+      return {
+        countryCode: viewerCountryCode,
+        displayLocale: "en-US",
+        displayCurrency: "USD",
+      };
+    }
+    // Off-catalog after hydration → full region-aware resolution.
     return resolveViewerContext(
       {
-        storedCountry: readStoredViewerCountry(),
+        storedCountry: viewerCountryCode,
         profileCountry: resolutionHints.profileCountry,
         ipCountry: resolutionHints.ipCountry,
       },
       countriesByCode,
     );
   }, [
+    hydrated,
     countriesByCode,
     resolutionHints.ipCountry,
     resolutionHints.profileCountry,
@@ -246,24 +358,12 @@ export function ViewerContextProvider({
   }, [isAuthenticated]);
 
   const getDefaultMapCenter = useCallback((): { lat: number; lng: number } => {
-    if (activeCountry?.mapCenter) {
-      return activeCountry.mapCenter;
-    }
-    return (
-      LISTING_PICKER_COUNTRY_CENTERS[viewerCountryCode] ??
-      LISTING_PICKER_COUNTRY_CENTERS.UG
-    );
-  }, [activeCountry, viewerCountryCode]);
+    return resolveCountryMapCenter(activeCountry, viewerGeoPlaces);
+  }, [activeCountry, viewerGeoPlaces]);
 
   const getDefaultMapBounds = useCallback((): Bounds | null => {
-    if (activeCountry?.mapBounds) {
-      return activeCountry.mapBounds;
-    }
-    // Non-supply markets have no catalog map_bounds — derive a city-level
-    // viewport from the viewer's region center instead of falling back to UG.
-    const center = getDefaultMapCenter();
-    return boundsAround(center.lat, center.lng, EXPLORE_CITY_RADIUS_DEG);
-  }, [activeCountry, getDefaultMapCenter]);
+    return resolveCountryMapBounds(activeCountry, viewerGeoPlaces);
+  }, [activeCountry, viewerGeoPlaces]);
 
   const formatListingMoney = useCallback(
     (amount: number, listingCurrency: string, listingCountryCode?: string) =>

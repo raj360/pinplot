@@ -18,7 +18,6 @@ import {
   unlockPanelDescription,
 } from "@/lib/unlocks/unlock-pricing";
 import { useBuildingUnlocks } from "@/lib/unlocks/use-building-unlocks";
-import { useAuth } from "@/lib/auth/use-auth";
 import { useViewerContext } from "@/components/providers/ViewerContextProvider";
 
 type BuildingDetailExperienceProps = {
@@ -39,12 +38,11 @@ export function BuildingDetailExperience({
   onExpandToFull,
   hideHeader = false,
 }: BuildingDetailExperienceProps) {
-  const { profile } = useAuth();
-  const { formatUnlockFee } = useViewerContext();
+  const { formatUnlockFee, viewer } = useViewerContext();
   const unlocks = useBuildingUnlocks(building.id, building.units, {
     buildingType: building.buildingType,
     countryCode: building.countryCode,
-    tenantCountryCode: profile?.country_code,
+    tenantCountryCode: viewer.countryCode,
   });
   const location = [building.district, building.city].filter(Boolean).join(", ");
   const hasAccess = unlocks.activeUnlocks.length > 0;

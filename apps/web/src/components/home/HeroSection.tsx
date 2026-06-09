@@ -19,9 +19,10 @@ export function HeroSection() {
   const isUganda = viewer.countryCode === "UG";
 
   const unlockFee = formatUnlockFeeLabel(PRICING.tenantUnlockFeeUgx);
-  const unlockCopy = unlockFee.footnote
-    ? `${unlockFee.primary} (${unlockFee.footnote})`
-    : unlockFee.primary;
+  const unlockCopy =
+    isUganda && unlockFee.footnote
+      ? `${unlockFee.primary} (${unlockFee.footnote})`
+      : unlockFee.primary;
 
   return (
     <section className="grid items-center gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(300px,440px)] lg:gap-10">

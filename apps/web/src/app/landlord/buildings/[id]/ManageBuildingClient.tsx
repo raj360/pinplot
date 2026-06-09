@@ -10,11 +10,13 @@ import { Button } from "@/components/ui/button";
 import {
   fetchMyBuilding,
   resubmitBuildingForReview,
+  updateMyBuilding,
   updateUnitStatus,
   type LandlordBuildingDetail,
 } from "@/lib/api/buildings";
 import { getAccessToken } from "@/lib/api/client";
 import { useViewerContext } from "@/components/providers/ViewerContextProvider";
+import { BUILDING_TYPE_OPTIONS } from "@/lib/filters/building-types";
 
 type UnitAction = "AVAILABLE" | "UNAVAILABLE" | "RENTED";
 
@@ -45,10 +47,18 @@ export default function ManageBuildingClient({
   buildingId: string;
 }) {
   const router = useRouter();
-  const { formatListingRentPerMonth } = useViewerContext();
+  const { countries, countriesByCode, formatListingRentPerMonth } =
+    useViewerContext();
   const [building, setBuilding] = useState<LandlordBuildingDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [saveMessage, setSaveMessage] = useState<string | null>(null);
+  const [savingDetails, setSavingDetails] = useState(false);
+  const [name, setName] = useState("");
+  const [city, setCity] = useState("");
+  const [district, setDistrict] = useState("");
+  const [countryCode, setCountryCode] = useState("UG");
+  const [buildingType, setBuildingType] = useState("apartment");
   const [pendingAction, setPendingAction] = useState<PendingUnitAction | null>(
     null,
   );
@@ -58,7 +68,13 @@ export default function ManageBuildingClient({
 
   const load = useCallback(async () => {
     try {
-      setBuilding(await fetchMyBuilding(buildingId));
+      const data = await fetchMyBuilding(buildingId);
+      setBuilding(data);
+      setName(data.name);
+      setCity(data.city);
+      setDistrict(data.district ?? "");
+      setCountryCode(data.countryCode);
+      setBuildingType(data.buildingType);
       setError(null);
     } catch {
       setError("Could not load this building.");
@@ -163,6 +179,29 @@ export default function ManageBuildingClient({
     }
   }
 
+  async function saveListingDetails() {
+    setSavingDetails(true);
+    setError(null);
+    setSaveMessage(null);
+    try {
+      const updated = await updateMyBuilding(buildingId, {
+        name: name.trim(),
+        city: city.trim(),
+        district: district.trim() || undefined,
+        countryCode,
+        buildingType,
+      });
+      setBuilding(updated);
+      setSaveMessage("Listing details saved.");
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Could not save listing details.",
+      );
+    } finally {
+      setSavingDetails(false);
+    }
+  }
+
   if (loading) {
     return <ManageBuildingSkeleton />;
   }
@@ -182,6 +221,12 @@ export default function ManageBuildingClient({
     (u) => u.status === "UNAVAILABLE",
   ).length;
   const canBulkAvailable = building.isVerified && unavailableCount >= 2;
+  const canEditDetails = !building.isVerified || Boolean(building.rejectedAt);
+  const listingCountry = countriesByCode.get(building.countryCode);
+  const listingCurrency =
+    listingCountry?.currency ??
+    building.units[0]?.currency ??
+    "UGX";
 
   return (
     <div className="space-y-4">
@@ -218,6 +263,12 @@ export default function ManageBuildingClient({
       {resubmitMessage ? (
         <p className="border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-900">
           {resubmitMessage}
+        </p>
+      ) : null}
+
+      {saveMessage ? (
+        <p className="border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-900">
+          {saveMessage}
         </p>
       ) : null}
 
@@ -259,6 +310,97 @@ export default function ManageBuildingClient({
           a listing fee.
         </p>
       ) : null}
+
+      {canEditDetails ? (
+        <DashboardSection
+          title="Listing details"
+          description="Country sets the currency for all unit rents. You can edit this while the listing is pending review or after rejection."
+        >
+          <div className="grid max-w-xl gap-4">
+            <label className="block text-sm">
+              Building name
+              <input
+                type="text"
+                value={name}
+                onChange={(event) => setName(event.target.value)}
+                className="mt-1 w-full border border-border bg-surface px-3 py-2"
+              />
+            </label>
+            <label className="block text-sm">
+              Property type
+              <select
+                value={buildingType}
+                onChange={(event) => setBuildingType(event.target.value)}
+                className="mt-1 w-full border border-border bg-surface px-3 py-2"
+              >
+                {BUILDING_TYPE_OPTIONS.filter((option) => option.value).map(
+                  (option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ),
+                )}
+              </select>
+            </label>
+            <label className="block text-sm">
+              Country
+              <select
+                value={countryCode}
+                onChange={(event) => setCountryCode(event.target.value)}
+                className="mt-1 w-full border border-border bg-surface px-3 py-2"
+              >
+                {countries.map((country) => (
+                  <option key={country.code} value={country.code}>
+                    {country.name} ({country.currency})
+                  </option>
+                ))}
+              </select>
+              <span className="mt-1 block text-xs text-muted">
+                Rent is listed in{" "}
+                {countriesByCode.get(countryCode)?.currency ?? listingCurrency}.
+                Changing country updates all unit currencies.
+              </span>
+            </label>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <label className="block text-sm">
+                City
+                <input
+                  type="text"
+                  value={city}
+                  onChange={(event) => setCity(event.target.value)}
+                  className="mt-1 w-full border border-border bg-surface px-3 py-2"
+                />
+              </label>
+              <label className="block text-sm">
+                District / area
+                <input
+                  type="text"
+                  value={district}
+                  onChange={(event) => setDistrict(event.target.value)}
+                  className="mt-1 w-full border border-border bg-surface px-3 py-2"
+                />
+              </label>
+            </div>
+            <Button
+              type="button"
+              loading={savingDetails}
+              loadingLabel="Saving listing details"
+              onClick={() => void saveListingDetails()}
+            >
+              Save listing details
+            </Button>
+          </div>
+        </DashboardSection>
+      ) : (
+        <p className="border border-border bg-surface px-4 py-3 text-sm text-muted">
+          Listing country:{" "}
+          <strong className="text-foreground">
+            {listingCountry?.name ?? building.countryCode}
+          </strong>{" "}
+          · Currency:{" "}
+          <strong className="text-foreground">{listingCurrency}</strong>
+        </p>
+      )}
 
       {!building.isVerified ? (
         <DashboardSection

@@ -14,6 +14,7 @@ import {
   BuildingBoundsQueryDto,
   CreateBuildingDto,
   CreateUnitDto,
+  LandlordUpdateBuildingDto,
   RegisterImageDto,
   UpdateUnitDto,
   VerifyBuildingDto,
@@ -102,17 +103,38 @@ export class BuildingsService {
     return result;
   }
 
-  async findFeatured(limit = 12, countryCode?: string) {
+  async findFeatured(
+    limit = 12,
+    options: {
+      countryCode?: string;
+      localOnly?: boolean;
+      excludeCountryCode?: string;
+    } = {},
+  ) {
     const capped = Math.min(Math.max(limit, 1), 24);
-    const region = countryCode?.trim().toUpperCase() || null;
+    const region = options.countryCode?.trim().toUpperCase() || null;
+    const exclude =
+      options.excludeCountryCode?.trim().toUpperCase() || null;
     const params: unknown[] = [capped];
-    // Surface the viewer's region first, then backfill with the rest of supply
-    // so the section stays populated even where local supply is still thin.
+    const filters: string[] = [
+      "b.is_verified = TRUE",
+      EXPLORE_FEATURED_ACTIVE_SQL,
+    ];
     let regionOrder = "";
-    if (region) {
+
+    if (options.localOnly && region) {
+      params.push(region);
+      filters.push(`b.country_code = $${params.length}`);
+    } else if (region) {
       params.push(region);
       regionOrder = `(b.country_code = $${params.length}) DESC, `;
     }
+
+    if (exclude) {
+      params.push(exclude);
+      filters.push(`b.country_code <> $${params.length}`);
+    }
+
     const { rows } = await this.db.query<BuildingRow>(
       `SELECT
         b.id,
@@ -136,8 +158,7 @@ export class BuildingsService {
       FROM buildings b
       JOIN countries co ON co.code = b.country_code
       LEFT JOIN units u ON u.building_id = b.id
-      WHERE b.is_verified = TRUE
-        AND ${EXPLORE_FEATURED_ACTIVE_SQL}
+      WHERE ${filters.join("\n        AND ")}
       GROUP BY b.id, co.currency, b.is_featured, b.featured_until
       HAVING COUNT(u.id) FILTER (WHERE u.status = 'AVAILABLE') > 0
       ORDER BY ${regionOrder}b.featured_until DESC NULLS LAST, b.featured_granted_at DESC NULLS LAST, b.created_at DESC
@@ -392,6 +413,82 @@ export class BuildingsService {
       availableUnitCount: Number(building.available_unit_count ?? 0),
       units,
     };
+  }
+
+  async updateMineBuilding(
+    buildingId: string,
+    landlordId: string,
+    dto: LandlordUpdateBuildingDto,
+  ) {
+    await this.assertLandlord(buildingId, landlordId);
+
+    const { rows: buildingRows } = await this.db.query<{
+      is_verified: boolean;
+      rejected_at: string | null;
+      country_code: string;
+    }>(
+      `SELECT is_verified, rejected_at, country_code FROM buildings WHERE id = $1`,
+      [buildingId],
+    );
+    const building = buildingRows[0];
+    if (!building) throw new NotFoundException("Building not found");
+
+    const editable =
+      !building.is_verified || building.rejected_at != null;
+    if (!editable) {
+      throw new BadRequestException(
+        "Listing details can only be edited while pending review or after rejection.",
+      );
+    }
+
+    const sets: string[] = [];
+    const params: unknown[] = [buildingId];
+    let paramIndex = 2;
+
+    const push = (column: string, value: unknown) => {
+      sets.push(`${column} = $${paramIndex}`);
+      params.push(value);
+      paramIndex += 1;
+    };
+
+    if (dto.name !== undefined) push("name", dto.name);
+    if (dto.description !== undefined) push("description", dto.description);
+    if (dto.city !== undefined) push("city", dto.city);
+    if (dto.district !== undefined) push("district", dto.district);
+    if (dto.buildingType !== undefined) {
+      push("building_type", dto.buildingType);
+    }
+
+    let nextCurrency: string | null = null;
+    if (dto.countryCode !== undefined) {
+      const countryCode = await this.resolveCountryCode(dto.countryCode);
+      if (countryCode !== building.country_code) {
+        push("country_code", countryCode);
+        nextCurrency = await this.currencyForCountry(countryCode);
+      }
+    }
+
+    if (sets.length === 0) {
+      return this.findMineById(buildingId, landlordId);
+    }
+
+    sets.push("updated_at = NOW()");
+    await this.db.query(
+      `UPDATE buildings SET ${sets.join(", ")} WHERE id = $1`,
+      params,
+    );
+
+    if (nextCurrency) {
+      await this.db.query(
+        `UPDATE units
+         SET currency = $2, updated_at = NOW()
+         WHERE building_id = $1 AND status <> 'LOCKED'`,
+        [buildingId, nextCurrency],
+      );
+    }
+
+    this.exploreCache.clear();
+    return this.findMineById(buildingId, landlordId);
   }
 
   async updateUnitStatus(

@@ -24,6 +24,16 @@ export const EXPLORE_MAP_CLUSTER_COLORS = {
   large: "#ea580c",
 } as const;
 
+/** Hide default Google POI when not using a cloud Map ID (inline styles are ignored with mapId). */
+export const EXPLORE_MAP_POI_STYLES: google.maps.MapTypeStyle[] = [
+  { featureType: "poi", stylers: [{ visibility: "off" }] },
+  {
+    featureType: "transit",
+    elementType: "labels.icon",
+    stylers: [{ visibility: "off" }],
+  },
+];
+
 /** Individual building pins — softer + smaller than cluster bubbles. */
 export const EXPLORE_MAP_PIN_COLORS = {
   available: "#fdba74",

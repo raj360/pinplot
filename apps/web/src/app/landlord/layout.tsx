@@ -1,10 +1,6 @@
 import { SidebarAppShell } from "@/components/layout/SidebarAppShell";
+import { LANDLORD_NAV } from "@/lib/navigation/app-nav";
 import { LandlordSidebarFooter } from "./LandlordSidebarFooter";
-
-const LANDLORD_NAV = [
-  { href: "/landlord/dashboard", label: "Buildings", exact: true },
-  { href: "/landlord/new", label: "Add building", exact: true },
-] as const;
 
 export default function LandlordLayout({
   children,

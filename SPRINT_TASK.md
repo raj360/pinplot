@@ -100,6 +100,39 @@ yarn fx:refresh            # FX rates — schedule DAILY (cron)
 
 ---
 
+## Sprint 5E — Explore polish, viewer UX & homepage personalization — **✅ implemented (2026-06-09)**
+
+**Goal:** Stable explore on mobile/desktop, correct SSR viewer context, and a homepage that prioritizes local featured supply while surfacing global discovery.
+
+```bash
+yarn db:migrate   # applies 026 (RLS), 027 (country map backfill) if not yet run
+```
+
+| ID | Task | Status | Notes |
+|----|------|--------|-------|
+| E-01 | Mobile explore: pin tap, tooltip link, hide-map bootstrap | Done | `ExploreClient`, `PlotPinMap` |
+| E-02 | Disable Google Maps POI click popups | Done | `clickableIcons: false` + POI styles |
+| E-03 | Explore filter bar mobile UX | Done | Where/Filters divider; compact footer |
+| E-04 | Country map defaults from catalog + `geo_places` | Done | `country-map-defaults.ts`; migration `027` |
+| E-05 | Block map interaction while loading/searching | Done | `interactionBlocked` on map |
+| E-06 | Fix infinite loaders (map-idle bootstrap fallback) | Done | Fallback `useEffect` when map hidden/slow |
+| E-07 | Global map bounds listing query | Done | Removed hardcoded `countryCode=UG` in `load-buildings.ts` |
+| E-08 | Viewer country: location-first + SSR cookie | Done | `resolve-viewer-country.ts`, `ViewerContextProvider` |
+| E-09 | Viewer-currency-primary pricing display | Done | `format-money.ts`; hero UGX footnote only in Uganda |
+| E-10 | Featured: local grid + worldwide carousel | Done | `FeaturedListingsSection`, `FeaturedListingsCarousel` |
+| E-11 | Featured API scopes | Done | `localOnly`, `excludeCountryCode` on `GET /buildings/featured` |
+| E-12 | Carousel explore-country deep links + stats | Done | `explore-country-link.ts`; market/unit header |
+| E-13 | Unlock: card default outside MoMo markets | Done | Payer = resolved `viewer.countryCode` |
+| E-14 | Pointer cursor on interactive controls + avatar | Done | `globals.css`, `UserMenu` |
+| E-15 | Skeleton shimmer + radius fix | Done | `skeleton.tsx`, `globals.css` |
+| E-16 | RLS on public catalog tables | Done | Migration `026` |
+| E-17 | Navigation progress on route changes | Done | `NavigationProgress` in `AppProviders` |
+| E-18 | Client-side catalog/geo/FX caching | Done | TTL localStorage + API `Cache-Control` |
+
+**Deferred from 5E:** Featured recommendation/ranking service; explore empty-state copy refresh for multi-market supply; extend `SUPPLY_MARKET_CODES` beyond UG.
+
+---
+
 ## Sprint 5C — Uganda polish (P1)
 
 | ID | Task | Status |
@@ -132,6 +165,7 @@ yarn fx:refresh            # FX rates — schedule DAILY (cron)
 | Sprint 5A guardrails | ✅ (run `yarn db:migrate` → 020) |
 | Live unlock (FW + LS) | ✅ (configure PSP keys + webhooks) |
 | Global discovery + catalog + FX (5D) | ✅ (migrations 023–025; run seeds; FX daily cron) |
+| Explore polish + homepage featured (5E) | ✅ (migrations 026–027; local + worldwide featured) |
 | Stripe / LLC | ⏸ deferred |
 
 ---
@@ -139,11 +173,11 @@ yarn fx:refresh            # FX rates — schedule DAILY (cron)
 ## Recommended build order
 
 ```
-Done:  5A (trust + terms + notifications) · 5B (FW + Lemon Squeezy unlock) · 5D (global catalog + geo + FX)
-Next:  5C polish · Phase 6 featured · LLC+Stripe when justified
-Ops:   yarn fx:refresh on a daily cron
+Done:  5A (trust) · 5B (FW + Lemon Squeezy unlock) · 5D (global catalog + geo + FX) · 5E (explore polish + featured UX)
+Next:  5C MoMo/SMS polish · Phase 6 featured monetization · LLC+Stripe when justified
+Ops:   yarn fx:refresh on a daily cron · run migrations 026–027 if not applied
 ```
 
 ---
 
-*Last updated: 2026-06-08 — Sprint 5D global discovery (catalog + geo_places + UGX-hub FX); migrations through 025*
+*Last updated: 2026-06-09 — Sprint 5E explore polish, viewer UX, homepage featured personalization; migrations through 027*

@@ -7,8 +7,8 @@ import {
   emailPrimaryButton,
   escapeHtml,
   frameTransactionalEmailHtml,
-  resolveEmailLogoSrc,
 } from "./transactional-email-layout";
+import { resolveTransactionalEmailLogoSrc } from "./resolve-transactional-email-logo";
 
 @Injectable()
 export class TransactionalEmailBuilder {
@@ -16,15 +16,20 @@ export class TransactionalEmailBuilder {
 
   private webBaseUrl(): string | null {
     const raw =
-      this.config.get<string>("CORS_ORIGIN")?.split(",")[0]?.trim() ||
       this.config.get<string>("WEB_APP_URL")?.trim() ||
+      this.config.get<string>("NEXT_PUBLIC_APP_URL")?.trim() ||
+      this.config.get<string>("CORS_ORIGIN")?.split(",")[0]?.trim() ||
       null;
     return raw?.replace(/\/$/, "") ?? null;
   }
 
+  private logoSrc(): string | null {
+    return resolveTransactionalEmailLogoSrc(this.config, this.webBaseUrl());
+  }
+
   buildLoginCodeEmail(code: string): { html: string; text: string } {
     const web = this.webBaseUrl();
-    const logoSrc = web ? resolveEmailLogoSrc(web) : null;
+    const logoSrc = this.logoSrc();
 
     const html = frameTransactionalEmailHtml({
       preheader: `Your PlotPin sign-in code is ${code}`,
@@ -162,7 +167,7 @@ export class TransactionalEmailBuilder {
       preheader: opts.preheader,
       heading: opts.heading,
       webBaseUrl: web,
-      logoSrc: web ? resolveEmailLogoSrc(web) : null,
+      logoSrc: this.logoSrc(),
       bodyHtml: [
         emailParagraph(opts.intro),
         emailParagraph(opts.detail),

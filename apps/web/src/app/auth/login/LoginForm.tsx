@@ -15,6 +15,8 @@ import { PlotPinLogo } from "@/components/brand/PlotPinLogo";
 import { GoogleIcon } from "@/components/icons/GoogleIcon";
 import { Button } from "@/components/ui/button";
 import { FormField } from "@/components/ui/form-field";
+import { supplyDiscoveryHeroHint } from "@/lib/copy/supply-discovery";
+import { useViewerContext } from "@/components/providers/ViewerContextProvider";
 import { cn } from "@/lib/utils/cn";
 
 const emailSchema = z.object({
@@ -36,6 +38,7 @@ type Step = "email" | "otp";
 
 export function LoginForm() {
   const router = useRouter();
+  const { ready, viewer, countriesByCode } = useViewerContext();
   const searchParams = useSearchParams();
   const next = searchParams.get("next") ?? "/explore";
   const urlError = searchParams.get("error");
@@ -179,8 +182,13 @@ export function LoginForm() {
             Browse on the map. Unlock the landlord when you are ready.
           </h1>
           <p className="max-w-sm text-sm leading-relaxed text-primary-foreground/80">
-            Uganda supply, global discovery — prices shown in your familiar
-            currency.
+            {ready
+              ? supplyDiscoveryHeroHint(
+                  viewer.countryCode,
+                  countriesByCode.get(viewer.countryCode)?.name ??
+                    viewer.countryCode,
+                )
+              : "Verified supply, global discovery — prices shown in your familiar currency."}
           </p>
         </div>
 
@@ -201,7 +209,7 @@ export function LoginForm() {
 
           <div className="border border-border bg-surface p-6 shadow-card sm:p-8">
             <div className="mb-6 hidden text-center lg:block">
-              <PlotPinLogo variant="icon" height={44} href={null} />
+              <PlotPinLogo variant="colored" height={44} href={null} />
             </div>
 
             <h2 className="text-xl font-bold tracking-tight">Sign in</h2>

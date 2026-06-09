@@ -55,7 +55,26 @@ function mapRow(row: GeoPlaceRow): GeoPlaceEntry {
 
 @Injectable()
 export class GeoService {
+  private readonly cache = new Map<
+    string,
+    { expiresAt: number; rows: GeoPlaceEntry[] }
+  >();
+  private readonly cacheTtlMs = 60 * 60 * 1000;
+
   constructor(private readonly db: DatabaseService) {}
+
+  private readCache(key: string): GeoPlaceEntry[] | null {
+    const entry = this.cache.get(key);
+    if (!entry || Date.now() >= entry.expiresAt) {
+      this.cache.delete(key);
+      return null;
+    }
+    return entry.rows;
+  }
+
+  private writeCache(key: string, rows: GeoPlaceEntry[]) {
+    this.cache.set(key, { rows, expiresAt: Date.now() + this.cacheTtlMs });
+  }
 
   async listPlaces(options: {
     countryCode: string;
@@ -64,6 +83,9 @@ export class GeoService {
   }): Promise<GeoPlaceEntry[]> {
     const country = options.countryCode.trim().toUpperCase();
     const limit = Math.min(Math.max(options.limit ?? 120, 1), 200);
+    const cacheKey = `${country}:${options.kind ?? "*"}:${limit}`;
+    const cached = this.readCache(cacheKey);
+    if (cached) return cached;
 
     const { rows: countryRows } = await this.db.query(
       `SELECT 1 FROM countries WHERE code = $1 AND is_active = TRUE`,
@@ -104,6 +126,8 @@ export class GeoService {
       params,
     );
 
-    return rows.map(mapRow);
+    const mapped = rows.map(mapRow);
+    this.writeCache(cacheKey, mapped);
+    return mapped;
   }
 }

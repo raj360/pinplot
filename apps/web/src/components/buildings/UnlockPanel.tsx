@@ -3,7 +3,7 @@
 import { UnlockPurchasePanel } from "@/components/buildings/UnlockPurchasePanel";
 import { UnlockedAccessCard } from "@/components/buildings/UnlockedAccessCard";
 import { LoadingState } from "@/components/ui/loading-state";
-import { useAuth } from "@/lib/auth/use-auth";
+import { useViewerContext } from "@/components/providers/ViewerContextProvider";
 import { useBuildingUnlocks } from "@/lib/unlocks/use-building-unlocks";
 import type { UnitLike } from "@/lib/buildings/unit-summary";
 
@@ -21,11 +21,11 @@ export function UnlockPanel({
   countryCode: string;
   units: UnitLike[];
 }) {
-  const { profile } = useAuth();
+  const { viewer } = useViewerContext();
   const unlocks = useBuildingUnlocks(buildingId, units, {
     buildingType,
     countryCode,
-    tenantCountryCode: profile?.country_code,
+    tenantCountryCode: viewer.countryCode,
   });
 
   if (unlocks.loading) {

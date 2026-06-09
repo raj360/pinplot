@@ -13,6 +13,7 @@ import {
   EXPLORE_MAP_DEFAULT_ZOOM,
   EXPLORE_MAP_MAX_ZOOM,
   EXPLORE_MAP_MIN_ZOOM,
+  EXPLORE_MAP_POI_STYLES,
 } from "@/lib/maps/config";
 import { PlotPinClusterRenderer } from "@/lib/maps/plotpin-cluster-renderer";
 import { MapSearchAreaButton } from "@/components/maps/MapSearchAreaButton";
@@ -67,6 +68,8 @@ type Props = {
   onHover?: (id: string | null) => void;
   /** Keep the selected pin's tooltip visible (touch devices have no hover). */
   persistSelectedTooltip?: boolean;
+  /** Block pan/zoom/clicks while parent is loading or searching (map stays visible). */
+  interactionBlocked?: boolean;
   /** cooperative = page scroll passes through on mobile; greedy = map captures all gestures */
   gestureHandling?: "greedy" | "cooperative" | "none" | "auto";
   /** Increment after search to fit map to result markers. */
@@ -108,6 +111,7 @@ export function PlotPinMap({
   showSearchAreaButton = false,
   mapAreaSearching = false,
   onSearchMapArea,
+  interactionBlocked = false,
   className,
 }: Props) {
   if (!MAPS_KEY || MAPS_KEY.startsWith("your-")) {
@@ -130,11 +134,13 @@ export function PlotPinMap({
           defaultZoom={EXPLORE_MAP_DEFAULT_ZOOM}
           minZoom={EXPLORE_MAP_MIN_ZOOM}
           maxZoom={EXPLORE_MAP_MAX_ZOOM}
-          mapId={MAP_ID}
+          mapId={MAP_ID || undefined}
           mapTypeId="roadmap"
           mapTypeControl={false}
           streetViewControl={false}
-          gestureHandling={gestureHandling}
+          gestureHandling={interactionBlocked ? "none" : gestureHandling}
+          clickableIcons={false}
+          styles={MAP_ID ? undefined : EXPLORE_MAP_POI_STYLES}
           className="h-full w-full"
         >
           <ExploreMapConstraints />
@@ -170,6 +176,12 @@ export function PlotPinMap({
         onSearch={() => onSearchMapArea?.()}
       />
       <ApproximateLocationNotice variant="map" />
+      {interactionBlocked ? (
+        <div
+          className="absolute inset-0 z-30 cursor-wait bg-background/5"
+          aria-hidden
+        />
+      ) : null}
     </div>
   );
 }
@@ -186,6 +198,8 @@ function ExploreMapConstraints() {
       mapTypeControl: false,
       mapTypeId: "roadmap",
       streetViewControl: false,
+      clickableIcons: false,
+      ...(MAP_ID ? {} : { styles: EXPLORE_MAP_POI_STYLES }),
     });
 
     const listener = map.addListener("zoom_changed", () => {
@@ -697,18 +711,41 @@ function ClusteredMarkers({
 
       pin.insertBefore(tooltip, pin.firstChild);
 
-      titleButton.onclick = (event) => {
-        event.stopPropagation();
-        onHoverOpenDetailRef.current?.(pos.id);
-      };
-
       wrap.appendChild(pin);
 
       bindMarkerHover(wrap, tooltip, pos.id);
+
+      let touchSelectHandled = false;
+      wrap.ontouchend = (e) => {
+        e.stopPropagation();
+        touchSelectHandled = true;
+        colocatedWindowRef.current?.close();
+        onSelectRef.current?.(pos.id);
+      };
       wrap.onclick = (e) => {
+        if (touchSelectHandled) {
+          touchSelectHandled = false;
+          return;
+        }
         e.stopPropagation();
         colocatedWindowRef.current?.close();
         onSelectRef.current?.(pos.id);
+      };
+
+      let touchDetailHandled = false;
+      titleButton.ontouchend = (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        touchDetailHandled = true;
+        onHoverOpenDetailRef.current?.(pos.id);
+      };
+      titleButton.onclick = (event) => {
+        if (touchDetailHandled) {
+          touchDetailHandled = false;
+          return;
+        }
+        event.stopPropagation();
+        onHoverOpenDetailRef.current?.(pos.id);
       };
 
       const marker = new google.maps.marker.AdvancedMarkerElement({

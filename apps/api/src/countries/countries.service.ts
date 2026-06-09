@@ -1,5 +1,6 @@
 import { Injectable } from "@nestjs/common";
 import { DatabaseService } from "../database/database.service";
+import { createInMemoryCache } from "../common/in-memory-cache";
 
 export type CountryRow = {
   code: string;
@@ -60,9 +61,16 @@ function mapCountry(row: CountryRow): CountryCatalogEntry {
 
 @Injectable()
 export class CountriesService {
+  private readonly cache = createInMemoryCache<CountryCatalogEntry[]>(
+    60 * 60 * 1000,
+  );
+
   constructor(private readonly db: DatabaseService) {}
 
   async listActive(): Promise<CountryCatalogEntry[]> {
+    const cached = this.cache.get();
+    if (cached) return cached;
+
     const { rows } = await this.db.query<CountryRow>(
       `SELECT code, name, currency, display_locale,
               map_center_lat, map_center_lng,
@@ -72,7 +80,9 @@ export class CountriesService {
        WHERE is_active = TRUE
        ORDER BY code ASC`,
     );
-    return rows.map(mapCountry);
+    const mapped = rows.map(mapCountry);
+    this.cache.set(mapped);
+    return mapped;
   }
 
   async findByCode(code: string): Promise<CountryCatalogEntry | null> {

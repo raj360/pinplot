@@ -16,7 +16,6 @@ import { AppHeader } from "@/components/layout/AppHeader";
 import { ContentBand } from "@/components/layout/PageShell";
 import { layoutMaxClass, LAYOUT, contentBandInnerClass } from "@/lib/layout/shell";
 import { cn } from "@/lib/utils/cn";
-import { AppLoadingOverlay } from "@/components/ui/app-loading-overlay";
 import { Spinner } from "@/components/ui/spinner";
 import {
   type BuildingDetail,
@@ -133,7 +132,7 @@ export function ExploreClient() {
   const geo = useExploreGeolocation({ autoRequest: shouldAutoGeo });
   const { getDefaultMapBounds, getDefaultMapCenter, countriesByCode, viewer, formatListingRentPerMonth } =
     useViewerContext();
-  const { presets: geoPresets } = useGeoPlaces(viewer.countryCode);
+  const { presets: geoPresets, loading: geoPlacesLoading } = useGeoPlaces(viewer.countryCode);
   const [unlockedLocations, setUnlockedLocations] = useState<
     Map<string, { lat: number; lng: number }>
   >(new Map());
@@ -217,10 +216,15 @@ export function ExploreClient() {
   const geoLocationRef = useRef(geo.location);
   const geoInUgandaRef = useRef(geo.inUganda);
   const geoLoadingRef = useRef(geo.loading);
+  const geoPlacesLoadingRef = useRef(geoPlacesLoading);
   const getDefaultMapBoundsRef = useRef(getDefaultMapBounds);
   const getDefaultMapCenterRef = useRef(getDefaultMapCenter);
   const viewerCountryCodeRef = useRef(viewer.countryCode);
   const filtersRef = useRef(filters);
+
+  useEffect(() => {
+    geoPlacesLoadingRef.current = geoPlacesLoading;
+  }, [geoPlacesLoading]);
 
   useEffect(() => {
     getDefaultMapBoundsRef.current = getDefaultMapBounds;
@@ -297,6 +301,7 @@ export function ExploreClient() {
       setHover(id);
 
       if (selectedDetailRef.current?.id === id) {
+        setSelectedLoading(false);
         return;
       }
 
@@ -322,13 +327,14 @@ export function ExploreClient() {
   );
 
   const scrollListToBuilding = useCallback((buildingId: string) => {
+    if (isMobile) return;
     window.requestAnimationFrame(() => {
       const row = listRef.current?.querySelector(
         `[data-building-id="${buildingId}"]`,
       );
       row?.scrollIntoView({ block: "nearest", behavior: "smooth" });
     });
-  }, []);
+  }, [isMobile]);
 
   const focusBuildingOnMap = useCallback(
     (building: BuildingSummary) => {
@@ -344,6 +350,8 @@ export function ExploreClient() {
 
   const selectBuildingOnMap = useCallback(
     (id: string) => {
+      if (isMobile) return;
+
       selectedIdRef.current = id;
       setSelectedId(id);
       setHover(id);
@@ -356,7 +364,7 @@ export function ExploreClient() {
         history: "replace",
       });
     },
-    [scrollListToBuilding, setHover, syncSelectionToUrl],
+    [isMobile, scrollListToBuilding, setHover, syncSelectionToUrl],
   );
 
   const applySearchResults = useCallback(
@@ -401,10 +409,13 @@ export function ExploreClient() {
       selectedIdRef.current = resolvedId;
       setSelectedId(resolvedId);
       if (isMobile) {
-        void loadDetail(resolvedId);
+        setDetailMode(null);
+        setSelectedDetail(null);
+        selectedDetailRef.current = null;
+        setSelectedLoading(false);
       }
     },
-    [isMobile, loadDetail, searchParams, setHover],
+    [isMobile, searchParams, setHover],
   );
 
   const refreshUnlockState = useCallback(async () => {
@@ -446,7 +457,14 @@ export function ExploreClient() {
       let building = buildings.find((item) => item.id === buildingId);
       if (!building) {
         const detail = await loadSelectedDetail(buildingId);
-        if (!detail) return;
+        if (!detail) {
+          // Detail fetch failed (transient network / cache miss / removed
+          // listing). Clear the pending spinner so the panel never hangs.
+          setSelectedLoading(false);
+          setSelectedDetail(null);
+          selectedDetailRef.current = null;
+          return;
+        }
         building = detail;
         setAllBuildings((prev) =>
           prev.some((item) => item.id === buildingId)
@@ -804,6 +822,29 @@ export function ExploreClient() {
     [countriesByCode, executeSearch, suppressMapInteraction],
   );
 
+  // Safety net: the landing search is normally kicked off by the map's `idle`
+  // event (handleViewportChange). When the map is hidden on load (deep link with
+  // map=0), absent, or simply never emits idle, that event never fires and the
+  // list, "All" counter, and any deep-linked detail spin forever. Run the same
+  // bootstrap directly so loading always resolves regardless of the map.
+  useEffect(() => {
+    if (!bootstrapPendingRef.current) return;
+
+    const fire = () => {
+      if (!bootstrapPendingRef.current) return;
+      const bounds =
+        viewportBoundsRef.current ??
+        getDefaultMapBoundsRef.current() ??
+        appliedSearchBoundsRef.current;
+      void runBootstrapSearch(bounds);
+    };
+
+    const waitMs =
+      geoLoadingRef.current || geoPlacesLoadingRef.current ? 1800 : 700;
+    const timer = window.setTimeout(fire, waitMs);
+    return () => window.clearTimeout(timer);
+  }, [runBootstrapSearch]);
+
   const handlePlaceJump = useCallback(
     async (query: string) => {
       const trimmed = query.trim();
@@ -1027,9 +1068,22 @@ export function ExploreClient() {
 
   const handleMapSelect = useCallback(
     (id: string) => {
+      if (isMobile) {
+        selectedIdRef.current = id;
+        setSelectedId(id);
+        setHover(id);
+        setDetailMode(null);
+        setAccessModalBuildingId(null);
+        syncSelectionToUrl({
+          buildingId: id,
+          hideMap: false,
+          history: "replace",
+        });
+        return;
+      }
       selectBuildingOnMap(id);
     },
-    [selectBuildingOnMap],
+    [isMobile, selectBuildingOnMap, setHover, syncSelectionToUrl],
   );
 
   const handleExpandToFullDetails = useCallback(() => {
@@ -1090,13 +1144,15 @@ export function ExploreClient() {
 
     if (selectedId) {
       setDetailMode("full");
+      setSelectedLoading(true);
       syncSelectionToUrl({
         buildingId: selectedId,
         hideMap: true,
         history: "push",
       });
+      void loadDetail(selectedId);
     }
-  }, [mapVisible, selectedId, syncSelectionToUrl]);
+  }, [loadDetail, mapVisible, selectedId, syncSelectionToUrl]);
 
   const closeMobileSheet = useCallback(() => {
     setDetailMode(null);
@@ -1139,7 +1195,8 @@ export function ExploreClient() {
       window.clearTimeout(bootstrapTimerRef.current);
 
       if (bootstrapPendingRef.current) {
-        const waitForGeo = geoLoadingRef.current ? 1200 : 0;
+        const waitForGeo =
+          geoLoadingRef.current || geoPlacesLoadingRef.current ? 1500 : 300;
         bootstrapTimerRef.current = window.setTimeout(() => {
           void runBootstrapSearch(viewport.bounds);
         }, waitForGeo);
@@ -1206,6 +1263,7 @@ export function ExploreClient() {
     onViewportChange: handleViewportChange,
     onUserMapInteraction: handleUserMapInteraction,
     onProgrammaticMapMove: suppressMapInteraction,
+    interactionBlocked: loading || searching,
   };
 
   const showMobileSheet = Boolean(selectedId) && isMobile && detailMode !== null;
@@ -1235,6 +1293,9 @@ export function ExploreClient() {
             searching={searching}
             filterLoading={searching && !loading}
             mapVisible={mapVisible}
+            mapToggleBusy={
+              isMobile && selectedLoading && detailMode === "full" && !mapVisible
+            }
             onToggleMap={handleToggleMap}
             resultCount={allBuildings.length}
             userLocation={geo.location}
@@ -1260,8 +1321,6 @@ export function ExploreClient() {
           />
         </div>
       )}
-
-      <AppLoadingOverlay show={loading} label="Loading buildings" />
 
       <div className="flex flex-col md:min-h-0 md:flex-1 md:overflow-hidden">
         <div

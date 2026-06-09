@@ -20,12 +20,12 @@ PlotPin should work for **any visitor** landing from social ads anywhere in the 
 
 ## Where we stand (product snapshot)
 
-**Phase:** Sprint 4 ✅ → 5A trust ✅ → 5B unlock payments (FW + Lemon Squeezy) ✅ → **5D global discovery, catalog & FX ✅** → 5C Uganda polish (next)
+**Phase:** Sprint 4 ✅ → 5A trust ✅ → 5B unlock payments (FW + Lemon Squeezy) ✅ → 5D global discovery ✅ → **5E explore & homepage polish ✅ (2026-06-09)** → 5C Uganda rails polish (next)
 
 | Persona | Can do today | Next |
 |---------|--------------|------|
-| **Tenant** | Homepage v2, **global explore** (country-scoped areas), **viewer-currency FX**, paid unlock | MoMo/SMS polish (5C) |
-| **Landlord** | Submit (any country), photos, unit status, reject + resubmit, listing-currency edit | Country/currency on edit flow |
+| **Tenant** | Homepage v2 with **personalized featured** (local grid + worldwide carousel), **global explore** (all verified listings in map bounds), **location-first viewer country** + viewer-currency pricing, paid unlock (card default outside MoMo markets) | MoMo/SMS polish (5C) |
+| **Landlord** | Submit (any country), photos, unit status, reject + resubmit, listing-currency edit; **GB + UG test supply** on map | Extend `SUPPLY_MARKET_CODES` as markets launch |
 | **Admin** | Approve/reject, coupons, featured launch, verification checklist, reports | — |
 
 **Monetization:** [docs/BUSINESS-MODEL.md](./docs/BUSINESS-MODEL.md) — free listing, paid unlock.  
@@ -40,7 +40,7 @@ PlotPin should work for **any visitor** landing from social ads anywhere in the 
 
 ---
 
-## Phase 5A — Trust, access & engagement — **current**
+## Phase 5A — Trust, access & engagement — **✅ complete**
 
 **Goal:** Safe for real users before payments.
 
@@ -57,7 +57,7 @@ Full task list: [docs/IMPLEMENTATION-PLAN.md](./docs/IMPLEMENTATION-PLAN.md)
 
 ---
 
-## Phase 5B — Unlock payments — **after 5A**
+## Phase 5B — Unlock payments — **✅ complete**
 
 **Rails:** Lemon Squeezy (international) + Flutterwave (Uganda). **Not Stripe** until entity formation.
 
@@ -88,6 +88,24 @@ Full task list: [docs/IMPLEMENTATION-PLAN.md](./docs/IMPLEMENTATION-PLAN.md)
 
 ---
 
+## Phase 5E — Explore polish, viewer UX & homepage personalization — **✅ complete (2026-06-09)**
+
+**Goal:** Production-quality explore on mobile/desktop, correct viewer context on SSR, and a homepage that feels personalized for a global audience.
+
+| Area | Deliverable |
+|------|-------------|
+| **Explore** | Mobile pin/tap + tooltip fixes; POI popups disabled; map non-interactive while loading; bootstrap fallback when map hidden/slow (no infinite spinners) |
+| **Map & listings** | Remove hardcoded `countryCode=UG` on bounds query — verified listings appear in any market (e.g. London); country map center/bounds from catalog → `geo_places` → global fallback |
+| **Viewer context** | Location-first country (stored override → IP → timezone/locale → profile); SSR cookie hint; hydration-safe hero; viewer-currency-primary rent + unlock labels |
+| **Homepage featured** | Local featured grid (viewer country) + **Featured around the world** carousel; API `localOnly` / `excludeCountryCode`; per-card **Explore {country} on map** links + market/unit stats |
+| **Unlock UX** | Card checkout default for non–Flutterwave MoMo viewers (uses resolved viewer country, not profile billing country) |
+| **UI polish** | Global pointer cursor on interactive controls; avatar menu cursor; skeleton shimmer; navigation progress |
+| **Data / security** | Migration `026` RLS on public catalog tables; migration `027` backfill `countries.map_center` / `map_bounds` from `geo_places` |
+
+**Next (deferred):** Featured ranking / recommendation service as inventory grows; refresh explore empty-state copy for multi-market supply.
+
+---
+
 ## Phase 5C — Uganda rails polish
 
 MoMo UX, USSD (TBD), SMS landlord alerts on unlock.
@@ -109,15 +127,15 @@ MoMo UX, USSD (TBD), SMS landlord alerts on unlock.
 |-------|------|
 | **Data** | Listing currency on units; unlock fees (UGX) per `country_code` in `pricing_rules`; catalog by ISO `code` |
 | **Search areas** | Seeded `geo_places` (per-place bounds) drive the picker; no live geocoder — geocode only on commit |
-| **Display** | `formatMoney` — canonical rent + optional `(~£X)` hint via UGX-hub FX |
+| **Display** | `formatMoney` — viewer currency primary; listing native currency as footnote when different |
 | **Currency** | `fx_rates` is UGX-hub; cross any pair via UGX; refresh **daily** |
-| **Supply vs browse** | Browse global via `geo_places`; listings only in `SUPPLY_MARKET_CODES` (UG) |
+| **Supply vs browse** | Browse global via `geo_places`; map loads verified listings in viewport (supply markets still `SUPPLY_MARKET_CODES`; extend as markets launch) |
 | **Listing** | **Free** after admin verification |
-| **Payments** | One unlock flow; route to FW or Lemon Squeezy |
-| **Map** | Near me → GPS; deny → viewer country bounds (UG fallback) |
+| **Payments** | One unlock flow; route to FW or Lemon Squeezy; card default outside MoMo markets |
+| **Map** | Near me → GPS; deny → viewer country bounds from catalog/geo; not Kampala-by-default |
 | **Trust** | Admin verify; phone; attestation; reports |
-| **Homepage** | Kampala D3 hero; no live Maps API on `/` |
+| **Homepage** | Kampala D3 hero; personalized featured (local + worldwide carousel); no live Maps API on `/` |
 
 ---
 
-*Last updated: 2026-06-08 — Sprint 5D global discovery (full country catalog, geo_places search areas, UGX-hub FX); migrations through 025*
+*Last updated: 2026-06-09 — Sprint 5E explore polish, viewer UX, homepage featured personalization; migrations through 027*

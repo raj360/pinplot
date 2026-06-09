@@ -1,5 +1,5 @@
 import { NestFactory } from "@nestjs/core";
-import { ValidationPipe } from "@nestjs/common";
+import { RequestMethod, ValidationPipe } from "@nestjs/common";
 import { AppModule } from "./app.module";
 import { ThrottleExceptionFilter } from "./common/throttle-exception.filter";
 import * as express from "express";
@@ -24,7 +24,12 @@ async function bootstrap() {
     },
   );
 
-  app.setGlobalPrefix("api/v1");
+  app.setGlobalPrefix("api/v1", {
+    exclude: [
+      { path: "plotpin-logo-email.png", method: RequestMethod.GET },
+      { path: "email-assets/plotpin-logo-email.png", method: RequestMethod.GET },
+    ],
+  });
   app.useGlobalFilters(new ThrottleExceptionFilter());
   app.enableCors({
     origin: process.env.CORS_ORIGIN?.split(",") ?? ["http://localhost:3000"],

@@ -27,11 +27,7 @@ export function SidebarAppShell({
 }: SidebarAppShellProps) {
   return (
     <div className="flex h-dvh flex-col overflow-hidden bg-background">
-      <AppHeader variant="sidebar" />
-
-      <div className="shrink-0 border-b border-border bg-surface px-4 md:hidden">
-        <SidebarNav items={navItems} variant="tabs" />
-      </div>
+      <AppHeader variant="sidebar" mobileSectionTitle={sectionLabel} />
 
       <div className="flex min-h-0 flex-1 flex-col md:flex-row">
         <aside

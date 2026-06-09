@@ -1,4 +1,4 @@
-import { Controller, Get } from "@nestjs/common";
+import { Controller, Get, Header } from "@nestjs/common";
 import { CountriesService } from "./countries.service";
 import { FxRatesService } from "./fx-rates.service";
 
@@ -10,11 +10,13 @@ export class CatalogController {
   ) {}
 
   @Get("countries")
+  @Header("Cache-Control", "public, max-age=3600, stale-while-revalidate=86400")
   listCountries() {
     return this.countries.listActive();
   }
 
   @Get("fx/rates")
+  @Header("Cache-Control", "public, max-age=900, stale-while-revalidate=3600")
   listFxRates() {
     return this.fxRates.listRates();
   }
