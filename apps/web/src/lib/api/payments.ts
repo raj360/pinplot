@@ -35,9 +35,33 @@ export async function fetchUnlockPaymentStatus(paymentId: string) {
   return apiFetch<{
     paymentId: string;
     status: string;
+    purpose?: string;
     unitId?: string;
+    buildingId?: string;
     unlockState: "pending" | "completed" | "failed";
   }>(`/payments/${paymentId}/unlock-status`);
+}
+
+export type FeaturedCheckoutResponse = {
+  mode: "checkout";
+  provider: PaymentProvider;
+  paymentId: string;
+  checkoutUrl: string;
+  durationDays: number;
+  chargeUgx: number;
+  currency: string;
+};
+
+export async function startFeaturedCheckout(options: {
+  buildingId: string;
+  durationDays: number;
+  payerCountryCode?: string;
+  providerPreference?: "auto" | "flutterwave" | "lemon_squeezy";
+}) {
+  return apiFetch<FeaturedCheckoutResponse>("/payments/featured/checkout", {
+    method: "POST",
+    body: JSON.stringify(options),
+  });
 }
 
 export async function confirmFlutterwaveReturn(params: {

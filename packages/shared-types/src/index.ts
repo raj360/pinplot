@@ -13,6 +13,23 @@ export const PRICING = {
   unlockExclusiveHours: 72,
 } as const;
 
+/**
+ * Paid featured boost tiers (S5-08) — canonical UGX; presented in the payer's
+ * currency at checkout via UGX-hub FX. Duration stacks on top of any active
+ * featured window.
+ */
+export const FEATURED_PRICING_TIERS = [
+  { days: 7, amountUgx: 30_000 },
+  { days: 14, amountUgx: 50_000 },
+  { days: 30, amountUgx: 90_000 },
+] as const;
+
+export type FeaturedPricingTier = (typeof FEATURED_PRICING_TIERS)[number];
+
+export function findFeaturedTier(days: number): FeaturedPricingTier | null {
+  return FEATURED_PRICING_TIERS.find((tier) => tier.days === days) ?? null;
+}
+
 /** Max pending/unverified buildings per landlord account (Sprint 5A). */
 export const MAX_UNVERIFIED_BUILDINGS_PER_LANDLORD = 3;
 

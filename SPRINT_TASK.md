@@ -133,6 +133,29 @@ yarn db:migrate   # applies 026 (RLS), 027 (country map backfill) if not yet run
 
 ---
 
+## Sprint 5F — Role dashboards & featured monetization — **✅ implemented (2026-06-09)**
+
+**Goal:** Tenant sidebar shell, landlord featured stats, and live paid featured checkout (S5-08 pulled forward from Phase 6).
+
+| ID | Task | Status | Notes |
+|----|------|--------|-------|
+| F-01 | Tenant sidebar layout (`SidebarAppShell` + `TENANT_NAV`) | Done | `/tenant/*` now matches landlord/admin shells |
+| F-02 | `FEATURED_PRICING_TIERS` (7d/14d/30d = UGX 30k/50k/90k) | Done | `shared-types`; presented in viewer currency via FX |
+| F-03 | `POST /payments/featured/checkout` (landlord) | Done | `FeaturedCheckoutService` — FW (MoMo markets) / Lemon Squeezy (cards) |
+| F-04 | Settlement branches on `purpose = FEATURED` | Done | Webhooks + redirect confirm grant `featured_source = 'PAID'`; extends active window |
+| F-05 | `featured_grants` audit row on paid grant | Done | `admin_id` = paying landlord |
+| F-06 | Landlord featured stats | Done | `findByLandlord`/`findMineById` return `isFeatured`, `featuredUntil`, `unlockCount` |
+| F-07 | `FeaturedBoostPanel` on building manage page | Done | Status, unlock count, tier buy buttons |
+| F-08 | Dashboard stat cards: tenant unlocks · featured now | Done | Plus per-building featured/unlock badges |
+| F-09 | `/landlord/featured/complete` return page | Done | Mirrors tenant unlock completion (FW + LS confirm + poll) |
+
+**Business decisions recorded in [docs/BUSINESS-MODEL.md](./docs/BUSINESS-MODEL.md) §8:**
+- Unlock stays **exclusive by default** (anti-blocker promise); landlord opt-in capped "open contact" mode is the Phase 6-compatible path (M-01)
+- `/day` rental period planned via `units.rent_period` (R-01)
+- Listing stays **free** — no listing fee; escalate anti-spam guardrails only on abuse signals
+
+---
+
 ## Sprint 5C — Uganda polish (P1)
 
 | ID | Task | Status |
@@ -147,7 +170,9 @@ yarn db:migrate   # applies 026 (RLS), 027 (country map backfill) if not yet run
 
 | ID | Task | Notes |
 |----|------|-------|
-| S5-08 | Paid featured | ~3 months post-launch |
+| ~~S5-08~~ | ~~Paid featured~~ | **✅ Done in 5F** — market it once unlock volume proves ROI |
+| M-01 | Multi-unlock "open contact" mode (landlord opt-in, cap 3, discounted fee) | BUSINESS-MODEL §8.1 |
+| R-01 | `units.rent_period` — `/day` for short-stay building types | BUSINESS-MODEL §8.2 |
 | T-14 | Verify badge (one-time) | Optional |
 | S4-19 | Landlord country on create | |
 | **P-LLC** | US LLC + Stripe | When PAYMENTS-STRATEGY §8 triggers |
@@ -173,11 +198,11 @@ yarn db:migrate   # applies 026 (RLS), 027 (country map backfill) if not yet run
 ## Recommended build order
 
 ```
-Done:  5A (trust) · 5B (FW + Lemon Squeezy unlock) · 5D (global catalog + geo + FX) · 5E (explore polish + featured UX)
-Next:  5C MoMo/SMS polish · Phase 6 featured monetization · LLC+Stripe when justified
+Done:  5A (trust) · 5B (FW + Lemon Squeezy unlock) · 5D (global catalog + geo + FX) · 5E (explore polish + featured UX) · 5F (tenant sidebar + paid featured)
+Next:  5C MoMo/SMS polish · M-01 open-contact unlocks · R-01 /day rent period · LLC+Stripe when justified
 Ops:   yarn fx:refresh on a daily cron · run migrations 026–027 if not applied
 ```
 
 ---
 
-*Last updated: 2026-06-09 — Sprint 5E explore polish, viewer UX, homepage featured personalization; migrations through 027*
+*Last updated: 2026-06-09 — Sprint 5F tenant sidebar + paid featured (S5-08); business-model decisions in docs/BUSINESS-MODEL.md §8*

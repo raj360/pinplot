@@ -32,6 +32,8 @@ export default function LandlordDashboardClient() {
   const pendingCount = countBuildingsPendingReview(buildings);
   const rejectedCount = countBuildingsRejected(buildings);
   const firstNeedsSetup = buildings.find(buildingNeedsUnitSetup);
+  const featuredCount = buildings.filter((b) => b.isFeatured).length;
+  const totalUnlocks = buildings.reduce((sum, b) => sum + (b.unlockCount ?? 0), 0);
 
   useEffect(() => {
     let cancelled = false;
@@ -133,6 +135,8 @@ export default function LandlordDashboardClient() {
                   value={needsSetupCount}
                   highlight={needsSetupCount > 0}
                 />
+                <StatCard label="Tenant unlocks" value={totalUnlocks} />
+                <StatCard label="Featured now" value={featuredCount} />
                 {pendingCount > 0 ? (
                   <StatCard
                     label="Pending review"
@@ -173,7 +177,18 @@ export default function LandlordDashboardClient() {
                     </p>
                     <p className="mt-1 text-xs text-muted">
                       {b.availableUnitCount} available · {b.totalUnits} units total
+                      {b.unlockCount > 0
+                        ? ` · ${b.unlockCount} unlock${b.unlockCount === 1 ? "" : "s"}`
+                        : ""}
                     </p>
+                    {b.isFeatured ? (
+                      <p className="mt-1 text-xs font-medium text-amber-700">
+                        Featured
+                        {b.featuredUntil
+                          ? ` until ${new Date(b.featuredUntil).toLocaleDateString()}`
+                          : ""}
+                      </p>
+                    ) : null}
                     {status.hint ? (
                       <p
                         className={`mt-1.5 text-xs ${

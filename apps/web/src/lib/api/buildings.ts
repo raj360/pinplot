@@ -148,6 +148,11 @@ export type LandlordBuilding = {
   rejectionReason: string | null;
   totalUnits: number;
   availableUnitCount: number;
+  /** Paid tenant unlocks across this building's units (all time). */
+  unlockCount: number;
+  isFeatured: boolean;
+  featuredUntil: string | null;
+  featuredSource: string | null;
 };
 
 export type CreateBuildingPayload = {
@@ -192,6 +197,10 @@ export type LandlordBuildingDetail = {
   rejectedAt: string | null;
   rejectionReason: string | null;
   availableUnitCount: number;
+  unlockCount: number;
+  isFeatured: boolean;
+  featuredUntil: string | null;
+  featuredSource: string | null;
   units: Array<{
     id: string;
     unitNumber: string;

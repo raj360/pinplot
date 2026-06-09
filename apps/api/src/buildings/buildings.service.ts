@@ -358,7 +358,11 @@ export class BuildingsService {
   async findByLandlord(landlordId: string) {
     const { rows } = await this.db.query(
       `SELECT b.*,
-        COUNT(u.id) FILTER (WHERE u.status = 'AVAILABLE') AS available_unit_count
+        COUNT(u.id) FILTER (WHERE u.status = 'AVAILABLE') AS available_unit_count,
+        (SELECT COUNT(*)
+           FROM unit_unlocks uu
+           JOIN units u2 ON u2.id = uu.unit_id
+          WHERE u2.building_id = b.id AND uu.is_winner = TRUE) AS unlock_count
        FROM buildings b
        LEFT JOIN units u ON u.building_id = b.id
        WHERE b.landlord_id = $1
@@ -376,6 +380,13 @@ export class BuildingsService {
       rejectionReason: b.rejection_reason ?? null,
       totalUnits: b.total_units,
       availableUnitCount: Number(b.available_unit_count ?? 0),
+      unlockCount: Number(b.unlock_count ?? 0),
+      isFeatured: this.isFeaturedActive({
+        is_featured: Boolean(b.is_featured),
+        featured_until: (b.featured_until as Date | null) ?? null,
+      }),
+      featuredUntil: b.featured_until ?? null,
+      featuredSource: b.featured_source ?? null,
       createdAt: b.created_at,
     }));
   }
@@ -385,7 +396,11 @@ export class BuildingsService {
 
     const { rows } = await this.db.query(
       `SELECT b.*,
-        COUNT(u.id) FILTER (WHERE u.status = 'AVAILABLE') AS available_unit_count
+        COUNT(u.id) FILTER (WHERE u.status = 'AVAILABLE') AS available_unit_count,
+        (SELECT COUNT(*)
+           FROM unit_unlocks uu
+           JOIN units u2 ON u2.id = uu.unit_id
+          WHERE u2.building_id = b.id AND uu.is_winner = TRUE) AS unlock_count
        FROM buildings b
        LEFT JOIN units u ON u.building_id = b.id
        WHERE b.id = $1
@@ -411,6 +426,13 @@ export class BuildingsService {
       rejectedAt: building.rejected_at ?? null,
       rejectionReason: building.rejection_reason ?? null,
       availableUnitCount: Number(building.available_unit_count ?? 0),
+      unlockCount: Number(building.unlock_count ?? 0),
+      isFeatured: this.isFeaturedActive({
+        is_featured: Boolean(building.is_featured),
+        featured_until: (building.featured_until as Date | null) ?? null,
+      }),
+      featuredUntil: building.featured_until ?? null,
+      featuredSource: building.featured_source ?? null,
       units,
     };
   }

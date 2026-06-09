@@ -7,6 +7,7 @@ import { FlutterwaveService } from "./flutterwave.service";
 import { LemonSqueezyService } from "./lemon-squeezy.service";
 import { SettleUnlockService } from "./settle-unlock.service";
 import { UnlockCheckoutService } from "./unlock-checkout.service";
+import { FeaturedCheckoutService } from "./featured-checkout.service";
 import { WebhooksController } from "./webhooks.controller";
 import { PaymentsController } from "./payments.controller";
 
@@ -23,12 +24,14 @@ import { PaymentsController } from "./payments.controller";
     LemonSqueezyService,
     SettleUnlockService,
     UnlockCheckoutService,
+    FeaturedCheckoutService,
   ],
   exports: [
     FlutterwaveService,
     LemonSqueezyService,
     SettleUnlockService,
     UnlockCheckoutService,
+    FeaturedCheckoutService,
   ],
 })
 export class PaymentsModule {}

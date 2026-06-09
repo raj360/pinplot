@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { DashboardSection } from "@/components/layout/DashboardSection";
 import { BuildingPhotoManager } from "@/components/buildings/BuildingPhotoManager";
 import { ManageBuildingSkeleton } from "@/components/landlord/LandlordPageSkeletons";
+import { FeaturedBoostPanel } from "@/components/landlord/FeaturedBoostPanel";
 import { Button } from "@/components/ui/button";
 import {
   fetchMyBuilding,
@@ -310,6 +311,15 @@ export default function ManageBuildingClient({
           a listing fee.
         </p>
       ) : null}
+
+      <FeaturedBoostPanel
+        buildingId={building.id}
+        isVerified={building.isVerified && !building.rejectedAt}
+        isFeatured={building.isFeatured}
+        featuredUntil={building.featuredUntil}
+        featuredSource={building.featuredSource}
+        unlockCount={building.unlockCount}
+      />
 
       {canEditDetails ? (
         <DashboardSection
