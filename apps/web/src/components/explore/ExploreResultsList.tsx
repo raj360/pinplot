@@ -11,7 +11,6 @@ import { ExploreResultRowSkeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import type { Bounds } from "@/lib/api/buildings";
 import { useViewerContext } from "@/components/providers/ViewerContextProvider";
-import { hasAccessOnly } from "@/lib/unlocks/display";
 import { cn } from "@/lib/utils/cn";
 import type { BuildingSummary } from "@plotpin/shared-types";
 
@@ -26,7 +25,6 @@ type ExploreResultsListProps = {
   appliedFilters: ExploreSearchFilters;
   appliedMapBounds: Bounds | null;
   onSelect: (id: string) => void;
-  onOpenAccess: (buildingId: string) => void;
   onRemoveFilter: (key: keyof ExploreSearchFilters) => void;
   onRemoveMapBounds: () => void;
   onReset: () => void;
@@ -44,7 +42,6 @@ export function ExploreResultsList({
   appliedFilters,
   appliedMapBounds,
   onSelect,
-  onOpenAccess,
   onRemoveFilter,
   onRemoveMapBounds,
   onReset,
@@ -71,7 +68,6 @@ export function ExploreResultsList({
         const active = selectedId === building.id;
         const hovered = hoveredId === building.id;
         const unlocked = (building.myUnlockCount ?? 0) > 0;
-        const accessOnly = hasAccessOnly(building);
 
         return (
           <li key={building.id} className="relative">
@@ -127,15 +123,12 @@ export function ExploreResultsList({
                       />
                     ) : null}
                   </div>
-                  <div className="flex shrink-0 items-center gap-1.5">
-                    <SaveBuildingButton buildingId={building.id} />
-                    {active && selectedLoading ? (
-                      <Spinner
-                        className="size-3 shrink-0"
-                        label="Loading building"
-                      />
-                    ) : null}
-                  </div>
+                  {active && selectedLoading ? (
+                    <Spinner
+                      className="size-3 shrink-0"
+                      label="Loading building"
+                    />
+                  ) : null}
                 </div>
                 <p className="mt-1 flex items-center gap-1.5 text-sm text-foreground/80">
                   <MapPin
@@ -163,23 +156,15 @@ export function ExploreResultsList({
                       </span>
                     </>
                   ) : unlocked ? (
-                    <span className="font-medium text-lime-700">
-                      Your access · tap to open
-                    </span>
+                    <span className="font-medium text-lime-700">Unlocked</span>
                   ) : (
                     <>No units available</>
                   )}
                 </p>
               </button>
-              {unlocked && !accessOnly ? (
-                <button
-                  type="button"
-                  onClick={() => onOpenAccess(building.id)}
-                  className="shrink-0 cursor-pointer self-center border-l border-border/70 px-3 py-2 text-[11px] font-medium text-lime-700 underline decoration-lime-600/40 underline-offset-2 hover:bg-lime-50/80 hover:text-lime-800"
-                >
-                  Your access
-                </button>
-              ) : null}
+              <div className="flex shrink-0 items-center px-2 sm:px-3">
+                <SaveBuildingButton buildingId={building.id} />
+              </div>
             </div>
           </li>
         );
