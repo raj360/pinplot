@@ -246,7 +246,8 @@ yarn db:migrate   # applies 029 (notification_log), 030 (listing_analytics_event
 | H-24 | Client: **unlock_click** (funnel) | Done | Before checkout modal |
 | H-25 | Landlord stats: views, detail views, unlock rate | Done | FeaturedBoostPanel + `findMineById` metrics |
 | H-26 | Admin overview: top listings, featured CTR | Done | `GET /admin/analytics/overview` |
-| H-27 | Daily rollup job (optional 5H.1) | Pending | |
+| H-27 | Daily rollup job | Done | `building_metrics_daily` + hourly cron refresh |
+| H-31 | **`saved_buildings` MVP** | Done | Heart on Explore + `/tenant/saved` |
 
 **Event schema (`listing_analytics_events`):**
 
@@ -276,7 +277,7 @@ created_at   TIMESTAMPTZ
 | ID | Task | Status | Decision |
 |----|------|--------|----------|
 | H-30 | **`listing_events`** | Done | Dropped in migration `031` |
-| H-31 | **`saved_buildings`** | Pending | **Implement MVP** in 5H.1: heart on explore card + `/tenant/saved` — OR defer with explicit backlog tag |
+| H-31 | **`saved_buildings`** | Done | Heart on explore + `/tenant/saved` + API |
 | H-32 | PostGIS catalog tables | N/A | No action — system tables; document in runbook |
 
 ---

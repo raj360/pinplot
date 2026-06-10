@@ -2,6 +2,7 @@ import { Controller, Post, UseGuards } from "@nestjs/common";
 import { CronAuthGuard } from "./cron-auth.guard";
 import { UnitLocksService } from "../maintenance/unit-locks.service";
 import { ScheduledNotificationsService } from "../notifications/scheduled-notifications.service";
+import { AnalyticsService } from "../analytics/analytics.service";
 
 @Controller("cron")
 @UseGuards(CronAuthGuard)
@@ -9,6 +10,7 @@ export class CronController {
   constructor(
     private readonly unitLocks: UnitLocksService,
     private readonly scheduled: ScheduledNotificationsService,
+    private readonly analytics: AnalyticsService,
   ) {}
 
   @Post("release-expired-locks")
@@ -27,7 +29,8 @@ export class CronController {
   @Post("hourly")
   async runHourly() {
     const counts = await this.scheduled.runAll();
+    const metricsRollupRows = await this.analytics.refreshDailyRollups(3);
     const released = await this.unitLocks.releaseAllExpiredLocks();
-    return { counts, released };
+    return { counts, metricsRollupRows, released };
   }
 }

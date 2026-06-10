@@ -56,7 +56,7 @@ export default function TenantUnlocksPage() {
   return (
     <DashboardSection
       title="My unlocks"
-      description="Active contact access and your unlock history."
+      description="Paid contact access and unlock history. To bookmark listings before unlocking, use Saved listings."
     >
       <div className="mb-6 flex gap-1 border-b border-border">
         {TABS.map((item) => (

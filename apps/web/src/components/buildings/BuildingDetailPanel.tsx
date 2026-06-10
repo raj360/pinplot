@@ -14,6 +14,7 @@ import {
 } from "@/lib/buildings/unit-summary";
 import { useViewerContext } from "@/components/providers/ViewerContextProvider";
 import { formatCurrency } from "@/lib/intl/format";
+import { SaveBuildingButton } from "@/components/saved/SaveBuildingButton";
 
 function unitGridColumns(count: number) {
   if (count <= 4) return "grid-cols-2 sm:grid-cols-4";
@@ -151,9 +152,12 @@ export function BuildingDetailPanel({
     return (
       <article className="space-y-3">
         {!hideHeader ? (
-          <header>
-            <h2 className="text-lg font-bold text-primary">{building.name}</h2>
-            {location ? <p className="text-sm text-muted">{location}</p> : null}
+          <header className="flex items-start justify-between gap-2">
+            <div className="min-w-0">
+              <h2 className="text-lg font-bold text-primary">{building.name}</h2>
+              {location ? <p className="text-sm text-muted">{location}</p> : null}
+            </div>
+            <SaveBuildingButton buildingId={building.id} size="md" />
           </header>
         ) : location ? (
           <p className="text-sm text-muted">{location}</p>

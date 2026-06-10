@@ -125,18 +125,19 @@ export default function LandlordDashboardClient() {
           <>
             {buildings.length > 0 && (
               <dl className="grid gap-3 sm:grid-cols-3">
-                <StatCard label="Total" value={buildings.length} />
+                <StatCard label="Total" value={buildings.length} variant="primary" />
                 <StatCard
                   label="Visible on map"
                   value={visibleCount}
+                  variant="primary"
                 />
                 <StatCard
                   label="Needs setup"
                   value={needsSetupCount}
                   highlight={needsSetupCount > 0}
                 />
-                <StatCard label="Tenant unlocks" value={totalUnlocks} />
-                <StatCard label="Featured now" value={featuredCount} />
+                <StatCard label="Tenant unlocks" value={totalUnlocks} variant="primary" />
+                <StatCard label="Featured now" value={featuredCount} variant="primary" />
                 {pendingCount > 0 ? (
                   <StatCard
                     label="Pending review"

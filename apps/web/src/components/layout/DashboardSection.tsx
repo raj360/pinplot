@@ -39,22 +39,40 @@ type StatCardProps = {
   label: string;
   value: number | string;
   highlight?: boolean;
+  variant?: "default" | "primary";
   className?: string;
 };
 
-export function StatCard({ label, value, highlight, className }: StatCardProps) {
+export function StatCard({
+  label,
+  value,
+  highlight,
+  variant = "default",
+  className,
+}: StatCardProps) {
   return (
     <div
       className={cn(
         "px-4 py-3",
-        highlight ? "border-sky-300 bg-sky-50" : "card-elevated",
+        highlight
+          ? "border-sky-300 bg-sky-50"
+          : variant === "primary"
+            ? "border border-primary/25 bg-primary/10"
+            : "card-elevated",
         className,
       )}
     >
       <dt className="text-xs font-medium uppercase tracking-wide text-muted">
         {label}
       </dt>
-      <dd className="mt-1 text-2xl font-semibold tabular-nums">{value}</dd>
+      <dd
+        className={cn(
+          "mt-1 text-2xl font-semibold tabular-nums",
+          variant === "primary" && !highlight && "text-primary",
+        )}
+      >
+        {value}
+      </dd>
     </div>
   );
 }

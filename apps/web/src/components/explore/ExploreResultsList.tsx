@@ -5,6 +5,7 @@ import type { RefObject } from "react";
 import { ExploreEmptyResults } from "@/components/explore/ExploreEmptyResults";
 import { FeaturedListingBadge } from "@/components/explore/FeaturedListingBadge";
 import { ListingImpressionTracker } from "@/components/analytics/ListingImpressionTracker";
+import { SaveBuildingButton } from "@/components/saved/SaveBuildingButton";
 import type { ExploreSearchFilters } from "@/components/explore/ExploreFilters";
 import { ExploreResultRowSkeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
@@ -126,12 +127,15 @@ export function ExploreResultsList({
                       />
                     ) : null}
                   </div>
-                  {active && selectedLoading ? (
-                    <Spinner
-                      className="mt-1 size-3 shrink-0"
-                      label="Loading building"
-                    />
-                  ) : null}
+                  <div className="flex shrink-0 items-center gap-1.5">
+                    <SaveBuildingButton buildingId={building.id} />
+                    {active && selectedLoading ? (
+                      <Spinner
+                        className="size-3 shrink-0"
+                        label="Loading building"
+                      />
+                    ) : null}
+                  </div>
                 </div>
                 <p className="mt-1 flex items-center gap-1.5 text-sm text-foreground/80">
                   <MapPin
