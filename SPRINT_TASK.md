@@ -156,6 +156,25 @@ yarn db:migrate   # applies 026 (RLS), 027 (country map backfill) if not yet run
 
 ---
 
+## Sprint 5G — Stay class (AirBnB /day) + dashboard polish — **✅ implemented (2026-06-10)**
+
+```bash
+yarn db:migrate   # applies 028 (units.rent_period)
+```
+
+| ID | Task | Status | Notes |
+|----|------|--------|-------|
+| G-01 | Migration `028_rent_period` + backfill airbnb → day | Done | |
+| G-02 | `resolveUnlockPolicy()` in shared-types | Done | 72h+lock vs 24h+stay available |
+| G-03 | Unlocks service: skip unit LOCK for short-stay | Done | |
+| G-04 | `formatListingRent` / `/day` display sitewide | Done | Viewer currency first |
+| G-05 | Unlock copy: verified contact vs exclusive | Done | Modal unchanged structurally |
+| G-06 | Dashboard skeletons (stats, listings, tenant unlocks) | Done | Replaces spinners |
+| G-07 | Featured boost pricing — UGX footnote only in Uganda | Done | Matches hero / homepage |
+| G-08 | Defer open-contact (M-01) — docs updated | Done | BUSINESS-MODEL §8.1 |
+
+---
+
 ## Sprint 5C — Uganda polish (P1)
 
 | ID | Task | Status |

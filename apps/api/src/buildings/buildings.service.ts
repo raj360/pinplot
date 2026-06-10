@@ -19,11 +19,12 @@ import {
   UpdateUnitDto,
   VerifyBuildingDto,
 } from "./dto/building.dto";
-import type { BuildingSummary, UnitStatus } from "@plotpin/shared-types";
+import type { BuildingSummary, RentPeriod, UnitStatus } from "@plotpin/shared-types";
 import {
   DUPLICATE_PIN_RADIUS_METERS,
   MAX_BUILDING_PHOTOS,
   MAX_UNVERIFIED_BUILDINGS_PER_LANDLORD,
+  defaultRentPeriodForBuildingType,
   type AdminVerificationChecklist,
 } from "@plotpin/shared-types";
 import {
@@ -57,6 +58,7 @@ type BuildingRow = {
   featured_until: Date | null;
   available_unit_count: string;
   rent_from: string | null;
+  rent_period?: string | null;
   currency: string;
   cover_image_thumb_path?: string | null;
   my_unlock_count?: string;
@@ -64,6 +66,14 @@ type BuildingRow = {
 
 @Injectable()
 export class BuildingsService {
+  /** Rent period of the cheapest available unit — drives /mo vs /day on cards. */
+  private static readonly CHEAPEST_UNIT_RENT_PERIOD_SQL = `
+        (SELECT u_rp.rent_period::text
+         FROM units u_rp
+         WHERE u_rp.building_id = b.id AND u_rp.status = 'AVAILABLE'
+         ORDER BY u_rp.rent_amount ASC
+         LIMIT 1) AS rent_period`;
+
   constructor(
     private readonly db: DatabaseService,
     private readonly exploreCache: ExploreSearchCacheService,
@@ -154,6 +164,7 @@ export class BuildingsService {
         b.cover_image_thumb_path,
         COUNT(u.id) FILTER (WHERE u.status = 'AVAILABLE') AS available_unit_count,
         MIN(u.rent_amount) FILTER (WHERE u.status = 'AVAILABLE') AS rent_from,
+        ${BuildingsService.CHEAPEST_UNIT_RENT_PERIOD_SQL},
         co.currency AS currency
       FROM buildings b
       JOIN countries co ON co.code = b.country_code
@@ -194,6 +205,7 @@ export class BuildingsService {
         b.cover_image_thumb_path,
         COUNT(u.id) FILTER (WHERE u.status = 'AVAILABLE') AS available_unit_count,
         MIN(u.rent_amount) FILTER (WHERE u.status = 'AVAILABLE') AS rent_from,
+        ${BuildingsService.CHEAPEST_UNIT_RENT_PERIOD_SQL},
         co.currency AS currency
       FROM buildings b
       JOIN countries co ON co.code = b.country_code
@@ -481,6 +493,11 @@ export class BuildingsService {
       push("building_type", dto.buildingType);
     }
 
+    let nextBuildingType: string | undefined;
+    if (dto.buildingType !== undefined) {
+      nextBuildingType = dto.buildingType;
+    }
+
     let nextCurrency: string | null = null;
     if (dto.countryCode !== undefined) {
       const countryCode = await this.resolveCountryCode(dto.countryCode);
@@ -506,6 +523,16 @@ export class BuildingsService {
          SET currency = $2, updated_at = NOW()
          WHERE building_id = $1 AND status <> 'LOCKED'`,
         [buildingId, nextCurrency],
+      );
+    }
+
+    if (nextBuildingType) {
+      const rentPeriod = defaultRentPeriodForBuildingType(nextBuildingType);
+      await this.db.query(
+        `UPDATE units
+         SET rent_period = $2, updated_at = NOW()
+         WHERE building_id = $1 AND status <> 'LOCKED'`,
+        [buildingId, rentPeriod],
       );
     }
 
@@ -630,7 +657,8 @@ export class BuildingsService {
         b.*,
         co.currency AS currency,
         COUNT(u.id) FILTER (WHERE u.status = 'AVAILABLE') AS available_unit_count,
-        MIN(u.rent_amount) FILTER (WHERE u.status = 'AVAILABLE') AS rent_from
+        MIN(u.rent_amount) FILTER (WHERE u.status = 'AVAILABLE') AS rent_from,
+        ${BuildingsService.CHEAPEST_UNIT_RENT_PERIOD_SQL}
       FROM buildings b
       JOIN countries co ON co.code = b.country_code
       LEFT JOIN units u ON u.building_id = b.id
@@ -677,6 +705,7 @@ export class BuildingsService {
       city: building.city,
       district: building.district,
       countryCode: building.country_code,
+      buildingType: building.building_type,
       approximateLat: coords.lat,
       approximateLng: coords.lng,
       exactAddress: includeExact ? building.exact_address : undefined,
@@ -700,6 +729,10 @@ export class BuildingsService {
           : undefined,
       availableUnitCount: Number(building.available_unit_count),
       rentFrom: building.rent_from ? Number(building.rent_from) : null,
+      rentPeriod:
+        building.rent_period === "day" || building.rent_period === "month"
+          ? building.rent_period
+          : defaultRentPeriodForBuildingType(building.building_type as string),
       currency: building.currency as string,
       units,
     };
@@ -1606,9 +1639,18 @@ export class BuildingsService {
     dto: CreateUnitDto,
     currency = "UGX",
   ) {
+    const { rows: buildingRows } = await this.db.query<{ building_type: string }>(
+      `SELECT building_type FROM buildings WHERE id = $1`,
+      [buildingId],
+    );
+    const rentPeriod = defaultRentPeriodForBuildingType(
+      buildingRows[0]?.building_type,
+    );
     const { rows } = await this.db.query(
-      `INSERT INTO units (building_id, unit_number, bedrooms, bathrooms, rent_amount, currency, status)
-       VALUES ($1,$2,$3,$4,$5,$6,'UNAVAILABLE') RETURNING *`,
+      `INSERT INTO units (
+         building_id, unit_number, bedrooms, bathrooms, rent_amount, currency, rent_period, status
+       )
+       VALUES ($1,$2,$3,$4,$5,$6,$7,'UNAVAILABLE') RETURNING *`,
       [
         buildingId,
         dto.unitNumber,
@@ -1616,6 +1658,7 @@ export class BuildingsService {
         dto.bathrooms,
         dto.rentAmount,
         currency,
+        rentPeriod,
       ],
     );
     return rows[0];
@@ -1652,8 +1695,12 @@ export class BuildingsService {
 
   private async fetchUnits(buildingId: string) {
     const { rows } = await this.db.query(
-      `SELECT id, unit_number, bedrooms, bathrooms, rent_amount, currency, status
-       FROM units WHERE building_id = $1 ORDER BY unit_number`,
+      `SELECT u.id, u.unit_number, u.bedrooms, u.bathrooms, u.rent_amount, u.currency,
+              u.rent_period, u.status, b.building_type
+       FROM units u
+       JOIN buildings b ON b.id = u.building_id
+       WHERE u.building_id = $1
+       ORDER BY u.unit_number`,
       [buildingId],
     );
     return rows.map((u: Record<string, unknown>) => ({
@@ -1663,8 +1710,19 @@ export class BuildingsService {
       bathrooms: u.bathrooms,
       rentAmount: u.rent_amount,
       currency: u.currency,
+      rentPeriod:
+        u.rent_period === "day" || u.rent_period === "month"
+          ? u.rent_period
+          : defaultRentPeriodForBuildingType(u.building_type as string),
       status: u.status,
     }));
+  }
+
+  private resolveSummaryRentPeriod(row: BuildingRow): RentPeriod {
+    if (row.rent_period === "day" || row.rent_period === "month") {
+      return row.rent_period;
+    }
+    return defaultRentPeriodForBuildingType(row.building_type);
   }
 
   private toSummary(row: BuildingRow) {
@@ -1690,6 +1748,7 @@ export class BuildingsService {
       availableUnitCount: Number(row.available_unit_count),
       rentFrom: row.rent_from ? Number(row.rent_from) : null,
       currency: row.currency,
+      rentPeriod: this.resolveSummaryRentPeriod(row),
       coverThumbUrl: row.cover_image_thumb_path ?? undefined,
       myUnlockCount: row.my_unlock_count
         ? Number(row.my_unlock_count)

@@ -48,7 +48,7 @@ export function ExploreResultsList({
   onReset,
   onBrowseSupply,
 }: ExploreResultsListProps) {
-  const { formatListingRentPerMonth } = useViewerContext();
+  const { formatListingRent } = useViewerContext();
 
   return (
     <ul
@@ -147,10 +147,12 @@ export function ExploreResultsList({
                     <>
                       {building.availableUnitCount} available · from{" "}
                       <span className="font-medium text-foreground/90">
-                        {formatListingRentPerMonth(
+                        {formatListingRent(
                           building.rentFrom,
                           building.currency,
                           building.countryCode,
+                          building.rentPeriod ??
+                            (building.buildingType === "airbnb" ? "day" : "month"),
                         )}
                       </span>
                     </>

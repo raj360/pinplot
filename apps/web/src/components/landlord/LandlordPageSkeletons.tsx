@@ -9,12 +9,12 @@ function StatCardSkeleton() {
   );
 }
 
-export function LandlordStatCardsSkeleton() {
+export function LandlordStatCardsSkeleton({ count = 5 }: { count?: number }) {
   return (
     <dl className="grid gap-3 sm:grid-cols-3" aria-hidden>
-      <StatCardSkeleton />
-      <StatCardSkeleton />
-      <StatCardSkeleton />
+      {Array.from({ length: count }, (_, index) => (
+        <StatCardSkeleton key={index} />
+      ))}
     </dl>
   );
 }
@@ -61,11 +61,12 @@ function LandlordUnitRowSkeleton() {
   );
 }
 
-/** Building manage page — title band + unit rows. */
+/** Building manage page — title band + featured panel + unit rows. */
 export function ManageBuildingSkeleton() {
   return (
     <div className="space-y-4" aria-busy="true" aria-label="Loading building">
       <Skeleton className="h-4 w-36" />
+      <FeaturedBoostPanelSkeleton />
       <section className="card-elevated-md p-4 sm:p-5">
         <Skeleton className="h-8 w-64 max-w-full" />
         <Skeleton className="mt-2 h-4 w-56 max-w-full" />
@@ -75,6 +76,58 @@ export function ManageBuildingSkeleton() {
           <LandlordUnitRowSkeleton />
         </ul>
       </section>
+    </div>
+  );
+}
+
+export function FeaturedBoostPanelSkeleton() {
+  return (
+    <section className="border border-border bg-surface p-4" aria-hidden>
+      <Skeleton className="h-6 w-40" />
+      <Skeleton className="mt-2 h-4 w-full max-w-md" />
+      <dl className="mt-4 grid grid-cols-2 gap-3">
+        <div className="border border-border bg-background p-3">
+          <Skeleton className="h-3 w-24" />
+          <Skeleton className="mt-2 h-7 w-10" />
+        </div>
+        <div className="border border-border bg-background p-3">
+          <Skeleton className="h-3 w-24" />
+          <Skeleton className="mt-2 h-7 w-16" />
+        </div>
+      </dl>
+      <div className="mt-4 grid gap-3 sm:grid-cols-3">
+        <Skeleton className="h-28 w-full" />
+        <Skeleton className="h-28 w-full" />
+        <Skeleton className="h-28 w-full" />
+      </div>
+    </section>
+  );
+}
+
+export function TenantUnlockCardSkeleton() {
+  return (
+    <article className="overflow-hidden border border-border bg-surface">
+      <div className="border-b border-primary/20 bg-primary/10 px-4 py-3">
+        <Skeleton className="h-3 w-36" />
+        <Skeleton className="mt-2 h-6 w-64 max-w-full" />
+        <Skeleton className="mt-2 h-4 w-40" />
+      </div>
+      <Skeleton className="aspect-[16/10] w-full" />
+      <div className="space-y-3 p-4">
+        <Skeleton className="h-10 w-full" />
+        <Skeleton className="h-10 w-full" />
+        <Skeleton className="h-4 w-3/4" />
+      </div>
+    </article>
+  );
+}
+
+/** Tenant My unlocks — card stack placeholder. */
+export function TenantUnlocksSkeleton() {
+  return (
+    <div className="space-y-4" aria-busy="true" aria-label="Loading unlocks">
+      <TenantUnlockCardSkeleton />
+      <TenantUnlockCardSkeleton />
     </div>
   );
 }

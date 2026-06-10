@@ -8,6 +8,7 @@ import {
 import {
   PRICING,
   PaymentPurpose,
+  resolveUnlockPolicy,
   type BuildingType,
   type PriceQuote,
 } from "@plotpin/shared-types";
@@ -23,6 +24,7 @@ type UnitRow = {
   unit_number: string;
   bedrooms: number;
   status: string;
+  rent_period?: string;
   building_name: string;
   building_type: string;
   country_code: string;
@@ -69,8 +71,8 @@ export class UnlocksService {
 
   async listMine(tenantId: string) {
     const { rows } = await this.db.query(
-      `SELECT uu.*, u.unit_number, u.building_id, b.name AS building_name,
-              b.cover_image_path, b.video_url,
+      `SELECT uu.*, u.unit_number, u.building_id, u.rent_period, b.name AS building_name,
+              b.building_type, b.cover_image_path, b.video_url,
               b.exact_lat, b.exact_lng, b.approximate_lat, b.approximate_lng,
               p.phone AS landlord_phone,
               p.phone_secondary AS landlord_phone_secondary,
@@ -91,8 +93,8 @@ export class UnlocksService {
 
   async listForBuilding(buildingId: string, tenantId: string) {
     const { rows } = await this.db.query(
-      `SELECT uu.*, u.unit_number, u.building_id, b.name AS building_name,
-              b.cover_image_path, b.video_url,
+      `SELECT uu.*, u.unit_number, u.building_id, u.rent_period, b.name AS building_name,
+              b.building_type, b.cover_image_path, b.video_url,
               b.exact_lat, b.exact_lng, b.approximate_lat, b.approximate_lng,
               p.phone AS landlord_phone,
               p.phone_secondary AS landlord_phone_secondary,
@@ -177,7 +179,7 @@ export class UnlocksService {
         status: unit.status,
         unlockState: "locked_by_other" as const,
         unlockCreditsAvailable,
-        ...this.unlockQuoteFields(quote),
+        ...this.unlockQuoteFields(quote, unit),
       };
     }
 
@@ -191,7 +193,7 @@ export class UnlocksService {
           ? ("available" as const)
           : ("unavailable" as const),
       unlockCreditsAvailable,
-      ...this.unlockQuoteFields(quote),
+      ...this.unlockQuoteFields(quote, unit),
     };
   }
 
@@ -250,8 +252,13 @@ export class UnlocksService {
         options?.paymentId,
       );
 
+      const policy = resolveUnlockPolicy({
+        buildingType: unit.building_type,
+        rentPeriod: unit.rent_period,
+      });
+
       const expiresAt = new Date(
-        Date.now() + PRICING.unlockExclusiveHours * 60 * 60 * 1000,
+        Date.now() + policy.exclusiveHours * 60 * 60 * 1000,
       );
 
       const revealedPhone =
@@ -276,15 +283,17 @@ export class UnlocksService {
         ],
       );
 
-      await this.db.query(
-        `UPDATE units
-         SET status = 'LOCKED',
-             locked_by_tenant_id = $2,
-             locked_until = $3,
-             updated_at = NOW()
-         WHERE id = $1`,
-        [unitId, tenantId, expiresAt],
-      );
+      if (policy.locksUnit) {
+        await this.db.query(
+          `UPDATE units
+           SET status = 'LOCKED',
+               locked_by_tenant_id = $2,
+               locked_until = $3,
+               updated_at = NOW()
+           WHERE id = $1`,
+          [unitId, tenantId, expiresAt],
+        );
+      }
 
       await this.db.query("COMMIT");
       const response = await this.enrichWithMedia(
@@ -314,7 +323,7 @@ export class UnlocksService {
 
   private async lockUnit(unitId: string): Promise<UnitRow> {
     const { rows } = await this.db.query<UnitRow>(
-      `SELECT u.id, u.building_id, u.unit_number, u.bedrooms, u.status,
+      `SELECT u.id, u.building_id, u.unit_number, u.bedrooms, u.status, u.rent_period,
               b.name AS building_name, b.building_type, b.country_code,
               b.cover_image_path, b.video_url,
               b.exact_address,
@@ -334,7 +343,7 @@ export class UnlocksService {
 
   private async loadUnit(unitId: string): Promise<UnitRow> {
     const { rows } = await this.db.query<UnitRow>(
-      `SELECT u.id, u.building_id, u.unit_number, u.bedrooms, u.status,
+      `SELECT u.id, u.building_id, u.unit_number, u.bedrooms, u.status, u.rent_period,
               b.name AS building_name, b.building_type, b.country_code,
               b.cover_image_path, b.video_url,
               b.exact_address,
@@ -389,13 +398,19 @@ export class UnlocksService {
     });
   }
 
-  private unlockQuoteFields(quote: PriceQuote) {
+  private unlockQuoteFields(quote: PriceQuote, unit: UnitRow) {
+    const policy = resolveUnlockPolicy({
+      buildingType: unit.building_type,
+      rentPeriod: unit.rent_period,
+    });
     return {
       feeUgx: quote.amountUgx,
       quoteLabel: quote.label,
       buildingType: quote.buildingType,
       bedrooms: quote.bedrooms,
-      exclusiveHours: PRICING.unlockExclusiveHours,
+      exclusiveHours: policy.exclusiveHours,
+      locksUnit: policy.locksUnit,
+      rentPeriod: policy.rentPeriod,
     };
   }
 
@@ -630,16 +645,22 @@ export class UnlocksService {
   ) {
     const { lat, lng } = this.resolveCoords(unit);
     const contact = this.resolveContact(unlock, unit);
+    const policy = resolveUnlockPolicy({
+      buildingType: unit.building_type,
+      rentPeriod: unit.rent_period,
+    });
     return {
       unlockId: unlock.id,
       unitId: unit.id,
       unitNumber: unit.unit_number,
       buildingId: unit.building_id,
       buildingName: unit.building_name,
-      status: "LOCKED",
+      status: policy.locksUnit ? "LOCKED" : unit.status,
       unlockState,
       feeUgx: PRICING.tenantUnlockFeeUgx,
-      exclusiveHours: PRICING.unlockExclusiveHours,
+      exclusiveHours: policy.exclusiveHours,
+      locksUnit: policy.locksUnit,
+      rentPeriod: policy.rentPeriod,
       unlockedAt: unlock.created_at,
       expiresAt: unlock.expires_at,
       contact,
@@ -653,6 +674,10 @@ export class UnlocksService {
     const unit: UnitRow = row;
     const { lat, lng } = this.resolveCoords(unit);
     const contact = this.resolveContact(row, unit);
+    const policy = resolveUnlockPolicy({
+      buildingType: unit.building_type,
+      rentPeriod: unit.rent_period,
+    });
     return {
       unlockId: row.id,
       unitId: row.unit_id,
@@ -662,7 +687,9 @@ export class UnlocksService {
       unlockState: "winner" as const,
       unlockedAt: row.created_at,
       expiresAt: row.expires_at,
-      exclusiveHours: PRICING.unlockExclusiveHours,
+      exclusiveHours: policy.exclusiveHours,
+      locksUnit: policy.locksUnit,
+      rentPeriod: policy.rentPeriod,
       contact,
       location: { lat, lng },
       coverImageUrl: unit.cover_image_path ?? undefined,

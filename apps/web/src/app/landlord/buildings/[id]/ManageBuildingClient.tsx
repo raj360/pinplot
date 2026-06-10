@@ -48,7 +48,7 @@ export default function ManageBuildingClient({
   buildingId: string;
 }) {
   const router = useRouter();
-  const { countries, countriesByCode, formatListingRentPerMonth } =
+  const { countries, countriesByCode, formatListingRent } =
     useViewerContext();
   const [building, setBuilding] = useState<LandlordBuildingDetail | null>(null);
   const [loading, setLoading] = useState(true);
@@ -470,10 +470,12 @@ export default function ManageBuildingClient({
                   </p>
                   <p className="mt-0.5 text-sm text-muted">
                     {unit.bedrooms} bed · {unit.bathrooms} bath ·{" "}
-                    {formatListingRentPerMonth(
+                    {formatListingRent(
                       unit.rentAmount,
                       unit.currency,
                       building.countryCode,
+                      unit.rentPeriod ??
+                        (building.buildingType === "airbnb" ? "day" : "month"),
                     )}
                   </p>
                 </div>

@@ -7,7 +7,7 @@ import { DashboardSection } from "@/components/layout/DashboardSection";
 import { fetchMyUnlocks, type TenantUnlock } from "@/lib/api/unlocks";
 import { getAccessToken } from "@/lib/api/client";
 import { UnlockedAccessCard } from "@/components/buildings/UnlockedAccessCard";
-import { LoadingState } from "@/components/ui/loading-state";
+import { TenantUnlocksSkeleton } from "@/components/landlord/LandlordPageSkeletons";
 
 export default function TenantUnlocksPage() {
   const router = useRouter();
@@ -37,7 +37,7 @@ export default function TenantUnlocksPage() {
       description="Buildings and units where you paid for exclusive landlord contact."
     >
       {loading ? (
-        <LoadingState label="Loading unlocks" />
+        <TenantUnlocksSkeleton />
       ) : error ? (
         <p className="text-sm text-red-600">{error}</p>
       ) : unlocks.length === 0 ? (

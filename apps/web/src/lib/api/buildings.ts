@@ -22,6 +22,7 @@ export type BuildingDetail = BuildingSummary & {
     bathrooms: number;
     rentAmount: number;
     currency: string;
+    rentPeriod?: "month" | "day";
     status: string;
   }>;
 };
@@ -208,6 +209,7 @@ export type LandlordBuildingDetail = {
     bathrooms: number;
     rentAmount: number;
     currency: string;
+    rentPeriod?: "month" | "day";
     status: string;
   }>;
 };

@@ -8,7 +8,7 @@ import {
   useMemo,
   useState,
 } from "react";
-import { DEFAULT_COUNTRY, type CountryCatalog } from "@plotpin/shared-types";
+import { DEFAULT_COUNTRY, type CountryCatalog, type RentPeriod } from "@plotpin/shared-types";
 import {
   fetchCountryCatalogClient,
   fetchFxRatesClient,
@@ -20,6 +20,7 @@ import { buildFxRateMap, type FxRateMap } from "@/lib/intl/fx-rates";
 import {
   formatMoney,
   formatRentPerMonthWithFootnote,
+  formatRentWithPeriod,
   formatViewerMoney,
   type FormattedMoney,
   type ViewerContext,
@@ -60,6 +61,13 @@ type ViewerContextValue = {
     amount: number | null | undefined,
     listingCurrency: string,
     listingCountryCode?: string,
+  ) => string;
+  /** Listing rent with /mo or /day suffix — viewer currency first. */
+  formatListingRent: (
+    amount: number | null | undefined,
+    listingCurrency: string,
+    listingCountryCode?: string,
+    period?: RentPeriod,
   ) => string;
   /** Format a canonical-UGX fee (e.g. unlock fee) in the viewer's currency. */
   formatUnlockFee: (amountUgx: number) => string;
@@ -390,6 +398,24 @@ export function ViewerContextProvider({
     [countriesByCode, fxRates, viewer],
   );
 
+  const formatListingRent = useCallback(
+    (
+      amount: number | null | undefined,
+      listingCurrency: string,
+      listingCountryCode?: string,
+      period: RentPeriod = "month",
+    ) =>
+      formatRentWithPeriod(
+        amount,
+        listingCurrency,
+        viewer,
+        fxRates,
+        period,
+        { listingCountryCode, countriesByCode },
+      ),
+    [countriesByCode, fxRates, viewer],
+  );
+
   const formatUnlockFee = useCallback(
     (amountUgx: number) => formatViewerMoney(amountUgx, viewer, fxRates),
     [fxRates, viewer],
@@ -413,6 +439,7 @@ export function ViewerContextProvider({
       getDefaultMapCenter,
       formatListingMoney,
       formatListingRentPerMonth,
+      formatListingRent,
       formatUnlockFee,
       formatUnlockFeeLabel,
     }),
@@ -428,6 +455,7 @@ export function ViewerContextProvider({
       getDefaultMapCenter,
       formatListingMoney,
       formatListingRentPerMonth,
+      formatListingRent,
       formatUnlockFee,
       formatUnlockFeeLabel,
     ],

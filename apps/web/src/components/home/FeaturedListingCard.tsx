@@ -23,7 +23,7 @@ export function FeaturedListingCard({
   showCountry = false,
   showExploreLink = false,
 }: FeaturedListingCardProps) {
-  const { formatListingRentPerMonth, countriesByCode } = useViewerContext();
+  const { formatListingRent, countriesByCode } = useViewerContext();
   const location = [building.district, building.city].filter(Boolean).join(", ");
   const countryName =
     countriesByCode.get(building.countryCode)?.name ?? building.countryCode;
@@ -78,10 +78,12 @@ export function FeaturedListingCard({
                 </span>
                 <span className="block font-medium text-foreground">
                   from{" "}
-                  {formatListingRentPerMonth(
+                  {formatListingRent(
                     building.rentFrom,
                     building.currency,
                     building.countryCode,
+                    building.rentPeriod ??
+                      (building.buildingType === "airbnb" ? "day" : "month"),
                   )}
                 </span>
               </>

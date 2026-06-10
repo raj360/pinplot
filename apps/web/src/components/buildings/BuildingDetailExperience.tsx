@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { PRICING } from "@plotpin/shared-types";
+import { PRICING, resolveUnlockPolicy } from "@plotpin/shared-types";
 import { BuildingStepHeader } from "@/components/buildings/BuildingStepHeader";
 import { BuildingDetailPanel } from "@/components/buildings/BuildingDetailPanel";
 import { BuildingLockedCoverPreview } from "@/components/buildings/BuildingLockedCoverPreview";
@@ -77,13 +77,21 @@ export function BuildingDetailExperience({
     profilePhone: unlocks.profilePhone,
     listingCurrency: building.currency,
     listingCountryCode: building.countryCode,
+    buildingType: building.buildingType,
   } as const;
+
+  const unlockPolicy = resolveUnlockPolicy({
+    buildingType: building.buildingType,
+    rentPeriod: building.rentPeriod,
+  });
 
   const firstUnlockDescription = unlockPanelDescription({
     unlockCredits: unlocks.unlockCredits,
     primaryCreditUgx: unlocks.primaryCreditUgx,
     quote: unlocks.representativeQuote,
     formatFee: formatUnlockFee,
+    exclusiveHours: unlockPolicy.exclusiveHours,
+    locksUnit: unlockPolicy.locksUnit,
   });
 
   if (variant === "compact") {

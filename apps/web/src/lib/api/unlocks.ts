@@ -10,6 +10,8 @@ export type TenantUnlock = {
   unlockedAt: string;
   expiresAt: string | null;
   exclusiveHours: number;
+  locksUnit?: boolean;
+  rentPeriod?: "month" | "day";
   contact: {
     phone: string | null;
     phoneSecondary?: string | null;
@@ -40,6 +42,8 @@ export type UnlockStatus =
       bedrooms?: number;
       unlockCreditsAvailable?: number;
       exclusiveHours: number;
+  locksUnit?: boolean;
+  rentPeriod?: "month" | "day";
     }
   | {
       unitId: string;
@@ -53,6 +57,8 @@ export type UnlockStatus =
       bedrooms?: number;
       unlockCreditsAvailable?: number;
       exclusiveHours: number;
+  locksUnit?: boolean;
+  rentPeriod?: "month" | "day";
     }
   | (TenantUnlock & {
       status: string;

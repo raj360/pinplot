@@ -39,6 +39,8 @@ export function FeaturedBoostPanel({
 
   if (!isVerified) return null;
 
+  const isUganda = viewer.countryCode === "UG";
+
   const handleBuy = async (days: number) => {
     setError(null);
     setStartingDays(days);
@@ -97,20 +99,17 @@ export function FeaturedBoostPanel({
       <div className="mt-4 grid gap-3 sm:grid-cols-3">
         {FEATURED_PRICING_TIERS.map((tier) => {
           const price = formatUnlockFeeLabel(tier.amountUgx);
+          const priceLabel =
+            isUganda && price.footnote
+              ? `${price.primary} (${price.footnote})`
+              : price.primary;
           return (
             <div
               key={tier.days}
               className="flex flex-col gap-2 border border-border bg-background p-3"
             >
               <p className="font-medium">{tier.days} days</p>
-              <p className="text-sm text-foreground">
-                {price.primary}
-                {price.footnote ? (
-                  <span className="block text-xs text-muted">
-                    {price.footnote}
-                  </span>
-                ) : null}
-              </p>
+              <p className="text-sm text-foreground">{priceLabel}</p>
               <Button
                 type="button"
                 className="mt-auto w-full"

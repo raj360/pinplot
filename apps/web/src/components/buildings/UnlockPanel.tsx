@@ -75,6 +75,7 @@ export function UnlockPanel({
           profilePhone={unlocks.profilePhone}
           listingCurrency=""
           listingCountryCode={countryCode}
+          buildingType={buildingType}
         />
       ) : null}
     </section>

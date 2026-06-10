@@ -38,9 +38,11 @@ function formatRemaining(remaining: Remaining) {
 
 export function UnlockCountdown({
   expiresAt,
+  locksUnit = true,
   className = "",
 }: {
   expiresAt: string | null;
+  locksUnit?: boolean;
   className?: string;
 }) {
   const [remaining, setRemaining] = useState<Remaining | null>(() =>
@@ -56,7 +58,9 @@ export function UnlockCountdown({
 
   if (!expiresAt) {
     return (
-      <span className={className}>Exclusive access active</span>
+      <span className={className}>
+        {locksUnit ? "Exclusive access active" : "Contact access active"}
+      </span>
     );
   }
 
@@ -68,7 +72,9 @@ export function UnlockCountdown({
         {formatRemaining(remaining)}
       </span>
       {!remaining.expired ? (
-        <span className="opacity-90"> exclusive access left</span>
+        <span className="opacity-90">
+          {locksUnit ? " exclusive access left" : " contact access left"}
+        </span>
       ) : null}
     </span>
   );

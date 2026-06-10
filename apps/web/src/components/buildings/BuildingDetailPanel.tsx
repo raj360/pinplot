@@ -88,10 +88,18 @@ export function BuildingDetailPanel({
   /** Suppress title block when a parent already shows the building name. */
   hideHeader?: boolean;
 }) {
-  const { formatListingRentPerMonth } = useViewerContext();
+  const { formatListingRent } = useViewerContext();
   const listingCurrency = building.currency ?? "UGX";
+  const rentPeriod =
+    building.rentPeriod ??
+    (building.buildingType === "airbnb" ? "day" : "month");
   const formatRent: RentFormatter = (amount) =>
-    formatListingRentPerMonth(amount, listingCurrency, building.countryCode);
+    formatListingRent(
+      amount,
+      listingCurrency,
+      building.countryCode,
+      rentPeriod,
+    );
 
   const unitGroups = groupAvailableUnits(building.units);
   const unitSummary = summarizeAvailableUnits(building.units, formatRent);
@@ -116,10 +124,11 @@ export function BuildingDetailPanel({
     <div className="border border-border bg-surface px-3 py-2.5 text-sm">
       <p className="font-medium">
         {building.availableUnitCount} available · from{" "}
-        {formatListingRentPerMonth(
+        {formatListingRent(
           building.rentFrom,
           listingCurrency,
           building.countryCode,
+          rentPeriod,
         )}
       </p>
       {unitGroups.length > 0 ? (

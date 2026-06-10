@@ -88,35 +88,36 @@ Listing is free but **guarded**:
 
 ### 8.1 Unlock exclusivity vs multi-unlock
 
-**Current (keep as default):** one winner per unit — first payer gets 72h exclusive
-contact; unit goes `LOCKED`; other tenants see `locked_by_other`.
+**Current (keep as default):** one winner per unit — first payer gets exclusive
+contact for 72h (long-term) or verified contact for 24h (nightly / AirBnB);
+long-term units go `LOCKED` on the map during the window; short-stay units stay
+`AVAILABLE`.
 
-Exclusivity **is** the core anti-blocker promise: a tenant pays *because* nobody
-else can swoop in during their window. Unlimited concurrent unlocks would
-recreate the Jiji pain (pay → landlord already committed elsewhere) and is
-**against the initial model**.
+**Deferred — open contact / multi-unlock (M-01):** Not shipping until the
+landlord + tenant value prop is clearer and we can explain it without echoing
+Jiji-style ambiguity. The payment modal stays unchanged until then. When we
+revisit, prefer landlord-paid activation with transparent caps — see Sprint
+task M-01.
 
-**Compatible evolution (Phase 6, landlord opt-in):** a clearly-labeled
-**"open contact"** mode per unit —
+**Shipped (R-01 / Sprint 5G):** `units.rent_period` (`month` | `day`), default
+`day` for `airbnb` building type; `resolveUnlockPolicy()` drives unlock
+duration and whether the unit locks on explore.
 
-- Landlord chooses per unit: **Exclusive** (default, current behavior) or
-  **Open** (up to N concurrent unlocks, suggested cap N = 3).
-- Open units show tenants "*X of N contact slots used*" **before** payment and
-  charge a discounted unlock fee (~60% of exclusive).
-- Never silently sell the same unit twice — transparency keeps the trust wedge.
-- Revenue upside: up to N× fee per unit on high-demand listings.
+### 8.2 Rental periods — /month vs /day
 
-### 8.2 Rental periods — /month vs /day (planned)
+**Shipped:** `units.rent_period` enum (`month` default, `day` for short-stay).
+AirBnB building type defaults units to `/day`; explore and landlord UI show the
+correct suffix with viewer-currency-first formatting.
 
-Today all rents are stored and displayed per month. Plan:
+**Unlock policy by stay class:**
 
-- `units.rent_period` enum: `MONTH` (default) | `DAY` (later `WEEK`).
-- Default by building type: `AIRBNB`/short-stay → `DAY`; others → `MONTH`.
-- Display: `formatListingRentPerMonth` generalizes to `/mo` · `/day` suffixes;
-  explore filters gain a stay-type toggle.
-- Unlock pricing: `pricing_rules` can later key off period (short-stay unlocks
-  may price differently); no change needed at introduction.
-- Migration + DTO/validation + landlord unit form select. **Phase 6 task R-01.**
+| Stay class | Rent | Unlock window | Unit on map |
+|---|---|---|---|
+| Long-term | `/month` | 72h exclusive | `LOCKED` while active |
+| Short-stay (AirBnB) | `/day` | 24h verified contact | Stays `AVAILABLE` |
+
+Future: `WEEK` period, explore stay-type filter, period-aware unlock pricing in
+`pricing_rules`.
 
 ### 8.3 Unwanted listings — keep listing free
 
