@@ -6,7 +6,7 @@
 **Code entry points:**  
 - `apps/api/src/buildings/landlord-notifications.service.ts`  
 - `apps/api/src/notifications/tenant-notifications.service.ts`  
-**Cron (Sprint 5H):** GitHub Action or host scheduler → `POST /api/v1/cron/notifications/*` with `CRON_SECRET` (same pattern as `refresh-fx-rates.yml`).
+**Cron (Sprint 5H):** **Railway** hourly → `POST /api/v1/cron/hourly` with `CRON_SECRET` — [OPS-CRON.md](./OPS-CRON.md). GitHub workflow is manual-only.
 
 ---
 

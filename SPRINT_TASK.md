@@ -193,8 +193,8 @@ yarn db:migrate   # applies 028 (units.rent_period)
 **Prerequisite:** 5B live unlocks + 5G stay-class policy in prod.
 
 ```bash
-yarn db:migrate   # applies 029 (notification_log), 030 (listing_analytics_events)
-# Ops: add GitHub Action or host cron → POST /api/v1/cron/* with CRON_SECRET
+yarn db:migrate   # applies 029 (notification_log), 030 (listing_analytics_events), 031 (drop listing_events)
+# Ops after deploy: Railway cron — docs/OPS-CRON.md (CRON_SECRET on API + cron service)
 ```
 
 ### Track A — Unlock lifecycle (P0, ~2 days)
@@ -214,7 +214,7 @@ yarn db:migrate   # applies 029 (notification_log), 030 (listing_analytics_event
 | ID | Task | Status | Notes |
 |----|------|--------|-------|
 | H-10 | Migration `029_notification_log` | Done | |
-| H-11 | Secured cron endpoints `POST /cron/notifications/*` | Done | `CRON_SECRET` + `.github/workflows/plotpin-cron.yml` |
+| H-11 | Secured cron endpoints `POST /cron/*` | Done | `CRON_SECRET`; prod = Railway — [OPS-CRON.md](./docs/OPS-CRON.md) |
 | H-12 | **N-06a** Landlord unlock expiring (12h left) | Done | |
 | H-13 | **N-06b** Tenant unlock expiring (24h left) | Done | Short-stay vs long-term copy |
 | H-14 | **N-06c** Unlock expired (day-of) | Done | Tenant + landlord |
@@ -308,7 +308,7 @@ created_at   TIMESTAMPTZ
 | Explore polish + homepage featured (5E) | ✅ (migrations 026–027; local + worldwide featured) |
 | Tenant sidebar + paid featured (5F) | ✅ |
 | Stay class /night + stale lock fix (5G) | ✅ (migration 028) |
-| Unlock history + analytics + cron notifications (5H) | ✅ (migrations 029–031; set `CRON_SECRET` + GH cron) |
+| Unlock history + analytics + cron notifications (5H) | ✅ (migrations 029–031; Railway cron after deploy — [OPS-CRON.md](./docs/OPS-CRON.md)) |
 | Stripe / LLC | ⏸ deferred |
 
 ---
@@ -319,7 +319,7 @@ created_at   TIMESTAMPTZ
 Done:  5A · 5B · 5D · 5E · 5F · 5G (+ stale lock fix)
 Next:  5H Track A (unlock history) → Track B (cron notifications) → Track C (analytics) · 5C MoMo/SMS in parallel
 Later: M-01 open-contact · saved_buildings MVP (5H.1) · LLC+Stripe when justified
-Ops:   yarn fx:refresh daily · 5H cron jobs via GH Action + CRON_SECRET
+Ops:   yarn fx:refresh daily (GitHub) · Railway hourly cron after deploy — docs/OPS-CRON.md
 ```
 
 ### Sprint 5H suggested day order

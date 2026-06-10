@@ -21,7 +21,8 @@ Central index for strategy, trust, legal outlines, and implementation order.
 | Doc | Purpose |
 |-----|---------|
 | [TRUST-ANTI-SCAM.md](./TRUST-ANTI-SCAM.md) | Uganda blocker problem, verification, anti-fraud layers |
-| [NOTIFICATIONS.md](./NOTIFICATIONS.md) | Landlord/tenant notification events, cron schedule (5H) |
+| [NOTIFICATIONS.md](./NOTIFICATIONS.md) | Landlord/tenant notification events and channels |
+| [OPS-CRON.md](./OPS-CRON.md) | **Production hourly cron** — Railway setup, env vars, verify |
 | [IMPLEMENTATION-PLAN.md](./IMPLEMENTATION-PLAN.md) | **Build order** — guardrails first, then FW + Lemon Squeezy |
 
 ---
