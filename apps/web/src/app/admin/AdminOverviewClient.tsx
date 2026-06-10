@@ -4,11 +4,11 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { DashboardSection } from "@/components/layout/DashboardSection";
+import { AdminOverviewSkeleton } from "@/components/admin/AdminPageSkeletons";
 import { fetchOpenReports } from "@/lib/api/reports";
 import { fetchPendingBuildings } from "@/lib/api/buildings";
 import { fetchAdminUsers } from "@/lib/api/admin-users";
 import { getAccessToken } from "@/lib/api/client";
-import { Spinner } from "@/components/ui/spinner";
 
 type OverviewStats = {
   pendingBuildings: number;
@@ -65,10 +65,7 @@ export default function AdminOverviewClient() {
       {error ? <p className="text-sm text-red-600">{error}</p> : null}
 
       {loading ? (
-        <div className="flex items-center gap-2 text-sm text-muted">
-          <Spinner className="size-4" label="Loading overview" />
-          Loading…
-        </div>
+        <AdminOverviewSkeleton />
       ) : stats ? (
         <div className="grid gap-4 sm:grid-cols-3">
           <Link
@@ -112,23 +109,25 @@ export default function AdminOverviewClient() {
         </div>
       ) : null}
 
-      <ul className="mt-8 space-y-2 text-sm text-muted">
-        <li>
-          <Link href="/admin/buildings" className="text-primary hover:underline">
-            Verify pending buildings →
-          </Link>
-        </li>
-        <li>
-          <Link href="/admin/featured" className="text-primary hover:underline">
-            Manage featured launch slots →
-          </Link>
-        </li>
-        <li>
-          <Link href="/admin/coupons" className="text-primary hover:underline">
-            Create unlock coupons →
-          </Link>
-        </li>
-      </ul>
+      {!loading ? (
+        <ul className="mt-8 space-y-2 text-sm text-muted">
+          <li>
+            <Link href="/admin/buildings" className="text-primary hover:underline">
+              Verify pending buildings →
+            </Link>
+          </li>
+          <li>
+            <Link href="/admin/featured" className="text-primary hover:underline">
+              Manage featured launch slots →
+            </Link>
+          </li>
+          <li>
+            <Link href="/admin/coupons" className="text-primary hover:underline">
+              Create unlock coupons →
+            </Link>
+          </li>
+        </ul>
+      ) : null}
     </DashboardSection>
   );
 }
