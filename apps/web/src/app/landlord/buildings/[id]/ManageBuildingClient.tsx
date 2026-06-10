@@ -319,6 +319,7 @@ export default function ManageBuildingClient({
         featuredUntil={building.featuredUntil}
         featuredSource={building.featuredSource}
         unlockCount={building.unlockCount}
+        metrics={building.metrics}
       />
 
       {canEditDetails ? (

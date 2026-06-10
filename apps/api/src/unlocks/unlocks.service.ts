@@ -17,6 +17,8 @@ import { PricingService } from "../pricing/pricing.service";
 import { WalletService } from "../wallet/wallet.service";
 import { LandlordNotificationsService } from "../buildings/landlord-notifications.service";
 import { TenantNotificationsService } from "../notifications/tenant-notifications.service";
+import { UnitLocksService } from "../maintenance/unit-locks.service";
+import type { UnlockListStatus } from "./dto/list-mine.dto";
 
 type UnitRow = {
   id: string;
@@ -67,9 +69,17 @@ export class UnlocksService {
     private readonly pricing: PricingService,
     private readonly landlordNotifications: LandlordNotificationsService,
     private readonly tenantNotifications: TenantNotificationsService,
+    private readonly unitLocks: UnitLocksService,
   ) {}
 
-  async listMine(tenantId: string) {
+  async listMine(tenantId: string, status: UnlockListStatus = "active") {
+    const expiryFilter =
+      status === "active"
+        ? "AND (uu.expires_at IS NULL OR uu.expires_at > NOW())"
+        : status === "expired"
+          ? "AND uu.expires_at IS NOT NULL AND uu.expires_at <= NOW()"
+          : "";
+
     const { rows } = await this.db.query(
       `SELECT uu.*, u.unit_number, u.building_id, u.rent_period, b.name AS building_name,
               b.building_type, b.cover_image_path, b.video_url,
@@ -84,11 +94,11 @@ export class UnlocksService {
        LEFT JOIN auth.users au ON au.id = b.landlord_id
        WHERE uu.tenant_id = $1
          AND uu.is_winner = TRUE
-         AND (uu.expires_at IS NULL OR uu.expires_at > NOW())
+         ${expiryFilter}
        ORDER BY uu.created_at DESC`,
       [tenantId],
     );
-    return this.mapUnlockRows(rows as Array<UnlockRow & UnitRow>);
+    return this.mapUnlockRows(rows as Array<UnlockRow & UnitRow>, status !== "active");
   }
 
   async listForBuilding(buildingId: string, tenantId: string) {
@@ -114,7 +124,10 @@ export class UnlocksService {
     return this.mapUnlockRows(rows as Array<UnlockRow & UnitRow>);
   }
 
-  private async mapUnlockRows(rows: Array<UnlockRow & UnitRow>) {
+  private async mapUnlockRows(
+    rows: Array<UnlockRow & UnitRow>,
+    redactContact = false,
+  ) {
     const imageCache = new Map<string, string[]>();
     const mapped = [];
     for (const row of rows) {
@@ -126,7 +139,7 @@ export class UnlocksService {
         );
       }
       mapped.push({
-        ...this.toUnlockRecord(row),
+        ...this.toUnlockRecord(row, redactContact || !this.isActive(row)),
         imageUrls: imageCache.get(buildingId),
       });
     }
@@ -153,23 +166,7 @@ export class UnlocksService {
     return coverPath ? [coverPath] : [];
   }
 
-  private async releaseStaleUnitLock(unitId: string) {
-    await this.db.query(
-      `UPDATE units
-       SET status = 'AVAILABLE',
-           locked_by_tenant_id = NULL,
-           locked_until = NULL,
-           updated_at = NOW()
-       WHERE id = $1
-         AND status = 'LOCKED'
-         AND locked_until IS NOT NULL
-         AND locked_until <= NOW()`,
-      [unitId],
-    );
-  }
-
   async getStatus(unitId: string, tenantId: string) {
-    await this.releaseStaleUnitLock(unitId);
     const unit = await this.loadUnit(unitId);
     const winner = await this.findActiveWinner(unitId);
     const mine = await this.findTenantUnlock(unitId, tenantId);
@@ -204,13 +201,26 @@ export class UnlocksService {
       unitNumber: unit.unit_number,
       buildingId: unit.building_id,
       status: unit.status,
-      unlockState:
-        unit.status === "AVAILABLE"
-          ? ("available" as const)
-          : ("unavailable" as const),
+      unlockState: this.resolvePublicUnlockState(unit, winner),
       unlockCreditsAvailable,
       ...this.unlockQuoteFields(quote, unit),
     };
+  }
+
+  private resolvePublicUnlockState(
+    unit: UnitRow,
+    winner: UnlockRow | null,
+  ): "available" | "locked_by_other" | "unavailable" {
+    if (winner) {
+      return "locked_by_other";
+    }
+    if (unit.status === "AVAILABLE") {
+      return "available";
+    }
+    if (unit.status === "LOCKED") {
+      return "available";
+    }
+    return "unavailable";
   }
 
   async unlockUnit(
@@ -338,7 +348,7 @@ export class UnlocksService {
   }
 
   private async lockUnit(unitId: string): Promise<UnitRow> {
-    await this.releaseStaleUnitLock(unitId);
+    await this.unitLocks.releaseExpiredLockForUnit(unitId);
     const { rows } = await this.db.query<UnitRow>(
       `SELECT u.id, u.building_id, u.unit_number, u.bedrooms, u.status, u.rent_period,
               b.name AS building_name, b.building_type, b.country_code,
@@ -377,7 +387,6 @@ export class UnlocksService {
   }
 
   private async findActiveWinner(unitId: string) {
-    await this.releaseStaleUnitLock(unitId);
     const { rows } = await this.db.query<UnlockRow>(
       `SELECT * FROM unit_unlocks
        WHERE unit_id = $1 AND is_winner = TRUE
@@ -688,10 +697,18 @@ export class UnlocksService {
     };
   }
 
-  private toUnlockRecord(row: UnlockRow & UnitRow) {
+  private toUnlockRecord(row: UnlockRow & UnitRow, redactContact = false) {
     const unit: UnitRow = row;
     const { lat, lng } = this.resolveCoords(unit);
-    const contact = this.resolveContact(row, unit);
+    const expired = !this.isActive(row);
+    const contact = redactContact || expired
+      ? {
+          phone: null,
+          phoneSecondary: null,
+          exactAddress: null,
+          contactIsEmailFallback: false,
+        }
+      : this.resolveContact(row, unit);
     const policy = resolveUnlockPolicy({
       buildingType: unit.building_type,
       rentPeriod: unit.rent_period,
@@ -702,14 +719,16 @@ export class UnlocksService {
       unitNumber: row.unit_number,
       buildingId: row.building_id,
       buildingName: row.building_name,
-      unlockState: "winner" as const,
+      unlockState: expired ? ("expired" as const) : ("winner" as const),
       unlockedAt: row.created_at,
       expiresAt: row.expires_at,
       exclusiveHours: policy.exclusiveHours,
       locksUnit: policy.locksUnit,
       rentPeriod: policy.rentPeriod,
       contact,
-      location: { lat, lng },
+      location: redactContact || expired
+        ? { lat: unit.approximate_lat, lng: unit.approximate_lng }
+        : { lat, lng },
       coverImageUrl: unit.cover_image_path ?? undefined,
       videoUrl: unit.video_url ?? undefined,
     };

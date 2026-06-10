@@ -15,6 +15,8 @@ import { NotificationsModule } from "./notifications/notifications.module";
 import { ReportsModule } from "./reports/reports.module";
 import { PaymentsModule } from "./payments/payments.module";
 import { GeoModule } from "./geo/geo.module";
+import { CronModule } from "./cron/cron.module";
+import { AnalyticsModule } from "./analytics/analytics.module";
 
 @Module({
   imports: [
@@ -43,6 +45,8 @@ import { GeoModule } from "./geo/geo.module";
     ReportsModule,
     PaymentsModule,
     GeoModule,
+    CronModule,
+    AnalyticsModule,
   ],
 })
 export class AppModule {}

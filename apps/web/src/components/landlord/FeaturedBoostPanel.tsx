@@ -15,6 +15,16 @@ type FeaturedBoostPanelProps = {
   featuredSource: string | null;
   /** All-time paid unlocks — shown as ROI context for the boost. */
   unlockCount: number;
+  metrics?: {
+    days: number;
+    impressions: number;
+    detailViews: number;
+    unlockClicks: number;
+    unlocks: number;
+    detailViewRate: number;
+    unlockClickRate: number;
+    unlockConversionRate: number;
+  };
 };
 
 function formatDate(iso: string) {
@@ -32,6 +42,7 @@ export function FeaturedBoostPanel({
   featuredUntil,
   featuredSource,
   unlockCount,
+  metrics,
 }: FeaturedBoostPanelProps) {
   const { viewer, formatUnlockFeeLabel } = useViewerContext();
   const [startingDays, setStartingDays] = useState<number | null>(null);
@@ -79,7 +90,19 @@ export function FeaturedBoostPanel({
         ) : null}
       </div>
 
-      <dl className="mt-4 grid grid-cols-2 gap-3 text-sm">
+      <dl className="mt-4 grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
+        <div className="border border-border bg-background p-3">
+          <dt className="text-xs text-muted">Views (30d)</dt>
+          <dd className="mt-0.5 text-lg font-semibold">
+            {metrics?.detailViews ?? 0}
+          </dd>
+        </div>
+        <div className="border border-border bg-background p-3">
+          <dt className="text-xs text-muted">Impressions (30d)</dt>
+          <dd className="mt-0.5 text-lg font-semibold">
+            {metrics?.impressions ?? 0}
+          </dd>
+        </div>
         <div className="border border-border bg-background p-3">
           <dt className="text-xs text-muted">Tenant unlocks (all time)</dt>
           <dd className="mt-0.5 text-lg font-semibold">{unlockCount}</dd>

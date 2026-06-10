@@ -186,7 +186,7 @@ yarn db:migrate   # applies 028 (units.rent_period)
 
 ---
 
-## Sprint 5H — Unlock lifecycle, analytics & scheduled notifications — **planned (next)**
+## Sprint 5H — Unlock lifecycle, analytics & scheduled notifications — **✅ implemented (run migrations 029–031)**
 
 **Goal:** Close gaps from 5G review — expired unlock visibility, listing view metrics for landlords/admins, cron-based reminder emails, schema hygiene for dormant tables.
 
@@ -201,11 +201,11 @@ yarn db:migrate   # applies 029 (notification_log), 030 (listing_analytics_event
 
 | ID | Task | Status | Notes |
 |----|------|--------|-------|
-| H-01 | Stale `LOCKED` → `AVAILABLE` on expiry | Done | 5G follow-up — unlock service + explore |
-| H-02 | `GET /unlocks/mine?status=active\|expired\|all` | Pending | Default `active`; history for tenant |
-| H-03 | Tenant UI: **Active** + **Past unlocks** tabs | Pending | Past = read-only; no contact reveal |
-| H-04 | Expired row copy + CTA | Pending | “Window ended · Unlock again on Explore” |
-| H-05 | Landlord: optional “lock ended” in-app hint | Pending | Until N-12 email ships |
+| H-01 | Stale `LOCKED` → `AVAILABLE` on expiry | Done | Hourly cron (`POST /cron/hourly`); unlock checkout safety net only |
+| H-02 | `GET /unlocks/mine?status=active\|expired\|all` | Done | Default `active` |
+| H-03 | Tenant UI: **Active** + **Past unlocks** tabs | Done | |
+| H-04 | Expired row copy + CTA | Done | “Unlock again on Explore” |
+| H-05 | Landlord: optional “lock ended” in-app hint | Pending | N-12 email ships in Track B |
 
 **Exit:** Tenants see unlock history; long-term units reappear on map after expiry (H-01).
 
@@ -213,15 +213,15 @@ yarn db:migrate   # applies 029 (notification_log), 030 (listing_analytics_event
 
 | ID | Task | Status | Notes |
 |----|------|--------|-------|
-| H-10 | Migration `029_notification_log` | Pending | Idempotency: `(user_id, template, dedupe_key)` unique |
-| H-11 | Secured cron endpoints `POST /cron/notifications/*` | Pending | `CRON_SECRET` header; pattern matches `fx:refresh` GH Action |
-| H-12 | **N-06a** Landlord unlock expiring (12h left) | Pending | Email + optional SMS stub |
-| H-13 | **N-06b** Tenant unlock expiring (24h left) | Pending | Short-stay vs long-term copy variants |
-| H-14 | **N-06c** Unlock expired (day-of) | Pending | Tenant + landlord; one send per unlock |
-| H-15 | **N-12** Landlord unit lock ended | Pending | Long-term only; CTA update unit / mark rented |
-| H-16 | **N-13** Featured expiring (7d left) | Pending | Paid featured live in 5F |
-| H-17 | Postmark templates for above | Pending | Extend `TransactionalEmailBuilder` |
-| H-18 | **N-07** Stale AVAILABLE (30d) cron | Pending | P1 — can ship in 5H.1 if time tight |
+| H-10 | Migration `029_notification_log` | Done | |
+| H-11 | Secured cron endpoints `POST /cron/notifications/*` | Done | `CRON_SECRET` + `.github/workflows/plotpin-cron.yml` |
+| H-12 | **N-06a** Landlord unlock expiring (12h left) | Done | |
+| H-13 | **N-06b** Tenant unlock expiring (24h left) | Done | Short-stay vs long-term copy |
+| H-14 | **N-06c** Unlock expired (day-of) | Done | Tenant + landlord |
+| H-15 | **N-12** Landlord unit lock ended | Done | Before lock release in hourly job |
+| H-16 | **N-13** Featured expiring (7d left) | Done | |
+| H-17 | Postmark templates for above | Done | `TransactionalEmailBuilder` |
+| H-18 | **N-07** Stale AVAILABLE (30d) cron | Done | Weekly cadence via hourly job (deduped per unit) |
 
 **Cron schedule (UTC):**
 
@@ -239,14 +239,14 @@ yarn db:migrate   # applies 029 (notification_log), 030 (listing_analytics_event
 
 | ID | Task | Status | Notes |
 |----|------|--------|-------|
-| H-20 | Migration `030_listing_analytics_events` | Pending | See schema below |
-| H-21 | `POST /analytics/events` (batch, rate-limited) | Pending | Anon session id + optional user id |
-| H-22 | Client: map pin / card **impression** | Pending | IntersectionObserver; debounce per building/session |
-| H-23 | Client: building panel **detail_view** | Pending | On panel open |
-| H-24 | Client: **unlock_click** (funnel) | Pending | Before checkout modal |
-| H-25 | Landlord stats: views, detail views, unlock rate | Pending | Manage building + dashboard cards |
-| H-26 | Admin overview: top listings, featured CTR | Pending | Feeds PRD goal “featured → view ≥ 40%” |
-| H-27 | Daily rollup job (optional 5H.1) | Pending | `building_metrics_daily` materialized counts |
+| H-20 | Migration `030_listing_analytics_events` | Done | |
+| H-21 | `POST /analytics/events` (batch, rate-limited) | Done | Optional auth |
+| H-22 | Client: map pin / card **impression** | Done | IntersectionObserver |
+| H-23 | Client: building panel **detail_view** | Done | On panel open |
+| H-24 | Client: **unlock_click** (funnel) | Done | Before checkout modal |
+| H-25 | Landlord stats: views, detail views, unlock rate | Done | FeaturedBoostPanel + `findMineById` metrics |
+| H-26 | Admin overview: top listings, featured CTR | Done | `GET /admin/analytics/overview` |
+| H-27 | Daily rollup job (optional 5H.1) | Pending | |
 
 **Event schema (`listing_analytics_events`):**
 
@@ -275,7 +275,7 @@ created_at   TIMESTAMPTZ
 
 | ID | Task | Status | Decision |
 |----|------|--------|----------|
-| H-30 | **`listing_events`** | Pending | **Drop** in migration 031 — never written; superseded by analytics events + payments ledger |
+| H-30 | **`listing_events`** | Done | Dropped in migration `031` |
 | H-31 | **`saved_buildings`** | Pending | **Implement MVP** in 5H.1: heart on explore card + `/tenant/saved` — OR defer with explicit backlog tag |
 | H-32 | PostGIS catalog tables | N/A | No action — system tables; document in runbook |
 
@@ -308,7 +308,7 @@ created_at   TIMESTAMPTZ
 | Explore polish + homepage featured (5E) | ✅ (migrations 026–027; local + worldwide featured) |
 | Tenant sidebar + paid featured (5F) | ✅ |
 | Stay class /night + stale lock fix (5G) | ✅ (migration 028) |
-| Unlock history + analytics + cron notifications (5H) | 📋 planned |
+| Unlock history + analytics + cron notifications (5H) | ✅ (migrations 029–031; set `CRON_SECRET` + GH cron) |
 | Stripe / LLC | ⏸ deferred |
 
 ---

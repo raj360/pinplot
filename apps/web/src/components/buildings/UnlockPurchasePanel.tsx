@@ -16,6 +16,7 @@ import { Button } from "@/components/ui/button";
 import { TermsAcceptanceField } from "@/components/legal/TermsAcceptanceField";
 import { ApproximateLocationNotice } from "@/components/explore/ApproximateLocationNotice";
 import { cn } from "@/lib/utils/cn";
+import { trackUnlockClick } from "@/lib/analytics/track-listing-events";
 
 export function UnlockPurchasePanel({
   buildingId,
@@ -226,7 +227,10 @@ export function UnlockPurchasePanel({
                   className="w-full"
                   loading={unlockingId === unit.id}
                   loadingLabel="Unlocking unit"
-                  onClick={() => onUnlock(unit.id)}
+                  onClick={() => {
+                    trackUnlockClick(buildingId, unit.id);
+                    onUnlock(unit.id);
+                  }}
                 >
                   {unlockButtonLabel({
                     unlockCredits,

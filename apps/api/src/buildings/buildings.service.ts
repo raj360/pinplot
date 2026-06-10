@@ -40,6 +40,7 @@ import {
   BUILDING_IMAGES_BUCKET,
   collectStoragePaths,
 } from "../common/storage.util";
+import { AnalyticsService } from "../analytics/analytics.service";
 
 type BuildingRow = {
   id: string;
@@ -80,24 +81,10 @@ export class BuildingsService {
     private readonly pricing: PricingService,
     private readonly supabaseAdmin: SupabaseAdminService,
     private readonly landlordNotifications: LandlordNotificationsService,
+    private readonly analytics: AnalyticsService,
   ) {}
 
-  /** Lazy cleanup: expired exclusive unlocks must not hide units from explore. */
-  private async releaseExpiredUnitLocks() {
-    await this.db.query(
-      `UPDATE units
-       SET status = 'AVAILABLE',
-           locked_by_tenant_id = NULL,
-           locked_until = NULL,
-           updated_at = NOW()
-       WHERE status = 'LOCKED'
-         AND locked_until IS NOT NULL
-         AND locked_until <= NOW()`,
-    );
-  }
-
   async findInBounds(query: BuildingBoundsQueryDto, tenantId?: string) {
-    await this.releaseExpiredUnitLocks();
     if (!tenantId) {
       const cached = this.exploreCache.get<BuildingSummary[]>(query);
       if (cached) return cached;
@@ -136,7 +123,6 @@ export class BuildingsService {
       excludeCountryCode?: string;
     } = {},
   ) {
-    await this.releaseExpiredUnitLocks();
     const capped = Math.min(Math.max(limit, 1), 24);
     const region = options.countryCode?.trim().toUpperCase() || null;
     const exclude =
@@ -440,6 +426,7 @@ export class BuildingsService {
 
     const building = rows[0] as Record<string, unknown>;
     const units = await this.fetchUnits(buildingId);
+    const metrics = await this.analytics.getBuildingMetrics(buildingId, 30);
 
     return {
       id: building.id,
@@ -455,6 +442,7 @@ export class BuildingsService {
       rejectionReason: building.rejection_reason ?? null,
       availableUnitCount: Number(building.available_unit_count ?? 0),
       unlockCount: Number(building.unlock_count ?? 0),
+      metrics,
       isFeatured: this.isFeaturedActive({
         is_featured: Boolean(building.is_featured),
         featured_until: (building.featured_until as Date | null) ?? null,

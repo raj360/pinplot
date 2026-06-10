@@ -4,6 +4,7 @@ import { MapPin } from "lucide-react";
 import type { RefObject } from "react";
 import { ExploreEmptyResults } from "@/components/explore/ExploreEmptyResults";
 import { FeaturedListingBadge } from "@/components/explore/FeaturedListingBadge";
+import { ListingImpressionTracker } from "@/components/analytics/ListingImpressionTracker";
 import type { ExploreSearchFilters } from "@/components/explore/ExploreFilters";
 import { ExploreResultRowSkeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
@@ -72,7 +73,8 @@ export function ExploreResultsList({
         const accessOnly = hasAccessOnly(building);
 
         return (
-          <li key={building.id}>
+          <li key={building.id} className="relative">
+            <ListingImpressionTracker buildingId={building.id} source="explore" />
             <div
               data-building-id={building.id}
               className={cn(

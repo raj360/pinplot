@@ -6,7 +6,7 @@ export type TenantUnlock = {
   unitNumber: string;
   buildingId: string;
   buildingName: string;
-  unlockState: "winner";
+  unlockState: "winner" | "expired";
   unlockedAt: string;
   expiresAt: string | null;
   exclusiveHours: number;
@@ -68,8 +68,11 @@ export type UnlockStatus =
       creditType?: string;
     });
 
-export async function fetchMyUnlocks() {
-  return apiFetch<TenantUnlock[]>("/unlocks/mine");
+export type UnlockListStatus = "active" | "expired" | "all";
+
+export async function fetchMyUnlocks(status: UnlockListStatus = "active") {
+  const params = status === "active" ? "" : `?status=${status}`;
+  return apiFetch<TenantUnlock[]>(`/unlocks/mine${params}`);
 }
 
 export async function fetchBuildingUnlocks(buildingId: string) {

@@ -199,6 +199,16 @@ export type LandlordBuildingDetail = {
   rejectionReason: string | null;
   availableUnitCount: number;
   unlockCount: number;
+  metrics?: {
+    days: number;
+    impressions: number;
+    detailViews: number;
+    unlockClicks: number;
+    unlocks: number;
+    detailViewRate: number;
+    unlockClickRate: number;
+    unlockConversionRate: number;
+  };
   isFeatured: boolean;
   featuredUntil: string | null;
   featuredSource: string | null;
