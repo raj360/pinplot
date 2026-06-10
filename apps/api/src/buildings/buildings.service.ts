@@ -82,7 +82,22 @@ export class BuildingsService {
     private readonly landlordNotifications: LandlordNotificationsService,
   ) {}
 
+  /** Lazy cleanup: expired exclusive unlocks must not hide units from explore. */
+  private async releaseExpiredUnitLocks() {
+    await this.db.query(
+      `UPDATE units
+       SET status = 'AVAILABLE',
+           locked_by_tenant_id = NULL,
+           locked_until = NULL,
+           updated_at = NOW()
+       WHERE status = 'LOCKED'
+         AND locked_until IS NOT NULL
+         AND locked_until <= NOW()`,
+    );
+  }
+
   async findInBounds(query: BuildingBoundsQueryDto, tenantId?: string) {
+    await this.releaseExpiredUnitLocks();
     if (!tenantId) {
       const cached = this.exploreCache.get<BuildingSummary[]>(query);
       if (cached) return cached;
@@ -121,6 +136,7 @@ export class BuildingsService {
       excludeCountryCode?: string;
     } = {},
   ) {
+    await this.releaseExpiredUnitLocks();
     const capped = Math.min(Math.max(limit, 1), 24);
     const region = options.countryCode?.trim().toUpperCase() || null;
     const exclude =

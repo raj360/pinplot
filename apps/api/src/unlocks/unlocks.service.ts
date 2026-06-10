@@ -153,7 +153,23 @@ export class UnlocksService {
     return coverPath ? [coverPath] : [];
   }
 
+  private async releaseStaleUnitLock(unitId: string) {
+    await this.db.query(
+      `UPDATE units
+       SET status = 'AVAILABLE',
+           locked_by_tenant_id = NULL,
+           locked_until = NULL,
+           updated_at = NOW()
+       WHERE id = $1
+         AND status = 'LOCKED'
+         AND locked_until IS NOT NULL
+         AND locked_until <= NOW()`,
+      [unitId],
+    );
+  }
+
   async getStatus(unitId: string, tenantId: string) {
+    await this.releaseStaleUnitLock(unitId);
     const unit = await this.loadUnit(unitId);
     const winner = await this.findActiveWinner(unitId);
     const mine = await this.findTenantUnlock(unitId, tenantId);
@@ -322,6 +338,7 @@ export class UnlocksService {
   }
 
   private async lockUnit(unitId: string): Promise<UnitRow> {
+    await this.releaseStaleUnitLock(unitId);
     const { rows } = await this.db.query<UnitRow>(
       `SELECT u.id, u.building_id, u.unit_number, u.bedrooms, u.status, u.rent_period,
               b.name AS building_name, b.building_type, b.country_code,
@@ -360,6 +377,7 @@ export class UnlocksService {
   }
 
   private async findActiveWinner(unitId: string) {
+    await this.releaseStaleUnitLock(unitId);
     const { rows } = await this.db.query<UnlockRow>(
       `SELECT * FROM unit_unlocks
        WHERE unit_id = $1 AND is_winner = TRUE

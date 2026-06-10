@@ -130,6 +130,18 @@ export function typicalMonthlyRent(money?: RentRangeMoney): number {
   return converted != null ? niceRound(converted) : 500_000;
 }
 
+/** Default unit rent on the landlord create form — monthly or nightly by type. */
+export function typicalListingRent(
+  buildingType: string | undefined,
+  money?: RentRangeMoney,
+): number {
+  const monthly = typicalMonthlyRent(money);
+  if (buildingType === "airbnb") {
+    return niceRound(Math.max(monthly / 30, 10));
+  }
+  return monthly;
+}
+
 /** Build the Jiji-style rent presets in the viewer's currency. */
 export function buildRentRangeOptions(money?: RentRangeMoney): RentRangeOption[] {
   const currency = (money?.currency ?? DEFAULT_CURRENCY).toUpperCase();

@@ -25,6 +25,20 @@ export function defaultRentPeriodForBuildingType(
   return buildingType === "airbnb" ? "day" : "month";
 }
 
+/** User-facing rent suffix — short-stay uses /night (stored as `day` in DB). */
+export function rentPeriodSuffix(period: RentPeriod): "/mo" | "/night" {
+  return period === "day" ? "/night" : "/mo";
+}
+
+export function rentPeriodColumnLabel(
+  period: RentPeriod,
+  currency: string,
+): string {
+  return period === "day"
+    ? `Rent per night (${currency})`
+    : `Rent per month (${currency})`;
+}
+
 /** Unlock duration and whether the unit leaves the AVAILABLE map pool. */
 export function resolveUnlockPolicy(params: {
   buildingType?: string | null;

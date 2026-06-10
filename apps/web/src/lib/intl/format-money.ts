@@ -147,7 +147,7 @@ export function formatRentWithPeriod(
 ): string {
   if (amount == null) return "—";
 
-  const suffix = period === "day" ? "/day" : "/mo";
+  const suffix = period === "day" ? "/night" : "/mo";
   const formatted = formatMoney(
     amount,
     listingCurrency,

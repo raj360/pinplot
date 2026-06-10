@@ -62,7 +62,7 @@ type ViewerContextValue = {
     listingCurrency: string,
     listingCountryCode?: string,
   ) => string;
-  /** Listing rent with /mo or /day suffix — viewer currency first. */
+  /** Listing rent with /mo or /night suffix — viewer currency first. */
   formatListingRent: (
     amount: number | null | undefined,
     listingCurrency: string,
