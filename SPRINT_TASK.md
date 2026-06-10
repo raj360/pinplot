@@ -167,7 +167,8 @@ yarn db:migrate   # applies 028 (units.rent_period)
 | G-01 | Migration `028_rent_period` + backfill airbnb → day | Done | |
 | G-02 | `resolveUnlockPolicy()` in shared-types | Done | 72h+lock vs 24h+stay available |
 | G-03 | Unlocks service: skip unit LOCK for short-stay | Done | |
-| G-04 | `formatListingRent` / `/day` display sitewide | Done | Viewer currency first |
+| G-04 | `formatListingRent` / `/night` display sitewide | Done | Viewer currency first; DB stores `day` |
+| G-09 | Stale unit lock release on unlock + explore | Done | `releaseStaleUnitLock` + `releaseExpiredUnitLocks` |
 | G-05 | Unlock copy: verified contact vs exclusive | Done | Modal unchanged structurally |
 | G-06 | Dashboard skeletons (stats, listings, tenant unlocks) | Done | Replaces spinners |
 | G-07 | Featured boost pricing — UGX footnote only in Uganda | Done | Matches hero / homepage |
@@ -181,7 +182,102 @@ yarn db:migrate   # applies 028 (units.rent_period)
 |----|------|--------|
 | S5-04 | MoMo UX polish | Pending |
 | S5-05 | USSD | Pending |
-| N-06 | SMS unlock alert | Pending |
+| N-08 | SMS unlock alert (Africa's Talking) | Pending |
+
+---
+
+## Sprint 5H — Unlock lifecycle, analytics & scheduled notifications — **planned (next)**
+
+**Goal:** Close gaps from 5G review — expired unlock visibility, listing view metrics for landlords/admins, cron-based reminder emails, schema hygiene for dormant tables.
+
+**Prerequisite:** 5B live unlocks + 5G stay-class policy in prod.
+
+```bash
+yarn db:migrate   # applies 029 (notification_log), 030 (listing_analytics_events)
+# Ops: add GitHub Action or host cron → POST /api/v1/cron/* with CRON_SECRET
+```
+
+### Track A — Unlock lifecycle (P0, ~2 days)
+
+| ID | Task | Status | Notes |
+|----|------|--------|-------|
+| H-01 | Stale `LOCKED` → `AVAILABLE` on expiry | Done | 5G follow-up — unlock service + explore |
+| H-02 | `GET /unlocks/mine?status=active\|expired\|all` | Pending | Default `active`; history for tenant |
+| H-03 | Tenant UI: **Active** + **Past unlocks** tabs | Pending | Past = read-only; no contact reveal |
+| H-04 | Expired row copy + CTA | Pending | “Window ended · Unlock again on Explore” |
+| H-05 | Landlord: optional “lock ended” in-app hint | Pending | Until N-12 email ships |
+
+**Exit:** Tenants see unlock history; long-term units reappear on map after expiry (H-01).
+
+### Track B — Scheduled notifications (P0, ~3 days)
+
+| ID | Task | Status | Notes |
+|----|------|--------|-------|
+| H-10 | Migration `029_notification_log` | Pending | Idempotency: `(user_id, template, dedupe_key)` unique |
+| H-11 | Secured cron endpoints `POST /cron/notifications/*` | Pending | `CRON_SECRET` header; pattern matches `fx:refresh` GH Action |
+| H-12 | **N-06a** Landlord unlock expiring (12h left) | Pending | Email + optional SMS stub |
+| H-13 | **N-06b** Tenant unlock expiring (24h left) | Pending | Short-stay vs long-term copy variants |
+| H-14 | **N-06c** Unlock expired (day-of) | Pending | Tenant + landlord; one send per unlock |
+| H-15 | **N-12** Landlord unit lock ended | Pending | Long-term only; CTA update unit / mark rented |
+| H-16 | **N-13** Featured expiring (7d left) | Pending | Paid featured live in 5F |
+| H-17 | Postmark templates for above | Pending | Extend `TransactionalEmailBuilder` |
+| H-18 | **N-07** Stale AVAILABLE (30d) cron | Pending | P1 — can ship in 5H.1 if time tight |
+
+**Cron schedule (UTC):**
+
+| Job | Cadence | Query window |
+|-----|---------|--------------|
+| `unlock-expiring` | Hourly | `expires_at` in (now+11h, now+13h) landlord · (now+23h, now+25h) tenant |
+| `unlock-expired` | Hourly | `expires_at` in (now−1h, now) and not yet logged |
+| `unit-lock-ended` | Hourly | `locked_until` in (now−1h, now) |
+| `featured-expiring` | Daily 08:00 | `featured_until` in 7 days |
+| `stale-available` | Weekly Mon | units `AVAILABLE` 30d+ unchanged |
+
+**Exit:** No silent unlock expiry; landlords get actionable reminders.
+
+### Track C — Listing analytics (P1, ~4 days)
+
+| ID | Task | Status | Notes |
+|----|------|--------|-------|
+| H-20 | Migration `030_listing_analytics_events` | Pending | See schema below |
+| H-21 | `POST /analytics/events` (batch, rate-limited) | Pending | Anon session id + optional user id |
+| H-22 | Client: map pin / card **impression** | Pending | IntersectionObserver; debounce per building/session |
+| H-23 | Client: building panel **detail_view** | Pending | On panel open |
+| H-24 | Client: **unlock_click** (funnel) | Pending | Before checkout modal |
+| H-25 | Landlord stats: views, detail views, unlock rate | Pending | Manage building + dashboard cards |
+| H-26 | Admin overview: top listings, featured CTR | Pending | Feeds PRD goal “featured → view ≥ 40%” |
+| H-27 | Daily rollup job (optional 5H.1) | Pending | `building_metrics_daily` materialized counts |
+
+**Event schema (`listing_analytics_events`):**
+
+```sql
+event_type   TEXT  -- IMPRESSION | DETAIL_VIEW | UNLOCK_CLICK
+building_id  UUID  NOT NULL
+unit_id      UUID  NULL
+viewer_id    UUID  NULL          -- authenticated
+session_id   TEXT  NULL          -- anon fingerprint (cookie)
+source       TEXT  NULL          -- explore | featured | direct
+country_code CHAR(2) NULL
+created_at   TIMESTAMPTZ
+```
+
+**Metrics exposed:**
+
+| Audience | Metrics |
+|----------|---------|
+| Landlord | Impressions (7d/30d), detail views, unlock clicks, unlocks, conversion % |
+| Admin | Same + featured vs non-featured comparison |
+| Product | Homepage → explore CTR (UTM Phase 6) |
+
+**Exit:** Landlords see view performance; featured ROI measurable.
+
+### Track D — Schema hygiene (P2, parallel)
+
+| ID | Task | Status | Decision |
+|----|------|--------|----------|
+| H-30 | **`listing_events`** | Pending | **Drop** in migration 031 — never written; superseded by analytics events + payments ledger |
+| H-31 | **`saved_buildings`** | Pending | **Implement MVP** in 5H.1: heart on explore card + `/tenant/saved` — OR defer with explicit backlog tag |
+| H-32 | PostGIS catalog tables | N/A | No action — system tables; document in runbook |
 
 ---
 
@@ -191,7 +287,7 @@ yarn db:migrate   # applies 028 (units.rent_period)
 |----|------|-------|
 | ~~S5-08~~ | ~~Paid featured~~ | **✅ Done in 5F** — market it once unlock volume proves ROI |
 | M-01 | Multi-unlock "open contact" mode (landlord opt-in, cap 3, discounted fee) | BUSINESS-MODEL §8.1 |
-| R-01 | `units.rent_period` — `/day` for short-stay building types | BUSINESS-MODEL §8.2 |
+| ~~R-01~~ | ~~`units.rent_period` — `/night` for short-stay~~ | **✅ Done in 5G** |
 | T-14 | Verify badge (one-time) | Optional |
 | S4-19 | Landlord country on create | |
 | **P-LLC** | US LLC + Stripe | When PAYMENTS-STRATEGY §8 triggers |
@@ -210,6 +306,9 @@ yarn db:migrate   # applies 028 (units.rent_period)
 | Live unlock (FW + LS) | ✅ (configure PSP keys + webhooks) |
 | Global discovery + catalog + FX (5D) | ✅ (migrations 023–025; run seeds; FX daily cron) |
 | Explore polish + homepage featured (5E) | ✅ (migrations 026–027; local + worldwide featured) |
+| Tenant sidebar + paid featured (5F) | ✅ |
+| Stay class /night + stale lock fix (5G) | ✅ (migration 028) |
+| Unlock history + analytics + cron notifications (5H) | 📋 planned |
 | Stripe / LLC | ⏸ deferred |
 
 ---
@@ -217,11 +316,22 @@ yarn db:migrate   # applies 028 (units.rent_period)
 ## Recommended build order
 
 ```
-Done:  5A (trust) · 5B (FW + Lemon Squeezy unlock) · 5D (global catalog + geo + FX) · 5E (explore polish + featured UX) · 5F (tenant sidebar + paid featured)
-Next:  5C MoMo/SMS polish · M-01 open-contact unlocks · R-01 /day rent period · LLC+Stripe when justified
-Ops:   yarn fx:refresh on a daily cron · run migrations 026–027 if not applied
+Done:  5A · 5B · 5D · 5E · 5F · 5G (+ stale lock fix)
+Next:  5H Track A (unlock history) → Track B (cron notifications) → Track C (analytics) · 5C MoMo/SMS in parallel
+Later: M-01 open-contact · saved_buildings MVP (5H.1) · LLC+Stripe when justified
+Ops:   yarn fx:refresh daily · 5H cron jobs via GH Action + CRON_SECRET
+```
+
+### Sprint 5H suggested day order
+
+```
+Day 1:   H-02, H-03, H-04 (tenant unlock history)
+Day 2:   H-10, H-11, H-17 (notification_log + cron infra + templates)
+Day 3:   H-12 → H-16 (expiring + expired + lock-ended + featured emails)
+Day 4–5: H-20 → H-25 (analytics schema, track API, client events, landlord stats)
+Day 6:   H-26 (admin slice) · H-30 (drop listing_events) · H-18 if time (stale AVAILABLE)
 ```
 
 ---
 
-*Last updated: 2026-06-09 — Sprint 5F tenant sidebar + paid featured (S5-08); business-model decisions in docs/BUSINESS-MODEL.md §8*
+*Last updated: 2026-06-10 — Sprint 5H planned (unlock lifecycle, analytics, cron notifications); 5G /night + stale lock release*

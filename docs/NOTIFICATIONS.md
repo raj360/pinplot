@@ -3,7 +3,10 @@
 **Goal:** Keep landlords **engaged** without listing fees — every meaningful event → timely notify.
 
 **Infrastructure:** Postmark (email) in `.env` — `POSTMARK_FROM_EMAIL` (transactional), `POSTMARK_REPLY_TO_EMAIL` (Zoho support inbox); SMS (Africa's Talking / Twilio) Phase 6.  
-**Code entry point:** `apps/api/src/buildings/landlord-notifications.service.ts` (stub today).
+**Code entry points:**  
+- `apps/api/src/buildings/landlord-notifications.service.ts`  
+- `apps/api/src/notifications/tenant-notifications.service.ts`  
+**Cron (Sprint 5H):** GitHub Action or host scheduler → `POST /api/v1/cron/notifications/*` with `CRON_SECRET` (same pattern as `refresh-fx-rates.yml`).
 
 ---
 
@@ -57,36 +60,82 @@
 | `landlord_stale_listing` | Cron 30d AVAILABLE |
 | `tenant_unlock_receipt` | Unlock success |
 | `tenant_unlock_expiring` | Cron 24h before end |
+| `tenant_unlock_expired` | Cron day-of expiry |
+| `landlord_unlock_expired` | Cron day-of expiry |
+| `landlord_unit_lock_ended` | Cron when `locked_until` passes (long-term) |
+| `landlord_featured_expiring` | Cron 7d before `featured_until` |
 
 ---
 
 ## 4. Implementation phases
 
-### Phase 1 (Sprint 5A) — wire Postmark
+### Phase 1 (Sprint 5A + 5B) — transactional email ✅
 
-- [ ] N-01 Postmark client + env validation  
-- [ ] N-02 `notifyListingApproved`  
-- [ ] N-03 `notifyListingRejected` (extend stub)  
-- [ ] N-04 `notifyUnlockReceived` — call from unlocks service after payment  
-- [ ] N-05 Tenant unlock receipt email  
+- [x] N-01 Postmark client + env validation  
+- [x] N-02 `notifyListingApproved`  
+- [x] N-03 `notifyListingRejected`  
+- [x] N-04 `notifyUnlockReceived` — unlocks service after payment  
+- [x] N-05 Tenant unlock receipt email  
 
-### Phase 2 (Sprint 5B+)
+### Phase 2 (Sprint 5H) — scheduled reminders
 
-- [ ] N-06 Cron: unlock expiring reminders  
-- [ ] N-07 Cron: stale AVAILABLE  
-- [ ] N-08 SMS for unlock (Flutterwave era or Twilio)  
+**Prerequisite:** `notification_log` table for idempotency (one send per unlock per template).
 
-### Phase 3 (Phase 6)
+| ID | Task | Trigger | Recipient |
+|----|------|---------|-----------|
+| N-06a | Unlock expiring | Hourly cron; 12h before `expires_at` | Landlord |
+| N-06b | Unlock expiring | Hourly cron; 24h before `expires_at` | Tenant |
+| N-06c | Unlock expired | Hourly cron; `expires_at` in last hour | Tenant + landlord |
+| N-12 | Unit lock ended | Hourly cron; `locked_until` in last hour | Landlord (long-term) |
+| N-13 | Featured expiring | Daily cron; 7d before `featured_until` | Landlord |
+| N-07 | Stale AVAILABLE | Weekly cron; unit AVAILABLE 30d+ | Landlord |
+
+**Copy notes (stay class from 5G):**
+
+- **Short-stay (AirBnB):** tenant expiring = “Contact window ends in 24h”; no “unit lock” language  
+- **Long-term:** tenant = “Exclusive window ends”; landlord lock-ended = “Unit is visible on the map again — update status if rented”
+
+**Implementation checklist:**
+
+- [ ] N-06 Migration `029_notification_log`  
+- [ ] N-06 Cron module + `CRON_SECRET` guard  
+- [ ] N-06a–c Email templates + query jobs  
+- [ ] N-12 `landlord_unit_lock_ended` template  
+- [ ] N-13 `landlord_featured_expiring` template  
+- [ ] N-07 Stale listing cron (P1, can slip to 5H.1)  
+- [ ] GH Action `notifications-cron.yml` (hourly + daily jobs)
+
+### Phase 3 (Sprint 5C / 5H.1) — SMS
+
+- [ ] N-08 SMS for unlock received (landlord) — Africa's Talking  
+- [ ] N-08b SMS for unlock expiring (landlord, urgent only)
+
+### Phase 4 (Phase 6) — in-app + digest
 
 - [ ] N-09 In-app notification center  
-- [ ] N-10 Weekly landlord digest  
+- [ ] N-10 Weekly landlord digest (views + unlocks summary — depends on 5H analytics)
 
 ---
 
-## 5. API / data (future)
+## 5. API / data
 
-Optional table `notification_log` (id, user_id, channel, template, payload, sent_at) for audit and idempotency.
+### `notification_log` (Sprint 5H)
+
+```sql
+CREATE TABLE notification_log (
+  id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id      UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+  channel      TEXT NOT NULL DEFAULT 'email',  -- email | sms
+  template     TEXT NOT NULL,
+  dedupe_key   TEXT NOT NULL,                  -- e.g. unlock:{id}:expiring_12h
+  payload      JSONB NOT NULL DEFAULT '{}',
+  sent_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE (user_id, template, dedupe_key)
+);
+```
+
+Enables safe hourly cron retries without duplicate emails.
 
 ---
 
-*Build order: [IMPLEMENTATION-PLAN.md](./IMPLEMENTATION-PLAN.md)*
+*Build order: [IMPLEMENTATION-PLAN.md](./IMPLEMENTATION-PLAN.md) · Sprint tasks: [SPRINT_TASK.md](../SPRINT_TASK.md) §5H*
