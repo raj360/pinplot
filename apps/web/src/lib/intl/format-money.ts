@@ -124,8 +124,30 @@ export function formatRentPerMonthWithFootnote(
     countriesByCode?: Map<string, CountryCatalog>;
   },
 ): string {
+  return formatRentWithPeriod(
+    amount,
+    listingCurrency,
+    viewer,
+    fxRates,
+    "month",
+    options,
+  );
+}
+
+export function formatRentWithPeriod(
+  amount: number | null | undefined,
+  listingCurrency: string,
+  viewer: ViewerContext,
+  fxRates: FxRateMap,
+  period: "month" | "day" = "month",
+  options?: {
+    listingCountryCode?: string;
+    countriesByCode?: Map<string, CountryCatalog>;
+  },
+): string {
   if (amount == null) return "—";
 
+  const suffix = period === "day" ? "/night" : "/mo";
   const formatted = formatMoney(
     amount,
     listingCurrency,
@@ -135,10 +157,10 @@ export function formatRentPerMonthWithFootnote(
   );
 
   if (formatted.footnote) {
-    return `${formatted.primary}/mo (${formatted.footnote})`;
+    return `${formatted.primary}${suffix} (${formatted.footnote})`;
   }
 
-  return `${formatted.primary}/mo`;
+  return `${formatted.primary}${suffix}`;
 }
 
 const ZERO_DECIMAL_CURRENCIES = new Set([

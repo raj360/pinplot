@@ -14,6 +14,7 @@ import {
 } from "@/lib/buildings/unit-summary";
 import { useViewerContext } from "@/components/providers/ViewerContextProvider";
 import { formatCurrency } from "@/lib/intl/format";
+import { SaveBuildingButton } from "@/components/saved/SaveBuildingButton";
 
 function unitGridColumns(count: number) {
   if (count <= 4) return "grid-cols-2 sm:grid-cols-4";
@@ -88,10 +89,18 @@ export function BuildingDetailPanel({
   /** Suppress title block when a parent already shows the building name. */
   hideHeader?: boolean;
 }) {
-  const { formatListingRentPerMonth } = useViewerContext();
+  const { formatListingRent } = useViewerContext();
   const listingCurrency = building.currency ?? "UGX";
+  const rentPeriod =
+    building.rentPeriod ??
+    (building.buildingType === "airbnb" ? "day" : "month");
   const formatRent: RentFormatter = (amount) =>
-    formatListingRentPerMonth(amount, listingCurrency, building.countryCode);
+    formatListingRent(
+      amount,
+      listingCurrency,
+      building.countryCode,
+      rentPeriod,
+    );
 
   const unitGroups = groupAvailableUnits(building.units);
   const unitSummary = summarizeAvailableUnits(building.units, formatRent);
@@ -116,10 +125,11 @@ export function BuildingDetailPanel({
     <div className="border border-border bg-surface px-3 py-2.5 text-sm">
       <p className="font-medium">
         {building.availableUnitCount} available · from{" "}
-        {formatListingRentPerMonth(
+        {formatListingRent(
           building.rentFrom,
           listingCurrency,
           building.countryCode,
+          rentPeriod,
         )}
       </p>
       {unitGroups.length > 0 ? (
@@ -142,9 +152,12 @@ export function BuildingDetailPanel({
     return (
       <article className="space-y-3">
         {!hideHeader ? (
-          <header>
-            <h2 className="text-lg font-bold text-primary">{building.name}</h2>
-            {location ? <p className="text-sm text-muted">{location}</p> : null}
+          <header className="flex items-start justify-between gap-2">
+            <div className="min-w-0">
+              <h2 className="text-lg font-bold text-primary">{building.name}</h2>
+              {location ? <p className="text-sm text-muted">{location}</p> : null}
+            </div>
+            <SaveBuildingButton buildingId={building.id} size="md" />
           </header>
         ) : location ? (
           <p className="text-sm text-muted">{location}</p>

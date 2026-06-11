@@ -10,8 +10,73 @@ export const DEFAULT_COUNTRY = {
 export const PRICING = {
   tenantUnlockFeeUgx: 20_000,
   landlordListingFeeUgx: 30_000,
+  /** Long-term rentals — first payer locks the unit on the map. */
   unlockExclusiveHours: 72,
+  /** Short-stay (nightly) — verified contact window; unit stays available. */
+  shortStayUnlockHours: 24,
 } as const;
+
+export const RENT_PERIODS = ["month", "day"] as const;
+export type RentPeriod = (typeof RENT_PERIODS)[number];
+
+export function defaultRentPeriodForBuildingType(
+  buildingType?: string | null,
+): RentPeriod {
+  return buildingType === "airbnb" ? "day" : "month";
+}
+
+/** User-facing rent suffix — short-stay uses /night (stored as `day` in DB). */
+export function rentPeriodSuffix(period: RentPeriod): "/mo" | "/night" {
+  return period === "day" ? "/night" : "/mo";
+}
+
+export function rentPeriodColumnLabel(
+  period: RentPeriod,
+  currency: string,
+): string {
+  return period === "day"
+    ? `Rent per night (${currency})`
+    : `Rent per month (${currency})`;
+}
+
+/** Unlock duration and whether the unit leaves the AVAILABLE map pool. */
+export function resolveUnlockPolicy(params: {
+  buildingType?: string | null;
+  rentPeriod?: RentPeriod | string | null;
+}) {
+  const rentPeriod: RentPeriod =
+    params.rentPeriod === "day" || params.rentPeriod === "month"
+      ? params.rentPeriod
+      : defaultRentPeriodForBuildingType(params.buildingType);
+
+  const isShortStay = rentPeriod === "day";
+
+  return {
+    rentPeriod,
+    exclusiveHours: isShortStay
+      ? PRICING.shortStayUnlockHours
+      : PRICING.unlockExclusiveHours,
+    /** When false the unit stays AVAILABLE on explore during an active unlock. */
+    locksUnit: !isShortStay,
+  };
+}
+
+/**
+ * Paid featured boost tiers (S5-08) — canonical UGX; presented in the payer's
+ * currency at checkout via UGX-hub FX. Duration stacks on top of any active
+ * featured window.
+ */
+export const FEATURED_PRICING_TIERS = [
+  { days: 7, amountUgx: 30_000 },
+  { days: 14, amountUgx: 50_000 },
+  { days: 30, amountUgx: 90_000 },
+] as const;
+
+export type FeaturedPricingTier = (typeof FEATURED_PRICING_TIERS)[number];
+
+export function findFeaturedTier(days: number): FeaturedPricingTier | null {
+  return FEATURED_PRICING_TIERS.find((tier) => tier.days === days) ?? null;
+}
 
 /** Max pending/unverified buildings per landlord account (Sprint 5A). */
 export const MAX_UNVERIFIED_BUILDINGS_PER_LANDLORD = 3;
@@ -209,6 +274,8 @@ export type BuildingSummary = {
   availableUnitCount: number;
   rentFrom: number | null;
   currency: string;
+  /** Rent suffix for `rentFrom` — from cheapest available unit. */
+  rentPeriod?: RentPeriod;
   /** Public cover thumbnail for explore cards (compressed, not full gallery). */
   coverThumbUrl?: string;
   /** Full-resolution cover — only returned when viewer has unlock access. */
@@ -227,6 +294,7 @@ export type UnitSummary = {
   bathrooms: number;
   rentAmount: number;
   currency: string;
+  rentPeriod?: RentPeriod;
   status: UnitStatus;
 };
 

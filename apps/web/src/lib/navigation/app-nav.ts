@@ -9,6 +9,7 @@ export const MAIN_NAV: AppNavItem[] = [
 
 export const TENANT_NAV: AppNavItem[] = [
   { href: "/tenant/unlocks", label: "My unlocks" },
+  { href: "/tenant/saved", label: "Saved listings" },
 ];
 
 export const LANDLORD_NAV: AppNavItem[] = [

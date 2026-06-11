@@ -4,12 +4,13 @@ import { MapPin } from "lucide-react";
 import type { RefObject } from "react";
 import { ExploreEmptyResults } from "@/components/explore/ExploreEmptyResults";
 import { FeaturedListingBadge } from "@/components/explore/FeaturedListingBadge";
+import { ListingImpressionTracker } from "@/components/analytics/ListingImpressionTracker";
+import { SaveBuildingButton } from "@/components/saved/SaveBuildingButton";
 import type { ExploreSearchFilters } from "@/components/explore/ExploreFilters";
 import { ExploreResultRowSkeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import type { Bounds } from "@/lib/api/buildings";
 import { useViewerContext } from "@/components/providers/ViewerContextProvider";
-import { hasAccessOnly } from "@/lib/unlocks/display";
 import { cn } from "@/lib/utils/cn";
 import type { BuildingSummary } from "@plotpin/shared-types";
 
@@ -24,7 +25,6 @@ type ExploreResultsListProps = {
   appliedFilters: ExploreSearchFilters;
   appliedMapBounds: Bounds | null;
   onSelect: (id: string) => void;
-  onOpenAccess: (buildingId: string) => void;
   onRemoveFilter: (key: keyof ExploreSearchFilters) => void;
   onRemoveMapBounds: () => void;
   onReset: () => void;
@@ -42,13 +42,12 @@ export function ExploreResultsList({
   appliedFilters,
   appliedMapBounds,
   onSelect,
-  onOpenAccess,
   onRemoveFilter,
   onRemoveMapBounds,
   onReset,
   onBrowseSupply,
 }: ExploreResultsListProps) {
-  const { formatListingRentPerMonth } = useViewerContext();
+  const { formatListingRent } = useViewerContext();
 
   return (
     <ul
@@ -69,10 +68,10 @@ export function ExploreResultsList({
         const active = selectedId === building.id;
         const hovered = hoveredId === building.id;
         const unlocked = (building.myUnlockCount ?? 0) > 0;
-        const accessOnly = hasAccessOnly(building);
 
         return (
-          <li key={building.id}>
+          <li key={building.id} className="relative">
+            <ListingImpressionTracker buildingId={building.id} source="explore" />
             <div
               data-building-id={building.id}
               className={cn(
@@ -126,7 +125,7 @@ export function ExploreResultsList({
                   </div>
                   {active && selectedLoading ? (
                     <Spinner
-                      className="mt-1 size-3 shrink-0"
+                      className="size-3 shrink-0"
                       label="Loading building"
                     />
                   ) : null}
@@ -147,31 +146,25 @@ export function ExploreResultsList({
                     <>
                       {building.availableUnitCount} available · from{" "}
                       <span className="font-medium text-foreground/90">
-                        {formatListingRentPerMonth(
+                        {formatListingRent(
                           building.rentFrom,
                           building.currency,
                           building.countryCode,
+                          building.rentPeriod ??
+                            (building.buildingType === "airbnb" ? "day" : "month"),
                         )}
                       </span>
                     </>
                   ) : unlocked ? (
-                    <span className="font-medium text-lime-700">
-                      Your access · tap to open
-                    </span>
+                    <span className="font-medium text-lime-700">Unlocked</span>
                   ) : (
                     <>No units available</>
                   )}
                 </p>
               </button>
-              {unlocked && !accessOnly ? (
-                <button
-                  type="button"
-                  onClick={() => onOpenAccess(building.id)}
-                  className="shrink-0 cursor-pointer self-center border-l border-border/70 px-3 py-2 text-[11px] font-medium text-lime-700 underline decoration-lime-600/40 underline-offset-2 hover:bg-lime-50/80 hover:text-lime-800"
-                >
-                  Your access
-                </button>
-              ) : null}
+              <div className="flex shrink-0 items-center px-2 sm:px-3">
+                <SaveBuildingButton buildingId={building.id} />
+              </div>
             </div>
           </li>
         );

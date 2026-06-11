@@ -82,3 +82,31 @@ export function AdminFeaturedSkeleton() {
     </div>
   );
 }
+
+function AdminOverviewStatCardSkeleton() {
+  return (
+    <div className="border border-border bg-surface p-4 shadow-xs">
+      <Skeleton className="h-9 w-12" />
+      <Skeleton className="mt-2 h-4 w-32" />
+      <Skeleton className="mt-2 h-3 w-full max-w-[14rem]" />
+    </div>
+  );
+}
+
+/** Admin home — stat tiles + quick links. */
+export function AdminOverviewSkeleton() {
+  return (
+    <div aria-busy="true" aria-label="Loading admin overview">
+      <div className="grid gap-4 sm:grid-cols-3">
+        <AdminOverviewStatCardSkeleton />
+        <AdminOverviewStatCardSkeleton />
+        <AdminOverviewStatCardSkeleton />
+      </div>
+      <ul className="mt-8 space-y-2" aria-hidden>
+        <Skeleton className="h-4 w-48" />
+        <Skeleton className="h-4 w-52" />
+        <Skeleton className="h-4 w-44" />
+      </ul>
+    </div>
+  );
+}

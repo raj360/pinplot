@@ -7,6 +7,7 @@ export type UnitLike = {
   bedrooms: number;
   bathrooms: number;
   rentAmount: number;
+  rentPeriod?: "month" | "day";
   status: string;
 };
 

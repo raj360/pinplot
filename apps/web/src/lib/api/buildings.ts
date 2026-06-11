@@ -22,6 +22,7 @@ export type BuildingDetail = BuildingSummary & {
     bathrooms: number;
     rentAmount: number;
     currency: string;
+    rentPeriod?: "month" | "day";
     status: string;
   }>;
 };
@@ -148,6 +149,11 @@ export type LandlordBuilding = {
   rejectionReason: string | null;
   totalUnits: number;
   availableUnitCount: number;
+  /** Paid tenant unlocks across this building's units (all time). */
+  unlockCount: number;
+  isFeatured: boolean;
+  featuredUntil: string | null;
+  featuredSource: string | null;
 };
 
 export type CreateBuildingPayload = {
@@ -192,6 +198,20 @@ export type LandlordBuildingDetail = {
   rejectedAt: string | null;
   rejectionReason: string | null;
   availableUnitCount: number;
+  unlockCount: number;
+  metrics?: {
+    days: number;
+    impressions: number;
+    detailViews: number;
+    unlockClicks: number;
+    unlocks: number;
+    detailViewRate: number;
+    unlockClickRate: number;
+    unlockConversionRate: number;
+  };
+  isFeatured: boolean;
+  featuredUntil: string | null;
+  featuredSource: string | null;
   units: Array<{
     id: string;
     unitNumber: string;
@@ -199,6 +219,7 @@ export type LandlordBuildingDetail = {
     bathrooms: number;
     rentAmount: number;
     currency: string;
+    rentPeriod?: "month" | "day";
     status: string;
   }>;
 };

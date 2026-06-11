@@ -153,6 +153,173 @@ export class TransactionalEmailBuilder {
     });
   }
 
+  buildUnlockExpiringLandlordEmail(
+    buildingName: string,
+    unitNumber: string,
+    hoursLeft: number,
+    manageUrl: string,
+  ) {
+    return this.buildSimpleActionEmail({
+      preheader: `Unlock window ends in ~${hoursLeft}h — ${buildingName}`,
+      heading: "Unlock window ending soon",
+      intro: `A tenant's exclusive window for <strong>${escapeHtml(buildingName)}</strong> — Unit ${escapeHtml(unitNumber)} ends in about ${hoursLeft} hours.`,
+      detail:
+        "Respond while you still have their attention. If the unit is rented, mark it unavailable in your dashboard.",
+      buttonLabel: "Manage building",
+      buttonUrl: manageUrl,
+      textLines: [
+        `Unlock window ending soon for "${buildingName}" — Unit ${unitNumber}.`,
+        "",
+        `About ${hoursLeft} hours remain on the tenant's exclusive window.`,
+        "",
+        manageUrl,
+      ],
+    });
+  }
+
+  buildUnlockExpiringTenantEmail(
+    buildingName: string,
+    unitNumber: string,
+    hoursLeft: number,
+    isShortStay: boolean,
+    unlocksUrl: string,
+  ) {
+    const detail = isShortStay
+      ? `Your verified contact window ends in about ${hoursLeft} hours. Reach the landlord soon if you have not already.`
+      : `Your exclusive window ends in about ${hoursLeft} hours. Contact the landlord or visit the property while access is active.`;
+    return this.buildSimpleActionEmail({
+      preheader: `Your unlock ends in ~${hoursLeft}h — ${buildingName}`,
+      heading: "Unlock ending soon",
+      intro: `Your access to <strong>${escapeHtml(buildingName)}</strong> — Unit ${escapeHtml(unitNumber)} expires in about ${hoursLeft} hours.`,
+      detail,
+      buttonLabel: "View contact",
+      buttonUrl: unlocksUrl,
+      textLines: [
+        `Your unlock for "${buildingName}" — Unit ${unitNumber} ends in about ${hoursLeft} hours.`,
+        "",
+        detail,
+        "",
+        unlocksUrl,
+      ],
+    });
+  }
+
+  buildUnlockExpiredTenantEmail(
+    buildingName: string,
+    unitNumber: string,
+    exploreUrl: string,
+    isShortStay: boolean,
+  ) {
+    const detail = isShortStay
+      ? "Your verified contact window has ended. You can unlock again on Explore if the unit is still listed."
+      : "Your exclusive window has ended and landlord contact is no longer available from this unlock.";
+    return this.buildSimpleActionEmail({
+      preheader: `Unlock ended — ${buildingName}`,
+      heading: "Unlock window ended",
+      intro: `Your access to <strong>${escapeHtml(buildingName)}</strong> — Unit ${escapeHtml(unitNumber)} has expired.`,
+      detail,
+      buttonLabel: "Browse Explore",
+      buttonUrl: exploreUrl,
+      textLines: [
+        `Your unlock for "${buildingName}" — Unit ${unitNumber} has expired.`,
+        "",
+        detail,
+        "",
+        exploreUrl,
+      ],
+    });
+  }
+
+  buildUnlockExpiredLandlordEmail(
+    buildingName: string,
+    unitNumber: string,
+    manageUrl: string,
+    locksUnit: boolean,
+  ) {
+    const detail = locksUnit
+      ? "The tenant's exclusive window has ended. The unit should appear on the map again — update the status if it is rented."
+      : "The tenant's contact window has ended. The listing remains available on the map.";
+    return this.buildSimpleActionEmail({
+      preheader: `Unlock ended — ${buildingName} Unit ${unitNumber}`,
+      heading: "Tenant unlock ended",
+      intro: `The unlock window for <strong>${escapeHtml(buildingName)}</strong> — Unit ${escapeHtml(unitNumber)} has ended.`,
+      detail,
+      buttonLabel: "Manage building",
+      buttonUrl: manageUrl,
+      textLines: [
+        `Unlock ended for "${buildingName}" — Unit ${unitNumber}.`,
+        "",
+        detail,
+        "",
+        manageUrl,
+      ],
+    });
+  }
+
+  buildUnitLockEndedEmail(
+    buildingName: string,
+    unitNumber: string,
+    manageUrl: string,
+  ) {
+    return this.buildSimpleActionEmail({
+      preheader: `Unit ${unitNumber} is visible on the map again`,
+      heading: "Exclusive lock ended",
+      intro: `The exclusive map lock for <strong>${escapeHtml(buildingName)}</strong> — Unit ${escapeHtml(unitNumber)} has ended.`,
+      detail:
+        "The unit is visible to other tenants again. Mark it rented or unavailable if it is no longer on the market.",
+      buttonLabel: "Update unit status",
+      buttonUrl: manageUrl,
+      textLines: [
+        `Exclusive lock ended for "${buildingName}" — Unit ${unitNumber}.`,
+        "",
+        "The unit is visible on the map again.",
+        "",
+        manageUrl,
+      ],
+    });
+  }
+
+  buildFeaturedExpiringEmail(
+    buildingName: string,
+    daysLeft: number,
+    manageUrl: string,
+  ) {
+    return this.buildSimpleActionEmail({
+      preheader: `Featured boost ends in ${daysLeft} days — ${buildingName}`,
+      heading: "Featured boost ending soon",
+      intro: `Your featured placement for <strong>${escapeHtml(buildingName)}</strong> ends in about ${daysLeft} days.`,
+      detail: "Renew featured to stay at the top of Explore and the homepage carousel.",
+      buttonLabel: "Renew featured",
+      buttonUrl: manageUrl,
+      textLines: [
+        `Featured boost for "${buildingName}" ends in about ${daysLeft} days.`,
+        "",
+        manageUrl,
+      ],
+    });
+  }
+
+  buildStaleAvailableEmail(
+    buildingName: string,
+    unitNumber: string,
+    manageUrl: string,
+  ) {
+    return this.buildSimpleActionEmail({
+      preheader: `Still available? — ${buildingName} Unit ${unitNumber}`,
+      heading: "Listing still available?",
+      intro: `Unit ${escapeHtml(unitNumber)} at <strong>${escapeHtml(buildingName)}</strong> has been marked available for over 30 days.`,
+      detail:
+        "If it is rented, mark the unit unavailable so tenants do not unlock outdated listings.",
+      buttonLabel: "Manage building",
+      buttonUrl: manageUrl,
+      textLines: [
+        `"${buildingName}" — Unit ${unitNumber} has been available for 30+ days.`,
+        "",
+        manageUrl,
+      ],
+    });
+  }
+
   private buildSimpleActionEmail(opts: {
     preheader: string;
     heading: string;

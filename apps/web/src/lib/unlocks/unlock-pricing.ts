@@ -27,11 +27,18 @@ export function unlockPanelDescription(options: {
   primaryCreditUgx: number | null;
   quote: PriceQuote | null;
   formatFee?: FeeFormatter;
+  exclusiveHours?: number;
+  locksUnit?: boolean;
 }) {
   const { unlockCredits, primaryCreditUgx, quote } = options;
   const formatFee = options.formatFee ?? defaultFeeFormatter;
   const feeUgx = quote?.amountUgx ?? null;
   const quoteLine = quote ? formatUnlockQuoteLine(quote, formatFee) : null;
+  const hours = options.exclusiveHours ?? PRICING.unlockExclusiveHours;
+  const locksUnit = options.locksUnit ?? true;
+  const accessLine = locksUnit
+    ? `First payment wins exclusive access for ${hours} hours.`
+    : `Verified contact access for ${hours} hours.`;
 
   if (unlockCredits > 0) {
     if (feeUgx != null && primaryCreditUgx != null && primaryCreditUgx < feeUgx) {
@@ -42,10 +49,10 @@ export function unlockPanelDescription(options: {
   }
 
   if (quoteLine) {
-    return `Pay ${quoteLine} to reveal exact address, landlord contact, building tour, and directions. First payment wins exclusive access for ${PRICING.unlockExclusiveHours} hours.`;
+    return `Pay ${quoteLine} to reveal exact address, landlord contact, building tour, and directions. ${accessLine}`;
   }
 
-  return `Pay to reveal exact address, landlord contact, building tour, and directions. First payment wins exclusive access for ${PRICING.unlockExclusiveHours} hours.`;
+  return `Pay to reveal exact address, landlord contact, building tour, and directions. ${accessLine}`;
 }
 
 export function unlockButtonLabel(options: {

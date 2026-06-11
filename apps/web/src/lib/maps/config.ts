@@ -1,5 +1,5 @@
-/** Public explore map — neighborhood level only, not street/roof detail. */
-export const EXPLORE_MAP_MAX_ZOOM = 14;
+/** Public explore map — block/neighborhood level; not street/roof detail. */
+export const EXPLORE_MAP_MAX_ZOOM = 16;
 export const EXPLORE_MAP_CLUSTER_ZOOM_STEP = 2;
 /** Allow wider city-level browse so jittered pins read as approximate. */
 export const EXPLORE_MAP_MIN_ZOOM = 8;

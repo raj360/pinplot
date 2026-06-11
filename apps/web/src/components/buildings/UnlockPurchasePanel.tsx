@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import type { PriceQuote } from "@plotpin/shared-types";
-import { PRICING, formatPhoneDisplay, isValidStoredPhone } from "@plotpin/shared-types";
+import { PRICING, resolveUnlockPolicy, formatPhoneDisplay, isValidStoredPhone } from "@plotpin/shared-types";
 import { exploreBuildingUrl } from "@/lib/explore/urls";
 import { formatUnitDetail, type UnitLike } from "@/lib/buildings/unit-summary";
 import { useViewerContext } from "@/components/providers/ViewerContextProvider";
@@ -16,6 +16,7 @@ import { Button } from "@/components/ui/button";
 import { TermsAcceptanceField } from "@/components/legal/TermsAcceptanceField";
 import { ApproximateLocationNotice } from "@/components/explore/ApproximateLocationNotice";
 import { cn } from "@/lib/utils/cn";
+import { trackUnlockClick } from "@/lib/analytics/track-listing-events";
 
 export function UnlockPurchasePanel({
   buildingId,
@@ -42,6 +43,7 @@ export function UnlockPurchasePanel({
   profilePhone = null,
   listingCurrency = "UGX",
   listingCountryCode,
+  buildingType,
 }: {
   buildingId: string;
   availableUnits: UnitLike[];
@@ -70,15 +72,25 @@ export function UnlockPurchasePanel({
   listingCurrency?: string;
   /** Building's country for currency + locale resolution. */
   listingCountryCode?: string;
+  /** Drives unlock window copy (72h exclusive vs 24h contact for short-stay). */
+  buildingType?: string;
 }) {
-  const { formatListingRentPerMonth, formatUnlockFee } = useViewerContext();
-  const formatUnitRent = (amount: number) =>
-    formatListingRentPerMonth(amount, listingCurrency, listingCountryCode);
+  const { formatListingRent, formatUnlockFee } = useViewerContext();
+  const unlockPolicy = resolveUnlockPolicy({ buildingType });
+  const formatUnitRent = (amount: number, period?: "month" | "day") =>
+    formatListingRent(
+      amount,
+      listingCurrency,
+      listingCountryCode,
+      period ?? unlockPolicy.rentPeriod,
+    );
   const defaultDescription = unlockPanelDescription({
     unlockCredits,
     primaryCreditUgx,
     quote: representativeQuote,
     formatFee: formatUnlockFee,
+    exclusiveHours: unlockPolicy.exclusiveHours,
+    locksUnit: unlockPolicy.locksUnit,
   });
 
   const listClass = cn(
@@ -198,7 +210,9 @@ export function UnlockPurchasePanel({
                 <div>
                   <p className="font-medium">Unit {unit.unitNumber}</p>
                   <p className="mt-0.5 text-sm text-foreground">
-                    {formatUnitDetail(unit, formatUnitRent)}
+                    {formatUnitDetail(unit, (amount) =>
+                      formatUnitRent(amount, unit.rentPeriod),
+                    )}
                   </p>
                   {quote ? (
                     <p className="mt-1 text-xs text-muted">
@@ -213,7 +227,10 @@ export function UnlockPurchasePanel({
                   className="w-full"
                   loading={unlockingId === unit.id}
                   loadingLabel="Unlocking unit"
-                  onClick={() => onUnlock(unit.id)}
+                  onClick={() => {
+                    trackUnlockClick(buildingId, unit.id);
+                    onUnlock(unit.id);
+                  }}
                 >
                   {unlockButtonLabel({
                     unlockCredits,

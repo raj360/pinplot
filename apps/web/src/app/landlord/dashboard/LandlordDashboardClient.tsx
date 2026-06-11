@@ -32,6 +32,8 @@ export default function LandlordDashboardClient() {
   const pendingCount = countBuildingsPendingReview(buildings);
   const rejectedCount = countBuildingsRejected(buildings);
   const firstNeedsSetup = buildings.find(buildingNeedsUnitSetup);
+  const featuredCount = buildings.filter((b) => b.isFeatured).length;
+  const totalUnlocks = buildings.reduce((sum, b) => sum + (b.unlockCount ?? 0), 0);
 
   useEffect(() => {
     let cancelled = false;
@@ -123,16 +125,19 @@ export default function LandlordDashboardClient() {
           <>
             {buildings.length > 0 && (
               <dl className="grid gap-3 sm:grid-cols-3">
-                <StatCard label="Total" value={buildings.length} />
+                <StatCard label="Total" value={buildings.length} variant="primary" />
                 <StatCard
                   label="Visible on map"
                   value={visibleCount}
+                  variant="primary"
                 />
                 <StatCard
                   label="Needs setup"
                   value={needsSetupCount}
                   highlight={needsSetupCount > 0}
                 />
+                <StatCard label="Tenant unlocks" value={totalUnlocks} variant="primary" />
+                <StatCard label="Featured now" value={featuredCount} variant="primary" />
                 {pendingCount > 0 ? (
                   <StatCard
                     label="Pending review"
@@ -173,7 +178,18 @@ export default function LandlordDashboardClient() {
                     </p>
                     <p className="mt-1 text-xs text-muted">
                       {b.availableUnitCount} available · {b.totalUnits} units total
+                      {b.unlockCount > 0
+                        ? ` · ${b.unlockCount} unlock${b.unlockCount === 1 ? "" : "s"}`
+                        : ""}
                     </p>
+                    {b.isFeatured ? (
+                      <p className="mt-1 text-xs font-medium text-amber-700">
+                        Featured
+                        {b.featuredUntil
+                          ? ` until ${new Date(b.featuredUntil).toLocaleDateString()}`
+                          : ""}
+                      </p>
+                    ) : null}
                     {status.hint ? (
                       <p
                         className={`mt-1.5 text-xs ${

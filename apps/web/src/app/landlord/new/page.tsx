@@ -36,7 +36,11 @@ import { TermsAcceptanceField } from "@/components/legal/TermsAcceptanceField";
 import { useViewerContext } from "@/components/providers/ViewerContextProvider";
 import { LISTING_PICKER_COUNTRY_ZOOM } from "@/lib/maps/config";
 import { useDraftPhotoUrls } from "@/lib/images/use-draft-photo-urls";
-import { typicalMonthlyRent } from "@/lib/filters/rent-ranges";
+import { typicalListingRent } from "@/lib/filters/rent-ranges";
+import {
+  defaultRentPeriodForBuildingType,
+  rentPeriodColumnLabel,
+} from "@plotpin/shared-types";
 import {
   buildSuggestedExactAddress,
   hasMapPinHints,
@@ -142,13 +146,14 @@ export default function NewBuildingPage() {
     countriesByCode.get(countryCode)?.currency ?? "UGX";
   const listingLocale =
     countriesByCode.get(countryCode)?.displayLocale ?? "en-UG";
-  const typicalRent = typicalMonthlyRent({
+  const rentPeriod = defaultRentPeriodForBuildingType(buildingType);
+  const typicalRent = typicalListingRent(buildingType, {
     currency: listingCurrency,
     locale: listingLocale,
     fxRates,
   });
 
-  /** Reset the placeholder rent to a believable amount for the new currency. */
+  /** Reset placeholder rent when currency or property type changes (until user edits). */
   useEffect(() => {
     if (rentTouched.current) return;
     setUnits((prev) =>
@@ -156,7 +161,7 @@ export default function NewBuildingPage() {
         ? prev
         : prev.map((unit) => ({ ...unit, rentAmount: typicalRent })),
     );
-  }, [typicalRent]);
+  }, [typicalRent, buildingType]);
 
   const currentStep = FORM_STEPS[step - 1];
 
@@ -616,7 +621,7 @@ export default function NewBuildingPage() {
                 <span>Unit #</span>
                 <span>Bed Rooms</span>
                 <span>Bath Rooms</span>
-                <span>Rent ({listingCurrency})</span>
+                <span>{rentPeriodColumnLabel(rentPeriod, listingCurrency)}</span>
                 <span className="sr-only">Remove</span>
               </div>
 

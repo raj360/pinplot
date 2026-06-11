@@ -4,7 +4,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { PlotPinMap } from "@/components/maps/PlotPinMap";
 import { BuildingPreviewModal } from "@/components/explore/BuildingPreviewModal";
-import { UnlockedAccessModal } from "@/components/buildings/UnlockedAccessModal";
 import { ExploreDetailPane } from "@/components/explore/ExploreDetailPane";
 import { ExploreResultsList } from "@/components/explore/ExploreResultsList";
 import {
@@ -97,9 +96,6 @@ export function ExploreClient() {
     () => searchParams.get("map") !== "0",
   );
   const [detailMode, setDetailMode] = useState<DetailMode>(null);
-  const [accessModalBuildingId, setAccessModalBuildingId] = useState<
-    string | null
-  >(null);
   const [allBuildings, setAllBuildings] = useState<BuildingSummary[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(
     () => searchParams.get("building"),
@@ -280,16 +276,6 @@ export function ExploreClient() {
     ? unlockedLocations
     : emptyUnlockLocations;
 
-  const unlocksByBuilding = useMemo(() => {
-    const map = new Map<string, TenantUnlock[]>();
-    for (const unlock of visibleMyUnlocks) {
-      const existing = map.get(unlock.buildingId) ?? [];
-      existing.push(unlock);
-      map.set(unlock.buildingId, existing);
-    }
-    return map;
-  }, [visibleMyUnlocks]);
-
   const unlockedBuildingIds = useMemo(
     () => new Set(visibleUnlockLocations.keys()),
     [visibleUnlockLocations],
@@ -356,7 +342,6 @@ export function ExploreClient() {
       setSelectedId(id);
       setHover(id);
       setDetailMode(null);
-      setAccessModalBuildingId(null);
       scrollListToBuilding(id);
       syncSelectionToUrl({
         buildingId: id,
@@ -1038,14 +1023,6 @@ export function ExploreClient() {
     });
   }, []);
 
-  const openAccessModal = useCallback((buildingId: string) => {
-    setAccessModalBuildingId(buildingId);
-  }, []);
-
-  const closeAccessModal = useCallback(() => {
-    setAccessModalBuildingId(null);
-  }, []);
-
   const handleListSelect = useCallback(
     (id: string) => {
       if (isMobile) {
@@ -1073,7 +1050,6 @@ export function ExploreClient() {
         setSelectedId(id);
         setHover(id);
         setDetailMode(null);
-        setAccessModalBuildingId(null);
         syncSelectionToUrl({
           buildingId: id,
           hideMap: false,
@@ -1087,8 +1063,6 @@ export function ExploreClient() {
   );
 
   const handleExpandToFullDetails = useCallback(() => {
-    closeAccessModal();
-
     if (isMobile) {
       setDetailMode("full");
       if (selectedId) {
@@ -1112,13 +1086,7 @@ export function ExploreClient() {
       });
       void loadDetail(selectedId);
     }
-  }, [
-    closeAccessModal,
-    isMobile,
-    loadDetail,
-    selectedId,
-    syncSelectionToUrl,
-  ]);
+  }, [isMobile, loadDetail, selectedId, syncSelectionToUrl]);
 
   useEffect(() => {
     if (!mapVisible) {
@@ -1158,13 +1126,6 @@ export function ExploreClient() {
     setDetailMode(null);
     syncSelectionToUrl({ buildingId: null, hideMap: false, history: "replace" });
   }, [syncSelectionToUrl]);
-
-  const accessModalUnlocks = accessModalBuildingId
-    ? (unlocksByBuilding.get(accessModalBuildingId) ?? [])
-    : [];
-  const accessModalBuilding = accessModalBuildingId
-    ? allBuildings.find((building) => building.id === accessModalBuildingId)
-    : null;
 
   const selectedBuilding = selectedId
     ? allBuildings.find((building) => building.id === selectedId)
@@ -1366,7 +1327,6 @@ export function ExploreClient() {
               appliedFilters={appliedFilters}
               appliedMapBounds={appliedMapBounds}
               onSelect={handleListSelect}
-              onOpenAccess={openAccessModal}
               onRemoveFilter={(key) => void removeAppliedFilter(key)}
               onRemoveMapBounds={() => void removeMapBounds()}
               onReset={() => void runReset()}
@@ -1408,14 +1368,6 @@ export function ExploreClient() {
           onExpandToFull={handleExpandToFullDetails}
         />
       ) : null}
-
-      <UnlockedAccessModal
-        open={accessModalBuildingId !== null && accessModalUnlocks.length > 0}
-        unlocks={accessModalUnlocks}
-        buildingName={accessModalBuilding?.name}
-        onClose={closeAccessModal}
-        onViewFullDetails={handleExpandToFullDetails}
-      />
     </div>
   );
 }

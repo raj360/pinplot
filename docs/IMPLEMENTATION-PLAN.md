@@ -97,7 +97,30 @@ See [PAYMENTS-STRATEGY.md](./PAYMENTS-STRATEGY.md).
 |----|------|
 | S5-04 | MoMo UX polish if not done in 5B |
 | S5-05 | USSD (TBD provider) |
-| N-06 | SMS unlock alert to landlord |
+| N-08 | SMS unlock alert to landlord (Africa's Talking) |
+
+---
+
+## Sprint 5H — Unlock lifecycle, analytics & notifications (P0–P1)
+
+**Goal:** Tenant unlock history, listing view metrics, cron reminder emails, dormant schema cleanup.
+
+See [SPRINT_TASK.md](../SPRINT_TASK.md) §5H for full task table.
+
+| Track | Focus | Priority |
+|-------|-------|----------|
+| A | Expired unlock history (API + tenant UI) | P0 |
+| B | Cron notifications N-06, N-07, N-12, N-13 | P0 |
+| C | Listing analytics (impressions, detail views, conversion) | P1 |
+| D | Drop `listing_events`; decide `saved_buildings` MVP | P2 |
+
+**5H exit criteria**
+
+- [ ] Tenants see active + past unlocks; past rows hide contact  
+- [ ] Hourly cron sends expiring/expired unlock emails (idempotent)  
+- [ ] Landlords see view counts + unlock conversion on dashboard  
+- [ ] Admin can compare featured vs non-featured view performance  
+- [ ] `listing_events` removed or documented as deprecated  
 
 ---
 
@@ -110,7 +133,8 @@ See [PAYMENTS-STRATEGY.md](./PAYMENTS-STRATEGY.md).
 | S4-19 | Landlord country on create | International supply |
 | S6-* | UTM, Open Graph, PWA | ROADMAP Phase 6 |
 | **P-LLC** | US LLC + Stripe migration | PAYMENTS-STRATEGY §8 |
-| N-07–N-10 | Stale listing, digest, in-app | NOTIFICATIONS Phase 2–3 |
+| N-07–N-10 | Stale listing, digest, in-app | NOTIFICATIONS Phase 2–4 — **N-06–N-13 in Sprint 5H** |
+| A-01 | Listing analytics + landlord metrics | SPRINT_TASK 5H Track C |
 
 ---
 
@@ -122,9 +146,10 @@ See [PAYMENTS-STRATEGY.md](./PAYMENTS-STRATEGY.md).
 | `021_profile_terms.sql` | `profiles.terms_accepted_at`, `privacy_accepted_at` |
 | `022_listing_reports.sql` | `listing_reports` table |
 | `023_profile_suspension.sql` | `profiles.suspended_at`, `suspension_reason` |
-| `024_payment_provider_lemon_squeezy.sql` | Extend `payment_provider` enum |
-
-*(Numbers tentative — apply in order after 019.)*
+| `028_rent_period.sql` | `units.rent_period` enum |
+| `029_notification_log.sql` | Cron email idempotency (5H) |
+| `030_listing_analytics_events.sql` | Impression / detail_view / unlock_click (5H) |
+| `031_drop_listing_events.sql` | Remove dormant audit table (5H) |
 
 ---
 

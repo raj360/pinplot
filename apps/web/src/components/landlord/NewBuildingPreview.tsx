@@ -1,6 +1,10 @@
 "use client";
 
 import { MapPin } from "lucide-react";
+import {
+  defaultRentPeriodForBuildingType,
+  type RentPeriod,
+} from "@plotpin/shared-types";
 import { buildingTypeLabel } from "@/lib/filters/building-types";
 import { cn } from "@/lib/utils/cn";
 import { useViewerContext } from "@/components/providers/ViewerContextProvider";
@@ -43,9 +47,15 @@ export function NewBuildingPreview({
   listingCurrency = "UGX",
   listingCountryCode,
 }: NewBuildingPreviewProps) {
-  const { formatListingRentPerMonth } = useViewerContext();
-  const formatRentPerMonth = (amount: number) =>
-    formatListingRentPerMonth(amount, listingCurrency, listingCountryCode);
+  const { formatListingRent } = useViewerContext();
+  const rentPeriod: RentPeriod = defaultRentPeriodForBuildingType(buildingType);
+  const formatRent = (amount: number) =>
+    formatListingRent(
+      amount,
+      listingCurrency,
+      listingCountryCode,
+      rentPeriod,
+    );
   const displayName = buildingName.trim() || "Your building name";
   const locationLine =
     [district, city].filter(Boolean).join(", ") || areaLabel || "Kampala";
@@ -133,7 +143,7 @@ export function NewBuildingPreview({
             {rentFrom != null ? (
               <>
                 {" "}
-                · from {formatRentPerMonth(rentFrom)}
+                · from {formatRent(rentFrom)}
               </>
             ) : null}
           </p>
@@ -141,7 +151,7 @@ export function NewBuildingPreview({
             {units.slice(0, 4).map((unit, index) => (
               <li key={`${unit.unitNumber}-${index}`}>
                 Unit {unit.unitNumber} · {unit.bedrooms} bed ·{" "}
-                {formatRentPerMonth(unit.rentAmount)}
+                {formatRent(unit.rentAmount)}
               </li>
             ))}
             {units.length > 4 ? (

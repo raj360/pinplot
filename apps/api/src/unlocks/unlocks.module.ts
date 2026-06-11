@@ -7,12 +7,15 @@ import { PaymentsModule } from "../payments/payments.module";
 import { AuthModule } from "../auth/auth.module";
 import { BuildingsModule } from "../buildings/buildings.module";
 
+import { MaintenanceModule } from "../maintenance/maintenance.module";
+
 @Module({
   imports: [
     WalletModule,
     PricingModule,
     AuthModule,
     BuildingsModule,
+    MaintenanceModule,
     forwardRef(() => PaymentsModule),
   ],
   controllers: [UnlocksController, UnlocksListController],

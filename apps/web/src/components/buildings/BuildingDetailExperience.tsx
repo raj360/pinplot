@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { PRICING } from "@plotpin/shared-types";
+import { PRICING, resolveUnlockPolicy } from "@plotpin/shared-types";
 import { BuildingStepHeader } from "@/components/buildings/BuildingStepHeader";
 import { BuildingDetailPanel } from "@/components/buildings/BuildingDetailPanel";
 import { BuildingLockedCoverPreview } from "@/components/buildings/BuildingLockedCoverPreview";
@@ -19,6 +19,8 @@ import {
 } from "@/lib/unlocks/unlock-pricing";
 import { useBuildingUnlocks } from "@/lib/unlocks/use-building-unlocks";
 import { useViewerContext } from "@/components/providers/ViewerContextProvider";
+import { trackListingDetailView } from "@/lib/analytics/track-listing-events";
+import { useEffect, useRef } from "react";
 
 type BuildingDetailExperienceProps = {
   building: BuildingDetail;
@@ -44,6 +46,13 @@ export function BuildingDetailExperience({
     countryCode: building.countryCode,
     tenantCountryCode: viewer.countryCode,
   });
+  const trackedDetail = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (trackedDetail.current === building.id) return;
+    trackedDetail.current = building.id;
+    trackListingDetailView(building.id, "explore");
+  }, [building.id]);
   const location = [building.district, building.city].filter(Boolean).join(", ");
   const hasAccess = unlocks.activeUnlocks.length > 0;
   const media = mergeBuildingMedia(building, unlocks.activeUnlocks[0]);
@@ -77,13 +86,21 @@ export function BuildingDetailExperience({
     profilePhone: unlocks.profilePhone,
     listingCurrency: building.currency,
     listingCountryCode: building.countryCode,
+    buildingType: building.buildingType,
   } as const;
+
+  const unlockPolicy = resolveUnlockPolicy({
+    buildingType: building.buildingType,
+    rentPeriod: building.rentPeriod,
+  });
 
   const firstUnlockDescription = unlockPanelDescription({
     unlockCredits: unlocks.unlockCredits,
     primaryCreditUgx: unlocks.primaryCreditUgx,
     quote: unlocks.representativeQuote,
     formatFee: formatUnlockFee,
+    exclusiveHours: unlockPolicy.exclusiveHours,
+    locksUnit: unlockPolicy.locksUnit,
   });
 
   if (variant === "compact") {

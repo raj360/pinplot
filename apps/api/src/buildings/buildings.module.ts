@@ -9,9 +9,11 @@ import {
 import { BuildingsService } from "./buildings.service";
 import { ExploreSearchCacheService } from "./explore-search-cache.service";
 import { LandlordNotificationsService } from "./landlord-notifications.service";
+import { AnalyticsModule } from "../analytics/analytics.module";
+import { AnalyticsService } from "../analytics/analytics.service";
 
 @Module({
-  imports: [AuthModule, PricingModule],
+  imports: [AuthModule, PricingModule, AnalyticsModule],
   controllers: [BuildingsController, AdminBuildingsController, AdminFeaturedController],
   providers: [
     BuildingsService,

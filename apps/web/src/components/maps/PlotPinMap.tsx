@@ -5,7 +5,10 @@ import {
   Map as GoogleMap,
   useMap,
 } from "@vis.gl/react-google-maps";
-import { MarkerClusterer } from "@googlemaps/markerclusterer";
+import {
+  MarkerClusterer,
+  SuperClusterAlgorithm,
+} from "@googlemaps/markerclusterer";
 import { useEffect, useMemo, useRef } from "react";
 import type { BuildingSummary } from "@plotpin/shared-types";
 import {
@@ -17,6 +20,7 @@ import {
 } from "@/lib/maps/config";
 import { PlotPinClusterRenderer } from "@/lib/maps/plotpin-cluster-renderer";
 import { MapSearchAreaButton } from "@/components/maps/MapSearchAreaButton";
+import { MapZoomControls } from "@/components/maps/MapZoomControls";
 import { ApproximateLocationNotice } from "@/components/explore/ApproximateLocationNotice";
 import { cn } from "@/lib/utils/cn";
 
@@ -138,12 +142,15 @@ export function PlotPinMap({
           mapTypeId="roadmap"
           mapTypeControl={false}
           streetViewControl={false}
+          zoomControl={false}
+          fullscreenControl={false}
           gestureHandling={interactionBlocked ? "none" : gestureHandling}
           clickableIcons={false}
           styles={MAP_ID ? undefined : EXPLORE_MAP_POI_STYLES}
           className="h-full w-full"
         >
           <ExploreMapConstraints />
+          <MapZoomControls disabled={interactionBlocked} />
           <MapViewportTracker
             onViewportChange={onViewportChange}
             onUserMapInteraction={onUserMapInteraction}
@@ -198,6 +205,8 @@ function ExploreMapConstraints() {
       mapTypeControl: false,
       mapTypeId: "roadmap",
       streetViewControl: false,
+      zoomControl: false,
+      fullscreenControl: false,
       clickableIcons: false,
       ...(MAP_ID ? {} : { styles: EXPLORE_MAP_POI_STYLES }),
     });
@@ -634,6 +643,9 @@ function ClusteredMarkers({
     clustererRef.current = new MarkerClusterer({
       map,
       renderer: new PlotPinClusterRenderer(),
+      algorithm: new SuperClusterAlgorithm({
+        maxZoom: EXPLORE_MAP_MAX_ZOOM - 1,
+      }),
       onClusterClick: (_event, cluster) => {
         colocatedWindowRef.current?.close();
 

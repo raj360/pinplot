@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { DashboardSection } from "@/components/layout/DashboardSection";
 import { BuildingPhotoManager } from "@/components/buildings/BuildingPhotoManager";
 import { ManageBuildingSkeleton } from "@/components/landlord/LandlordPageSkeletons";
+import { FeaturedBoostPanel } from "@/components/landlord/FeaturedBoostPanel";
 import { Button } from "@/components/ui/button";
 import {
   fetchMyBuilding,
@@ -47,7 +48,7 @@ export default function ManageBuildingClient({
   buildingId: string;
 }) {
   const router = useRouter();
-  const { countries, countriesByCode, formatListingRentPerMonth } =
+  const { countries, countriesByCode, formatListingRent } =
     useViewerContext();
   const [building, setBuilding] = useState<LandlordBuildingDetail | null>(null);
   const [loading, setLoading] = useState(true);
@@ -311,6 +312,16 @@ export default function ManageBuildingClient({
         </p>
       ) : null}
 
+      <FeaturedBoostPanel
+        buildingId={building.id}
+        isVerified={building.isVerified && !building.rejectedAt}
+        isFeatured={building.isFeatured}
+        featuredUntil={building.featuredUntil}
+        featuredSource={building.featuredSource}
+        unlockCount={building.unlockCount}
+        metrics={building.metrics}
+      />
+
       {canEditDetails ? (
         <DashboardSection
           title="Listing details"
@@ -460,10 +471,12 @@ export default function ManageBuildingClient({
                   </p>
                   <p className="mt-0.5 text-sm text-muted">
                     {unit.bedrooms} bed · {unit.bathrooms} bath ·{" "}
-                    {formatListingRentPerMonth(
+                    {formatListingRent(
                       unit.rentAmount,
                       unit.currency,
                       building.countryCode,
+                      unit.rentPeriod ??
+                        (building.buildingType === "airbnb" ? "day" : "month"),
                     )}
                   </p>
                 </div>

@@ -1,0 +1,28 @@
+name: PlotPin cron jobs (manual)
+
+# Production hourly cron runs on Railway — see docs/OPS-CRON.md
+# Use workflow_dispatch for staging / one-off tests only.
+
+on:
+  workflow_dispatch: {}
+
+concurrency:
+  group: plotpin-cron
+  cancel-in-progress: false
+
+jobs:
+  hourly:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Run hourly cron
+        env:
+          API_URL: ${{ secrets.PLOTPIN_API_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          if [ -z "$API_URL" ] || [ -z "$CRON_SECRET" ]; then
+            echo "Set PLOTPIN_API_URL and CRON_SECRET repo secrets, or use Railway cron in prod."
+            exit 1
+          fi
+          curl -fsS -X POST "${API_URL%/}/api/v1/cron/hourly" \
+            -H "Authorization: Bearer ${CRON_SECRET}" \
+            -H "Content-Type: application/json"

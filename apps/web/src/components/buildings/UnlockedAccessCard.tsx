@@ -37,7 +37,10 @@ export function UnlockedAccessCard({
           {unlock.buildingName ? ` · ${unlock.buildingName}` : ""}
         </p>
         <p className="mt-1 text-sm opacity-90">
-          <UnlockCountdown expiresAt={unlock.expiresAt} />
+          <UnlockCountdown
+            expiresAt={unlock.expiresAt}
+            locksUnit={unlock.locksUnit ?? true}
+          />
         </p>
       </div>
 
@@ -97,8 +100,9 @@ export function UnlockedAccessCard({
         {showAccessNote ? (
           <p className="text-xs text-muted">
             You paid {formatCurrency(PRICING.tenantUnlockFeeUgx)} for{" "}
-            {PRICING.unlockExclusiveHours}h exclusive access. Save this page or
-            visit{" "}
+            {unlock.exclusiveHours}h{" "}
+            {unlock.locksUnit === false ? "verified contact" : "exclusive"} access.
+            Save this page or visit{" "}
             <Link href="/tenant/unlocks" className="text-primary hover:underline">
               My unlocks
             </Link>{" "}
