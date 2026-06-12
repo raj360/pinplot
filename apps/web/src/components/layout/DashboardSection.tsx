@@ -9,7 +9,7 @@ type DashboardSectionProps = {
   className?: string;
 };
 
-/** Card-style section for dashboard pages — clearer bands on mobile. */
+/** Card-style section for dashboard pages, clearer bands on mobile. */
 export function DashboardSection({
   title,
   description,

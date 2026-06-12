@@ -7,7 +7,7 @@ import {
 import { ThrottlerException } from "@nestjs/throttler";
 import type { Response } from "express";
 
-/** Explore map search — friendly 429 body + Retry-After for client UX. */
+/** Explore map search, friendly 429 body + Retry-After for client UX. */
 @Catch(ThrottlerException)
 export class ThrottleExceptionFilter implements ExceptionFilter {
   catch(_exception: ThrottlerException, host: ArgumentsHost) {

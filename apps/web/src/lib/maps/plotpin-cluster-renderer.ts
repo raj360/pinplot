@@ -17,7 +17,7 @@ function buildClusterSvg(count: number, fill: string): string {
 </svg>`;
 }
 
-/** PlotPin-branded cluster bubbles — separate palette from building pins. */
+/** PlotPin-branded cluster bubbles, separate palette from building pins. */
 export class PlotPinClusterRenderer implements Renderer {
   render(
     { count, position }: {

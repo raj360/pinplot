@@ -547,7 +547,7 @@ export default function AdminEditBuildingClient({
         <section className="border border-border bg-surface p-4">
           <div className="flex items-center justify-between gap-3">
             <h2 className="text-sm font-medium">Units</h2>
-            <p className="text-xs text-muted">Pending only — not on explore map yet</p>
+            <p className="text-xs text-muted">Pending only, not on explore map yet</p>
           </div>
 
           <div className="mt-3 space-y-3">

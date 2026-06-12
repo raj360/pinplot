@@ -66,7 +66,7 @@ export function getLandlordBuildingStatus(building: {
 
   if (building.availableUnitCount === 0) {
     return {
-      label: "Approved — action needed",
+      label: "Approved, action needed",
       hint: "Mark at least one unit available to appear on the map",
       className: "bg-sky-100 text-sky-900",
       actionRequired: true,

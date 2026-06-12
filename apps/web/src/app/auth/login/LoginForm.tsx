@@ -188,7 +188,7 @@ export function LoginForm() {
                   countriesByCode.get(viewer.countryCode)?.name ??
                     viewer.countryCode,
                 )
-              : "Verified supply, global discovery — prices shown in your familiar currency."}
+              : "Verified supply, global discovery. Prices shown in your familiar currency."}
           </p>
         </div>
 
@@ -215,7 +215,7 @@ export function LoginForm() {
             <h2 className="text-xl font-bold tracking-tight">Sign in</h2>
             <p className="mt-1 text-sm text-muted">
               {step === "email"
-                ? "Enter your email — we will send a 6-digit code. No password needed."
+                ? "Enter your email. We will send a 6-digit code. No password needed."
                 : "Enter the code we sent to your inbox."}
             </p>
 

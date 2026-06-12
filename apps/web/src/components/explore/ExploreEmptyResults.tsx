@@ -71,7 +71,7 @@ export function ExploreEmptyResults({
         ) : hasActiveFilters ? (
           "Try adjusting one of your filters:"
         ) : (
-          "Listings change often — check back soon or browse all Kampala."
+          "Listings change often. Check back soon or browse all Kampala."
         )}
       </p>
 
@@ -112,7 +112,7 @@ export function ExploreEmptyResults({
           href="/landlord/new"
           className="text-sm font-medium text-primary hover:underline"
         >
-          List your building — free to submit
+          List your building. Free to submit
         </Link>
       </div>
     </div>

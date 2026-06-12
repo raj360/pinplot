@@ -81,7 +81,7 @@ export default function AdminFeaturedClient() {
   return (
     <DashboardSection
       title="Featured listings"
-      description="Launch promo: grant verified buildings up to 90 days of featured placement on explore. Featured listings sort first and show a badge. Free during launch — max 20 active grants."
+      description="Launch promo: grant verified buildings up to 90 days of featured placement on explore. Featured listings sort first and show a badge. Free during launch, max 20 active grants."
     >
       {error && !loading ? <p className="text-sm text-red-600">{error}</p> : null}
 
@@ -142,7 +142,7 @@ export default function AdminFeaturedClient() {
                           {entry.name}
                         </span>
                         {entry.featuredUntil
-                          ? ` — featured until ${formatFeaturedUntil(entry.featuredUntil)}`
+                          ? `, featured until ${formatFeaturedUntil(entry.featuredUntil)}`
                           : null}
                       </li>
                     ))}

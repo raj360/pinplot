@@ -54,7 +54,7 @@ export function VerificationChecklistForm({
       </p>
       {landlordPhoneMissing ? (
         <p className="mt-3 border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-900">
-          Landlord has no phone on profile — approval is blocked until they add
+          Landlord has no phone on profile. Approval is blocked until they add
           one in Settings.
         </p>
       ) : null}

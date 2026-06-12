@@ -1,6 +1,6 @@
 import { fetchBuildingUnlocks, type TenantUnlock } from "./unlocks";
 
-/** In-flight dedupe only — no persistent cache; unlock state is always network-sourced. */
+/** In-flight dedupe only, no persistent cache; unlock state is always network-sourced. */
 const inflight = new globalThis.Map<string, Promise<TenantUnlock[]>>();
 
 export async function fetchBuildingUnlocksFresh(

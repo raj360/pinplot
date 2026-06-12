@@ -237,7 +237,7 @@ export class UnlockCheckoutService {
     );
     const rate = Number(rows[0]?.rate ?? 0);
     if (!rate) {
-      // No rate on file — charge canonical UGX rather than a wrong amount.
+      // No rate on file, charge canonical UGX rather than a wrong amount.
       return { amount: chargeUgx, currency: "UGX" };
     }
     return {

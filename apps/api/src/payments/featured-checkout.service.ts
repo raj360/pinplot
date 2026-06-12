@@ -222,7 +222,7 @@ export class FeaturedCheckoutService {
     return rows[0] ?? null;
   }
 
-  /** Same presentment rules as unlock checkout — see UnlockCheckoutService. */
+  /** Same presentment rules as unlock checkout, see UnlockCheckoutService. */
   private async resolveFlutterwavePresentment(
     chargeUgx: number,
     region: { currency: string },

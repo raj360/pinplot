@@ -2,7 +2,7 @@ const STEPS = [
   {
     step: "1",
     title: "Browse the map",
-    body: "See approximate pins, filters, and rent ranges for free — no account required to explore.",
+    body: "See approximate pins, filters, and rent ranges for free. No account required to explore.",
   },
   {
     step: "2",

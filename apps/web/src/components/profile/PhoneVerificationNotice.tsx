@@ -19,16 +19,22 @@ export function PhoneVerificationNotice({
     );
   }
 
+  return null;
+}
+
+/** One-line summary when any saved number is not SMS-verified yet. */
+export function ProfilePhoneVerificationSummary({
+  profile,
+}: {
+  profile: UserProfile | null;
+}) {
+  if (!profileHasUnverifiedPhones(profile)) return null;
+
   return (
-    <div className="border border-dashed border-border bg-muted/20 px-3 py-2.5">
-      <p className="text-xs font-medium uppercase tracking-wide text-muted">
-        {label} verification
-      </p>
-      <p className="mt-1 text-xs text-muted">
-        SMS verification is planned for the next sprint. Your number is saved
-        but not verified yet — tenants can still call you today.
-      </p>
-    </div>
+    <p className="text-xs text-muted">
+      SMS verification is coming soon. Your numbers are saved and tenants can
+      still call you today.
+    </p>
   );
 }
 

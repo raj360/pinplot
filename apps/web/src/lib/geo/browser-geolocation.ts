@@ -30,7 +30,7 @@ function failureCodeFromError(error: GeolocationPositionError): GeolocationFailu
   }
 }
 
-/** Browser geolocation — user gesture required; rejects with a readable message on failure. */
+/** Browser geolocation, user gesture required; rejects with a readable message on failure. */
 export function requestBrowserLocation(
   options?: PositionOptions,
 ): Promise<{ lat: number; lng: number }> {

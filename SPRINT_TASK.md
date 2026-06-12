@@ -205,7 +205,7 @@ yarn db:migrate   # applies 029 (notification_log), 030 (listing_analytics_event
 | H-02 | `GET /unlocks/mine?status=active\|expired\|all` | Done | Default `active` |
 | H-03 | Tenant UI: **Active** + **Past unlocks** tabs | Done | |
 | H-04 | Expired row copy + CTA | Done | “Unlock again on Explore” |
-| H-05 | Landlord: optional “lock ended” in-app hint | Done | Dashboard banner + manage countdown (2026-06) |
+| H-05 | Landlord: optional “lock ended” in-app hint | Done | Server inbox (`user_notifications`) + dashboard banner + manage countdown |
 
 **Exit:** Tenants see unlock history; long-term units reappear on map after expiry (H-01).
 
@@ -272,6 +272,25 @@ created_at   TIMESTAMPTZ
 
 **Exit:** Landlords see view performance; featured ROI measurable.
 
+### Track E — In-app notification inbox (N-09 v1) — **✅ implemented (run migration 033)**
+
+**Goal:** Server-side inbox for cron + transactional events; bell in header; landlord dashboard banners. Email remains optional audit via `notification_log`.
+
+```bash
+yarn db:migrate   # applies 033 (user_notifications)
+```
+
+| ID | Task | Status | Notes |
+|----|------|--------|-------|
+| N-09a | Migration `033_user_notifications` | Done | `read_at`, `dismissed_at`, idempotent `(user_id, type, dedupe_key)` |
+| N-09b | `InAppNotificationsService` + REST API | Done | `GET /notifications/mine`, unread count, read/dismiss, mark-all-read |
+| N-09c | Cron + transactional create in-app first | Done | `scheduled-notifications`, landlord/tenant notify services |
+| N-09d | Web: `NotificationBell` in header | Done | Unread badge + dropdown |
+| N-09e | Web: landlord lock-ended banner | Done | `InAppNotificationBanner` on dashboard (server dismiss) |
+| N-09f | Dedicated `/notifications` page | Pending | Phase 6 polish |
+
+**Exit:** Users see unread count in-app; dismiss/read persists server-side; lock-ended alerts no longer use localStorage.
+
 ### Track D — Schema hygiene (P2, parallel)
 
 | ID | Task | Status | Decision |
@@ -310,6 +329,7 @@ created_at   TIMESTAMPTZ
 | Tenant sidebar + paid featured (5F) | ✅ |
 | Stay class /night + stale lock fix (5G) | ✅ (migration 028) |
 | Unlock history + analytics + cron notifications (5H) | ✅ (migrations 029–031; Railway cron after deploy — [OPS-CRON.md](./docs/OPS-CRON.md)) |
+| In-app notification inbox (N-09 v1) | ✅ (migration 033; bell + server dismiss) |
 | Stripe / LLC | ⏸ deferred |
 
 ---
@@ -317,9 +337,9 @@ created_at   TIMESTAMPTZ
 ## Recommended build order
 
 ```
-Done:  5A · 5B · 5D · 5E · 5F · 5G (+ stale lock fix)
-Next:  5H Track A (unlock history) → Track B (cron notifications) → Track C (analytics) · 5C MoMo/SMS in parallel
-Later: M-01 open-contact · saved_buildings MVP (5H.1) · LLC+Stripe when justified
+Done:  5A · 5B · 5D · 5E · 5F · 5G · 5H · N-09 v1
+Next:  Ops go-live (Railway cron, migrations 029–033) · 5C MoMo polish (SMS paused)
+Later: M-01 open-contact · `/notifications` page · LLC+Stripe when justified
 Ops:   yarn fx:refresh daily (GitHub) · Railway hourly cron after deploy — docs/OPS-CRON.md
 ```
 
@@ -335,4 +355,4 @@ Day 6:   H-26 (admin slice) · H-30 (drop listing_events) · H-18 if time (stale
 
 ---
 
-*Last updated: 2026-06-10 — Sprint 5H planned (unlock lifecycle, analytics, cron notifications); 5G /night + stale lock release*
+*Last updated: 2026-06-10 — N-09 in-app inbox (migration 033); 5H complete*

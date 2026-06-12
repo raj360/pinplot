@@ -5,7 +5,7 @@ import {
 } from "@/content/legal/terms-sections";
 
 export const metadata = {
-  title: "Terms of Service — PlotPin",
+  title: "Terms of Service | PlotPin",
   description: "PlotPin Terms of Service (draft for review).",
 };
 

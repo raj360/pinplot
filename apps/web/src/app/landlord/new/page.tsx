@@ -68,13 +68,13 @@ const FORM_STEPS = [
     label: "Details",
     title: "Building details",
     description:
-      "Name and address — exact address is shown only after a tenant unlocks.",
+      "Name and address. Exact address is shown only after a tenant unlocks.",
   },
   {
     label: "Photos",
     title: "Building photos",
     description:
-      "Add up to 4 photos (cover included) — admins review these before your listing goes live.",
+      "Add up to 4 photos (cover included). Admins review these before your listing goes live.",
   },
   {
     label: "Units",
@@ -222,7 +222,7 @@ export default function NewBuildingPage() {
     setLocation(next);
   }, []);
 
-  /** Pin is source of truth — moving it clears manual overrides from a prior pin. */
+  /** Pin is source of truth, moving it clears manual overrides from a prior pin. */
   useEffect(() => {
     cityTouched.current = false;
     districtTouched.current = false;
@@ -418,7 +418,7 @@ export default function NewBuildingPage() {
         <div className="min-w-0">
           <h1 className="text-2xl font-bold tracking-tight">Add building</h1>
           <p className="mt-2 max-w-2xl text-sm text-muted">
-            {step} of {STEP_COUNT} — {currentStep.description}
+            {step} of {STEP_COUNT}: {currentStep.description}
           </p>
 
           <FormStepper
@@ -526,7 +526,7 @@ export default function NewBuildingPage() {
                   ))}
                 </select>
                 <span className="mt-1 block text-xs text-muted">
-                  Set from your map pin — rent is listed in {listingCurrency}.
+                  Set from your map pin. Rent is listed in {listingCurrency}.
                 </span>
               </label>
               <div className="grid gap-3 sm:grid-cols-2">

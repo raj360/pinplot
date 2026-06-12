@@ -617,6 +617,7 @@ export class UnlocksService {
       buildingId: unit.building_id,
       buildingName: unit.building_name,
       unitNumber: unit.unit_number,
+      paymentId,
     });
 
     await this.tenantNotifications.notifyUnlockReceipt({
@@ -625,6 +626,7 @@ export class UnlocksService {
       buildingName: unit.building_name,
       unitNumber: unit.unit_number,
       amountUgx,
+      paymentId,
     });
   }
 

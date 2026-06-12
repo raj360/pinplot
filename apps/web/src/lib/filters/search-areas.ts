@@ -22,7 +22,7 @@ export type SearchAreaPreset = {
   kind?: "region" | "district" | "city" | "neighborhood";
 };
 
-/** Seeded catalog from GET /geo/places — merged into resolveSearchArea at runtime. */
+/** Seeded catalog from GET /geo/places, merged into resolveSearchArea at runtime. */
 let runtimeAreaPresets: SearchAreaPreset[] = [];
 
 export function setRuntimeAreaPresets(presets: SearchAreaPreset[]): void {
@@ -107,7 +107,7 @@ export function boundsAround(
   };
 }
 
-/** Major towns — map viewport jump (not a text filter on the API). */
+/** Major towns, map viewport jump (not a text filter on the API). */
 export const UGANDA_CITY_PRESETS: SearchAreaPreset[] = [
   { value: "Jinja", label: "Jinja", country: "UG", center: { lat: 0.4244, lng: 33.2041 }, bounds: boundsAround(0.4244, 33.2041, CITY_DELTA) },
   { value: "Bugembe", label: "Bugembe", country: "UG", center: { lat: 0.4661, lng: 33.2334 }, bounds: boundsAround(0.4661, 33.2334, CITY_DELTA) },
@@ -118,7 +118,7 @@ export const UGANDA_CITY_PRESETS: SearchAreaPreset[] = [
   { value: "Gulu", label: "Gulu", country: "UG", center: { lat: 2.7746, lng: 32.298 }, bounds: boundsAround(2.7746, 32.298, CITY_DELTA) },
 ];
 
-/** Kampala neighbourhoods — extend as coverage grows. */
+/** Kampala neighbourhoods, extend as coverage grows. */
 export const AREA_PRESETS: SearchAreaPreset[] = [
   { value: "Namuwongo", label: "Namuwongo", country: "UG", center: { lat: 0.308, lng: 32.612 }, bounds: boundsAround(0.308, 32.612) },
   { value: "Nakasero", label: "Nakasero", country: "UG", center: { lat: 0.328, lng: 32.588 }, bounds: boundsAround(0.328, 32.588) },
@@ -160,7 +160,7 @@ function cityPreset(
 /**
  * Major-city quick-jumps per market, keyed by ISO country. Lets viewers explore
  * the map in their own region instead of seeing another country's place names.
- * These are navigation jumps (not supply) — actual listings live in
+ * These are navigation jumps (not supply), actual listings live in
  * SUPPLY_MARKET_CODES. Extend as the product enters more markets.
  */
 export const WORLD_CITY_PRESETS: Record<string, SearchAreaPreset[]> = {

@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
 /**
- * PlotPin design tokens — neutral scale + elevation aligned with Bondex hire web.
+ * PlotPin design tokens, neutral scale + elevation aligned with Bondex hire web.
  * Prefer these CSS variables / utilities over one-off hex values.
  */
 :root {
@@ -15,11 +15,11 @@
   /** Stronger border for hover / emphasis (Bondex gray-200). */
   --border-strong: #b4c1d4;
   --surface: #ffffff;
-  /** Light gray chrome — filter strips, dashboard canvas. */
+  /** Light gray chrome, filter strips, dashboard canvas. */
   --panel: #eaeef3;
   --accent-orange: #ea580c;
 
-  /* Neutral scale (Bondex gray-* — use via var() or future shade utilities) */
+  /* Neutral scale (Bondex gray-*, use via var() or future shade utilities) */
   --neutral-25: #f6f8fc;
   --neutral-50: #eaeef3;
   --neutral-100: #d4dce7;
@@ -85,7 +85,7 @@ body {
 @layer base {
   /**
    * Default 2px corners on interactive + card surfaces.
-   * Do NOT use the universal * selector — it also rounds layout chrome
+   * Do NOT use the universal * selector, it also rounds layout chrome
    * (header, sticky explore shell) and fights Tailwind's cascade.
    */
   :where(
@@ -102,21 +102,21 @@ body {
     border-radius: var(--radius-DEFAULT);
   }
 
-  /* Bordered content panels — matches prior * behaviour for sections/divs. */
+  /* Bordered content panels, matches prior * behaviour for sections/divs. */
   :where(section, div)[class*="border-border"]:not(.site-chrome):not(
       .site-chrome *
     ) {
     border-radius: var(--radius-DEFAULT);
   }
 
-  /* Layout chrome — always square (explore sticky shell, nav, footer). */
+  /* Layout chrome, always square (explore sticky shell, nav, footer). */
   :where(header, footer, nav, .site-chrome),
   :where(header, footer, nav, .site-chrome)
     :where(*:not(.user-avatar):not(.spinner-ring)) {
     border-radius: 0 !important;
   }
 
-  /* Pointer on interactive controls — many links/buttons omit explicit cursor utilities. */
+  /* Pointer on interactive controls, many links/buttons omit explicit cursor utilities. */
   :where(
     a[href]:not([aria-disabled="true"]),
     button:not(:disabled):not([aria-disabled="true"]),
@@ -136,7 +136,7 @@ body {
   }
 }
 
-/** White card on gray canvas — consistent elevation */
+/** White card on gray canvas, consistent elevation */
 .card-elevated {
   border: 1px solid var(--border);
   background: var(--surface);
@@ -385,7 +385,7 @@ button.user-avatar {
   white-space: nowrap;
 }
 
-/* Invisible hover bridge — covers the gap between tooltip and pin. */
+/* Invisible hover bridge, covers the gap between tooltip and pin. */
 .plotpin-map-tooltip__bridge {
   position: absolute;
   left: 50%;
@@ -423,7 +423,7 @@ button.user-avatar {
   }
 }
 
-/* Explore mobile — map band is interactive; list scrolls with the page below. */
+/* Explore mobile, map band is interactive; list scrolls with the page below. */
 .explore-mobile-map {
   isolation: isolate;
   touch-action: pan-x pan-y pinch-zoom;
@@ -444,7 +444,7 @@ button.user-avatar {
   }
 }
 
-/** International phone input — react-phone-number-input with PlotPin tokens */
+/** International phone input, react-phone-number-input with PlotPin tokens */
 .PlotPinPhoneInput {
   display: flex;
   align-items: stretch;

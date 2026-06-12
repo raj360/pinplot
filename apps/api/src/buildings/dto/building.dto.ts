@@ -82,7 +82,7 @@ export class FeaturedBuildingsQueryDto {
   @Max(24)
   limit?: number;
 
-  /** Viewer region — prioritizes listings in this country, then fills the rest. */
+  /** Viewer region, prioritizes listings in this country, then fills the rest. */
   @IsOptional()
   @IsString()
   @MinLength(2)

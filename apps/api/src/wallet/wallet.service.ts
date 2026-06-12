@@ -63,7 +63,7 @@ export class WalletService {
 
   /**
    * Grant one welcome unlock credit on first tenant profile sync (S4-08).
-   * Idempotent — safe to call on every sync.
+   * Idempotent, safe to call on every sync.
    */
   async grantWelcomeBonusIfEligible(
     userId: string,

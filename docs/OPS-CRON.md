@@ -13,11 +13,11 @@ See also [NOTIFICATIONS.md](./NOTIFICATIONS.md) for what the hourly job sends.
 
 | Step | Action |
 |------|--------|
-| 1 | Unlock expiring emails (landlord ~12h, tenant ~24h) |
-| 2 | Unlock expired emails (last hour) |
-| 3 | Unit lock ended emails (long-term, before release) |
-| 4 | Featured expiring (7d window) |
-| 5 | Stale AVAILABLE reminders (30d+, deduped per unit) |
+| 1 | Unlock expiring (landlord ~12h, tenant ~24h) — in-app + email |
+| 2 | Unlock expired (last hour) — in-app + email |
+| 3 | Unit lock ended (long-term, before release) — in-app + email |
+| 4 | Featured expiring (7d window) — in-app + email |
+| 5 | Stale AVAILABLE reminders (30d+, deduped per unit) — in-app + email |
 | 6 | Release expired `LOCKED` units → `AVAILABLE` |
 
 Endpoint: `POST /api/v1/cron/hourly`  
@@ -32,7 +32,7 @@ Other endpoints (optional, manual):
 
 ## Pre-deploy checklist
 
-1. Apply migrations through **031** (`yarn db:migrate` with `DIRECT_URL`).
+1. Apply migrations through **033** (`yarn db:migrate` with `DIRECT_URL`) — includes `user_notifications` for in-app inbox.
 2. Set **`CRON_SECRET`** on the **Nest API** Railway service (long random string).
 3. Configure Postmark env vars on the API (emails are no-ops without them).
 4. After API is live, add the **cron service** below (do not enable until API URL works).

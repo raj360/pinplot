@@ -34,7 +34,7 @@ export type Bounds = {
   west: number;
 };
 
-/** Default map bounds — greater Kampala */
+/** Default map bounds, greater Kampala */
 export const KAMPALA_BOUNDS: Bounds = {
   north: 0.4,
   south: 0.28,
@@ -156,18 +156,6 @@ export type LandlordBuilding = {
   featuredUntil: string | null;
   featuredSource: string | null;
   createdAt: string;
-};
-
-export type LandlordHoldEndedAlert = {
-  unitId: string;
-  unitNumber: string;
-  buildingId: string;
-  buildingName: string;
-  endedAt: string;
-};
-
-export async function fetchLandlordHoldAlerts() {
-  return apiFetch<LandlordHoldEndedAlert[]>("/buildings/mine/hold-alerts");
 };
 
 export type CreateBuildingPayload = {
@@ -303,7 +291,7 @@ export type PendingBuilding = {
   created_at: string;
   approximate_lat: number;
   approximate_lng: number;
-  /** Landlord-placed pin — use for admin review maps. */
+  /** Landlord-placed pin, use for admin review maps. */
   pin_lat: number;
   pin_lng: number;
   total_units: number;
@@ -324,7 +312,7 @@ export function getLandlordDisplayName(building: PendingBuilding): string {
     .trim();
   if (name) return name;
   if (building.email) return building.email;
-  return "—";
+  return "-";
 }
 
 export async function fetchPendingBuildings() {
@@ -393,9 +381,9 @@ export type AdminPendingBuildingDetail = {
   description: string | null;
   city: string;
   district: string | null;
-  /** ISO country of the building — drives listing currency/locale. */
+  /** ISO country of the building, drives listing currency/locale. */
   countryCode: string;
-  /** Listing currency (e.g. UGX, GBP) — units are priced in this. */
+  /** Listing currency (e.g. UGX, GBP), units are priced in this. */
   currency: string;
   buildingType: string;
   exactAddress: string | null;
@@ -441,7 +429,7 @@ export function getAdminLandlordDisplayName(
     .trim();
   if (name) return name;
   if (building.landlord.email) return building.landlord.email;
-  return "—";
+  return "-";
 }
 
 export async function fetchAdminPendingBuilding(id: string) {

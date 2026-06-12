@@ -16,7 +16,7 @@ import { fetchMyProfile, type UserProfile } from "@/lib/api/profiles";
 type AuthContextValue = {
   user: User | null;
   profile: UserProfile | null;
-  /** Session bootstrap only — never blocked on profile/API fetch. */
+  /** Session bootstrap only, never blocked on profile/API fetch. */
   loading: boolean;
   /** True while /profiles/me is in flight for the signed-in user. */
   profileLoading: boolean;
@@ -63,7 +63,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setLoading(false);
 
       if (sessionUser) {
-        // Defer — awaiting inside onAuthStateChange can deadlock getSession().
+        // Defer, awaiting inside onAuthStateChange can deadlock getSession().
         window.setTimeout(() => {
           if (!cancelled) void loadProfile();
         }, 0);

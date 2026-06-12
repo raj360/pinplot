@@ -22,7 +22,7 @@ export function HomeValueProps() {
   const cards = [
     {
       title: "Map-first discovery",
-      body: "Cluster pins, filters, and list/map split — see neighborhoods before you commit.",
+      body: "Cluster pins, filters, and list/map split. See neighborhoods before you commit.",
     },
     {
       title: "Units before you pay",

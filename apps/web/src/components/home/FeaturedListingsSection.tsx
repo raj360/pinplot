@@ -23,7 +23,7 @@ type FeaturedFeed = {
 };
 
 type FeaturedListingsSectionProps = {
-  /** SSR feed for the edge-detected region — shown once viewer context matches. */
+  /** SSR feed for the edge-detected region, shown once viewer context matches. */
   initialFeed: FeaturedFeed;
   serverCountryCode: string;
 };
@@ -106,7 +106,7 @@ export function FeaturedListingsSection({
           <p className="mt-1 text-sm text-muted">
             {ready
               ? featuredListingsIntro(viewerCountryName, hasLocal, hasGlobal)
-              : "Verified properties promoted on PlotPin — browse free, unlock when you are ready."}
+              : "Verified properties promoted on PlotPin: browse free, unlock when you are ready."}
           </p>
         </div>
         <Link

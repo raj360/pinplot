@@ -24,7 +24,7 @@ function writeCache(result: GeoIpResult) {
   try {
     sessionStorage.setItem(SESSION_KEY, JSON.stringify(result));
   } catch {
-    /* sessionStorage may be unavailable (private mode) — ignore */
+    /* sessionStorage may be unavailable (private mode), ignore */
   }
 }
 
@@ -73,7 +73,7 @@ export async function fetchIpCountry(): Promise<string | null> {
   return country;
 }
 
-/** Test/escape hatch — clears the per-session geo cache. */
+/** Test/escape hatch, clears the per-session geo cache. */
 export function clearGeoIpCache() {
   if (typeof window === "undefined") return;
   try {

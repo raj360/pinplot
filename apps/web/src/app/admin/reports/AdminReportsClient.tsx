@@ -95,7 +95,7 @@ export default function AdminReportsClient() {
                 Reporter:{" "}
                 {[report.reporter.firstName, report.reporter.lastName]
                   .filter(Boolean)
-                  .join(" ") || report.reporter.email || "—"}
+                  .join(" ") || report.reporter.email || "-"}
                 {" · "}
                 {new Date(report.createdAt).toLocaleString()}
               </p>

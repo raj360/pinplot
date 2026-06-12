@@ -60,7 +60,7 @@ function parseIsoCountryCode(code: string | null | undefined): string | null {
   return /^[A-Z]{2}$/.test(upper) ? upper : null;
 }
 
-/** Crown Dependencies & UK-adjacent — present in GBP for ROW display. */
+/** Crown Dependencies & UK-adjacent, present in GBP for ROW display. */
 const GBP_ADJACENT_CODES = new Set(["IM", "GG", "JE", "FK", "GI"]);
 
 /**
@@ -133,7 +133,7 @@ export function firstRawCountryHint(input: ViewerResolutionHints): string | null
 }
 
 /**
- * Resolve viewer country — any valid ISO 3166-1 alpha-2 code from profile, IP,
+ * Resolve viewer country, any valid ISO 3166-1 alpha-2 code from profile, IP,
  * or browser hints. Catalog rows drive currency/locale; geo_places drives map
  * areas for every seeded country.
  */
@@ -163,13 +163,13 @@ export function resolveViewerCountryCode(input: ViewerResolutionHints): string {
   return DEFAULT_COUNTRY.code;
 }
 
-/** Home SSR — resolve viewer region from edge IP headers when available. */
+/** Home SSR, resolve viewer region from edge IP headers when available. */
 export function resolveServerViewerCountry(headerStore: Headers): string {
   const ipCountry = readEdgeCountryFromHeaders(headerStore);
   return resolveViewerCountryCode({ ipCountry });
 }
 
-/** Full viewer display context — catalog country or sensible fallbacks. */
+/** Full viewer display context, catalog country or sensible fallbacks. */
 export function resolveViewerContext(
   input: ViewerResolutionHints,
   countriesByCode: Map<string, CountryCatalog>,
@@ -187,7 +187,7 @@ export function resolveViewerContext(
     };
   }
 
-  // Off-catalog during rollout — region-aware currency until catalog seed completes.
+  // Off-catalog during rollout, region-aware currency until catalog seed completes.
   const row = resolveRowDisplayCurrency({
     timeZone,
     language,

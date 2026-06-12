@@ -6,7 +6,7 @@ type HeaderNavSkeletonProps = {
   className?: string;
 };
 
-/** Fixed-size header nav placeholder — avoids layout shift while auth resolves. */
+/** Fixed-size header nav placeholder, avoids layout shift while auth resolves. */
 export function HeaderNavSkeleton({
   showNavLink = true,
   className,

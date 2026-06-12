@@ -23,7 +23,7 @@ export function AdminPendingBuildingCardSkeleton() {
   );
 }
 
-/** Pending buildings list — card placeholders. */
+/** Pending buildings list, card placeholders. */
 export function AdminPendingBuildingsSkeleton() {
   return (
     <ul className="space-y-4" aria-busy="true" aria-label="Loading pending buildings">
@@ -93,7 +93,7 @@ function AdminOverviewStatCardSkeleton() {
   );
 }
 
-/** Admin home — stat tiles + quick links. */
+/** Admin home, stat tiles + quick links. */
 export function AdminOverviewSkeleton() {
   return (
     <div aria-busy="true" aria-label="Loading admin overview">

@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils/cn";
 
 type ApproximateLocationNoticeProps = {
   className?: string;
-  /** Map overlay — compact pill. Unlock panel — full sentence. */
+  /** Map overlay, compact pill. Unlock panel, full sentence. */
   variant?: "inline" | "map";
 };
 

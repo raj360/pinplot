@@ -40,7 +40,7 @@ export class EmailDeliveryService {
         "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━",
         `  PlotPin sign-in code for ${email}`,
         `  Code: ${code}`,
-        "  (Dev mode — configure Postmark for production email)",
+        "  (Dev mode: configure Postmark for production email)",
         "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━",
         "",
       ].join("\n"),

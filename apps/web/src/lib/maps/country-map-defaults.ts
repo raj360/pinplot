@@ -11,7 +11,7 @@ const KIND_RANK: Record<GeoPlace["kind"], number> = {
   neighborhood: 3,
 };
 
-/** Primary city/region for a country — matches seed-geo-places backfill order. */
+/** Primary city/region for a country, matches seed-geo-places backfill order. */
 export function pickPrimaryGeoPlace(places: GeoPlace[]): GeoPlace | null {
   if (places.length === 0) return null;
   return [...places].sort((a, b) => {

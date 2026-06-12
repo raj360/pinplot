@@ -7,7 +7,7 @@ import { useViewerContext } from "@/components/providers/ViewerContextProvider";
 import { useBuildingUnlocks } from "@/lib/unlocks/use-building-unlocks";
 import type { UnitLike } from "@/lib/buildings/unit-summary";
 
-/** Legacy wrapper — prefer BuildingDetailExperience on the building detail route. */
+/** Legacy wrapper, prefer BuildingDetailExperience on the building detail route. */
 export function UnlockPanel({
   buildingId,
   buildingType,
@@ -15,9 +15,9 @@ export function UnlockPanel({
   units,
 }: {
   buildingId: string;
-  /** From the building record — used for tiered unlock quotes. */
+  /** From the building record, used for tiered unlock quotes. */
   buildingType: string;
-  /** ISO country of the listing — used for checkout routing and quotes. */
+  /** ISO country of the listing, used for checkout routing and quotes. */
   countryCode: string;
   units: UnitLike[];
 }) {

@@ -9,7 +9,7 @@ const TRUST_ITEMS = [
   },
   {
     title: "Free for landlords",
-    body: "No listing fee after verification — tenants pay PlotPin to unlock.",
+    body: "No listing fee after verification. Tenants pay PlotPin to unlock.",
   },
 ] as const;
 

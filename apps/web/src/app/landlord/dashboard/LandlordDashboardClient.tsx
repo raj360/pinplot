@@ -7,19 +7,14 @@ import {
   DashboardSection,
   StatCard,
 } from "@/components/layout/DashboardSection";
-import { LandlordHoldEndedBanner } from "@/components/landlord/LandlordHoldEndedBanner";
+import { InAppNotificationBanner } from "@/components/notifications/InAppNotificationBanner";
 import { LandlordDashboardSkeleton } from "@/components/landlord/LandlordPageSkeletons";
+import { fetchMyBuildings, type LandlordBuilding } from "@/lib/api/buildings";
 import {
-  fetchLandlordHoldAlerts,
-  fetchMyBuildings,
-  type LandlordBuilding,
-  type LandlordHoldEndedAlert,
-} from "@/lib/api/buildings";
+  fetchNotifications,
+  type AppNotification,
+} from "@/lib/api/notifications";
 import { getAccessToken } from "@/lib/api/client";
-import {
-  filterVisibleHoldAlerts,
-  holdAlertKey,
-} from "@/lib/landlord/hold-alerts-storage";
 import {
   buildingNeedsUnitSetup,
   buildingWasRejected,
@@ -34,10 +29,9 @@ export default function LandlordDashboardClient() {
   const router = useRouter();
   const params = useSearchParams();
   const [buildings, setBuildings] = useState<LandlordBuilding[]>([]);
-  const [holdAlerts, setHoldAlerts] = useState<LandlordHoldEndedAlert[]>([]);
-  const [dismissedHoldKeys, setDismissedHoldKeys] = useState<Set<string>>(
-    () => new Set(),
-  );
+  const [holdEndedNotifications, setHoldEndedNotifications] = useState<
+    AppNotification[]
+  >([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const created = params.get("created") === "1";
@@ -52,10 +46,6 @@ export default function LandlordDashboardClient() {
     (sum, b) => sum + (b.lockedUnitCount ?? 0),
     0,
   );
-  const visibleHoldAlerts = filterVisibleHoldAlerts(holdAlerts).filter(
-    (alert) => !dismissedHoldKeys.has(holdAlertKey(alert)),
-  );
-
   useEffect(() => {
     let cancelled = false;
 
@@ -68,13 +58,16 @@ export default function LandlordDashboardClient() {
       }
 
       try {
-        const [buildingList, alerts] = await Promise.all([
+        const [buildingList, lockEnded] = await Promise.all([
           fetchMyBuildings(),
-          fetchLandlordHoldAlerts(),
+          fetchNotifications({
+            limit: 8,
+            types: ["UNIT_LOCK_ENDED"],
+          }),
         ]);
         if (!cancelled) {
           setBuildings(buildingList);
-          setHoldAlerts(alerts);
+          setHoldEndedNotifications(lockEnded);
           setError(null);
         }
       } catch {
@@ -93,7 +86,7 @@ export default function LandlordDashboardClient() {
     <div className="space-y-4">
       {created && !loading && (
         <p className="border border-primary/30 bg-primary/5 px-4 py-3 text-sm">
-          Building submitted — an admin will review it first. After approval,
+          Building submitted. An admin will review it first. After approval,
           open the building and mark units <strong>available</strong> so tenants
           can find it on the map.
         </p>
@@ -135,11 +128,13 @@ export default function LandlordDashboardClient() {
         </div>
       ) : null}
 
-      {!loading && visibleHoldAlerts.length > 0 ? (
-        <LandlordHoldEndedBanner
-          alerts={visibleHoldAlerts}
-          onDismiss={(key) => {
-            setDismissedHoldKeys((prev) => new Set(prev).add(key));
+      {!loading && holdEndedNotifications.length > 0 ? (
+        <InAppNotificationBanner
+          notifications={holdEndedNotifications}
+          onDismiss={(id) => {
+            setHoldEndedNotifications((prev) =>
+              prev.filter((item) => item.id !== id),
+            );
           }}
         />
       ) : null}

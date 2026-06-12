@@ -27,7 +27,7 @@ export const HERO_PINS: HeroPin[] = [
 /** Distance the selected pin "snaps" from approximate → exact on unlock. */
 export const HERO_UNLOCK_OFFSET = { dx: 10, dy: -8 } as const;
 
-/** Per-pin spotlight beats (no global idle — instant handoff). */
+/** Per-pin spotlight beats (no global idle, instant handoff). */
 export type HeroSpotlightBeat = "select" | "unlock" | "hold";
 
 export const HERO_BEAT_DURATIONS_MS: Record<HeroSpotlightBeat, number> = {

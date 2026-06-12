@@ -16,7 +16,7 @@ import {
   type HeaderVariant,
 } from "@/lib/layout/shell";
 import { UserMenu } from "@/components/layout/UserMenu";
-import { HeaderNavSkeleton } from "@/components/layout/HeaderNavSkeleton";
+import { NotificationBell } from "@/components/notifications/NotificationBell";
 import { AppMobileNav } from "@/components/layout/AppMobileNav";
 
 type AppHeaderProps = {
@@ -64,6 +64,8 @@ export function AppHeader({
     </div>
   );
 
+  const showAccountNav = navPending || isAuthenticated;
+
   const desktopNav = (
     <nav
       className="hidden shrink-0 items-center gap-3 text-sm md:flex"
@@ -73,25 +75,37 @@ export function AppHeader({
         Explore
       </Link>
 
-      {navPending ? (
-        <HeaderNavSkeleton showNavLink={variant !== "sidebar"} />
-      ) : isAuthenticated ? (
+      {showAccountNav ? (
         <>
-          {variant !== "sidebar" && showLandlord ? (
+          {!navPending && variant !== "sidebar" && showLandlord ? (
             <Link href="/landlord/dashboard" className="hover:underline">
               My buildings
             </Link>
           ) : null}
-          {variant !== "sidebar" && isAdmin ? (
+          {!navPending && variant !== "sidebar" && isAdmin ? (
             <Link href="/admin" className="hover:underline">
               Admin
             </Link>
           ) : null}
-          <UserMenu
-            initials={initials}
-            displayName={displayName}
-            onSignOut={handleSignOut}
-          />
+          {navPending && variant !== "sidebar" ? (
+            <div
+              className="hidden h-4 w-[5.5rem] animate-pulse rounded-sm bg-primary-foreground/20 sm:block"
+              aria-hidden
+            />
+          ) : null}
+          <NotificationBell ready={!navPending && isAuthenticated} />
+          {navPending ? (
+            <div
+              className="user-avatar size-8 shrink-0 animate-pulse border-2 border-primary-foreground/25 bg-primary-foreground/10"
+              aria-hidden
+            />
+          ) : (
+            <UserMenu
+              initials={initials}
+              displayName={displayName}
+              onSignOut={handleSignOut}
+            />
+          )}
         </>
       ) : (
         <Link

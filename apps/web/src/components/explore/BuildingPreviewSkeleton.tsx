@@ -36,7 +36,7 @@ export function BuildingPreviewSkeleton({
   );
 }
 
-/** Unlock strip only — building detail can render while unlock state loads. */
+/** Unlock strip only, building detail can render while unlock state loads. */
 export function UnlockSectionSkeleton({ className }: { className?: string }) {
   return (
     <div className={cn("space-y-3", className)} aria-hidden>

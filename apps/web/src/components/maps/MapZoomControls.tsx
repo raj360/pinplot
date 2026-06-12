@@ -88,7 +88,7 @@ function MapZoomButtons({ disabled, className }: MapZoomControlsProps) {
   );
 }
 
-/** Explore map zoom +/- — top-left, away from search chip and disclaimer. */
+/** Explore map zoom +/-, top-left, away from search chip and disclaimer. */
 export function MapZoomControls(props: MapZoomControlsProps) {
   return (
     <MapControl position={ControlPosition.LEFT_TOP}>

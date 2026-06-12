@@ -8,7 +8,7 @@ type BuildingLockedCoverPreviewProps = {
   className?: string;
 };
 
-/** Teaser cover shown before unlock — full-width on mobile, modest card on desktop. */
+/** Teaser cover shown before unlock, full-width on mobile, modest card on desktop. */
 export function BuildingLockedCoverPreview({
   src,
   alt = "",

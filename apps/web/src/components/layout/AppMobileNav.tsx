@@ -11,7 +11,7 @@ import { getUserDisplayLabel } from "@/lib/auth/display-name";
 import { buildAppNavSections } from "@/lib/navigation/app-nav";
 
 type AppMobileNavProps = {
-  /** Highlight which area the user is in — used under admin/landlord shells. */
+  /** Highlight which area the user is in, used under admin/landlord shells. */
   activeSectionTitle?: string;
 };
 

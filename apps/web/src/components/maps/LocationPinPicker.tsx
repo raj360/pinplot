@@ -30,7 +30,7 @@ type LocationPinPickerProps = {
   readOnly?: boolean;
   showCoordinates?: boolean;
   className?: string;
-  /** Initial zoom — lower (city) for country defaults, higher for precise. */
+  /** Initial zoom, lower (city) for country defaults, higher for precise. */
   defaultZoom?: number;
 };
 
@@ -121,7 +121,7 @@ export function LocationPinPicker({
               Use my current location
             </Button>
             <p className="text-xs text-muted">
-              Fastest way to start — then tap or drag the pin to fine-tune the
+              Fastest way to start. Then tap or drag the pin to fine-tune the
               exact spot.
             </p>
             {geoError ? (

@@ -6,7 +6,7 @@ const TRANSIENT_PG_CODES = new Set([
   "08004", // sqlserver_rejected_establishment_of_sqlconnection
   "57P01", // admin_shutdown
   "53300", // too_many_connections
-  "53200", // out_of_memory (pool pressure — retry may help)
+  "53200", // out_of_memory (pool pressure, retry may help)
   "40001", // serialization_failure
   "40P01", // deadlock_detected
 ]);

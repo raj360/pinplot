@@ -23,7 +23,7 @@ type PaymentRow = {
   created_at?: Date;
   metadata: {
     unitId?: string;
-    /** FEATURED payments — building boosted on settlement. */
+    /** FEATURED payments, building boosted on settlement. */
     buildingId?: string;
     durationDays?: number;
     chargeAmountUgx?: number;
@@ -149,7 +149,7 @@ export class SettleUnlockService {
   }
 
   /**
-   * Activate a paid featured boost — extends any active window so landlords
+   * Activate a paid featured boost, extends any active window so landlords
    * never lose remaining days when topping up.
    */
   private async grantPaidFeatured(payment: PaymentRow) {

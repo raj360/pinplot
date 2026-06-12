@@ -18,7 +18,7 @@ import type { SearchAreaPreset } from "@/lib/filters/search-areas";
 import { cn } from "@/lib/utils/cn";
 
 export type ExploreSearchFilters = {
-  /** Place jump label — not sent to API when searching by map viewport. */
+  /** Place jump label, not sent to API when searching by map viewport. */
   city: string;
   bedrooms: string;
   bathrooms: string;

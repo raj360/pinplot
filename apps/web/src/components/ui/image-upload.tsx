@@ -5,7 +5,7 @@ import { BUILDING_IMAGE } from "@plotpin/shared-types";
 import { cn } from "@/lib/utils/cn";
 
 const BUILDING_PHOTO_UPLOAD_HINT =
-  `JPEG or PNG from your phone is fine — we optimize to ~${Math.round(BUILDING_IMAGE.FULL_MAX_PX / 100) / 10}K px before upload.`;
+  `JPEG or PNG from your phone is fine. We optimize to ~${Math.round(BUILDING_IMAGE.FULL_MAX_PX / 100) / 10}K px before upload.`;
 
 const BUILDING_COVER_MIME_TYPES = new Set(["image/jpeg", "image/png"]);
 
@@ -19,7 +19,7 @@ export function validateBuildingCoverSourceFile(file: File): string | null {
   return null;
 }
 
-/** @deprecated Use validateBuildingCoverSourceFile — compression runs before size cap. */
+/** @deprecated Use validateBuildingCoverSourceFile, compression runs before size cap. */
 export function validateBuildingCoverFile(file: File): string | null {
   return validateBuildingCoverSourceFile(file);
 }

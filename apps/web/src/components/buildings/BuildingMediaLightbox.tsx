@@ -87,7 +87,7 @@ export function BuildingMediaLightbox({
           /* eslint-disable-next-line @next/next/no-img-element */
           <img
             src={slide.url}
-            alt={`${alt} — photo ${index + 1}`}
+            alt={`${alt}, photo ${index + 1}`}
             className="max-h-[75vh] max-w-full object-contain"
           />
         ) : (

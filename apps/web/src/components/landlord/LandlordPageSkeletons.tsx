@@ -61,7 +61,7 @@ function LandlordUnitRowSkeleton() {
   );
 }
 
-/** Building manage page — title band + featured panel + unit rows. */
+/** Building manage page, title band + featured panel + unit rows. */
 export function ManageBuildingSkeleton() {
   return (
     <div className="space-y-4" aria-busy="true" aria-label="Loading building">
@@ -122,7 +122,7 @@ export function TenantUnlockCardSkeleton() {
   );
 }
 
-/** Tenant My unlocks — card stack placeholder. */
+/** Tenant My unlocks, card stack placeholder. */
 export function TenantUnlocksSkeleton() {
   return (
     <div className="space-y-4" aria-busy="true" aria-label="Loading unlocks">

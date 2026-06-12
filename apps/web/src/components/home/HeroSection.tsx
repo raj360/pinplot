@@ -35,7 +35,7 @@ export function HeroSection() {
           Find verified rentals on the map. Pay once to unlock the landlord.
         </h1>
         <p className="mt-4 text-base leading-relaxed text-muted">
-          Browse approximate pins for free — the map opens where you are
+          Browse approximate pins for free. The map opens where you are
           {!isUganda ? `, ${countryName}` : ""}. Unlock the exact location and
           landlord contact for{" "}
           <span className="font-medium text-foreground">{unlockCopy}</span>.

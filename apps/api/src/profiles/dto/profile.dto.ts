@@ -17,7 +17,7 @@ export class UpdateProfileDto {
   @MaxLength(20)
   phone!: string;
 
-  /** Optional second phone — also stored as E.164. */
+  /** Optional second phone, also stored as E.164. */
   @IsOptional()
   @IsString()
   @MinLength(8)

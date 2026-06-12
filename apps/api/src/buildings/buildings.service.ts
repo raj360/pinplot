@@ -67,7 +67,7 @@ type BuildingRow = {
 
 @Injectable()
 export class BuildingsService {
-  /** Rent period of the cheapest available unit — drives /mo vs /day on cards. */
+  /** Rent period of the cheapest available unit, drives /mo vs /day on cards. */
   private static readonly CHEAPEST_UNIT_RENT_PERIOD_SQL = `
         (SELECT u_rp.rent_period::text
          FROM units u_rp
@@ -404,42 +404,6 @@ export class BuildingsService {
       featuredUntil: b.featured_until ?? null,
       featuredSource: b.featured_source ?? null,
       createdAt: b.created_at,
-    }));
-  }
-
-  /** In-app H-05: exclusive map lock recently ended (matches N-12 email window). */
-  async findHoldEndedAlerts(landlordId: string) {
-    const { rows } = await this.db.query<{
-      unit_id: string;
-      unit_number: string;
-      building_id: string;
-      building_name: string;
-      ended_at: Date;
-    }>(
-      `SELECT u.id AS unit_id,
-              u.unit_number,
-              b.id AS building_id,
-              b.name AS building_name,
-              nl.sent_at AS ended_at
-       FROM notification_log nl
-       JOIN units u
-         ON nl.dedupe_key LIKE ('unit:' || u.id::text || ':lock_ended:%')
-       JOIN buildings b ON b.id = u.building_id
-       WHERE b.landlord_id = $1
-         AND nl.user_id = $1
-         AND nl.template = 'landlord_unit_lock_ended'
-         AND nl.sent_at > NOW() - INTERVAL '7 days'
-       ORDER BY nl.sent_at DESC
-       LIMIT 8`,
-      [landlordId],
-    );
-
-    return rows.map((row) => ({
-      unitId: row.unit_id,
-      unitNumber: row.unit_number,
-      buildingId: row.building_id,
-      buildingName: row.building_name,
-      endedAt: row.ended_at,
     }));
   }
 

@@ -1,4 +1,4 @@
-/** Public explore map — block/neighborhood level; not street/roof detail. */
+/** Public explore map, block/neighborhood level; not street/roof detail. */
 export const EXPLORE_MAP_MAX_ZOOM = 16;
 export const EXPLORE_MAP_CLUSTER_ZOOM_STEP = 2;
 /** Allow wider city-level browse so jittered pins read as approximate. */
@@ -7,11 +7,11 @@ export const EXPLORE_MAP_DEFAULT_ZOOM = 11;
 /** Half-span when focusing a listing on the explore map (~1.6 km). */
 export const EXPLORE_BUILDING_FOCUS_RADIUS_DEG = 0.014;
 
-/** Half-span (degrees) for preset search areas — ~3.5 km at the equator. */
+/** Half-span (degrees) for preset search areas, ~3.5 km at the equator. */
 export const EXPLORE_NEIGHBORHOOD_RADIUS_DEG = 0.032;
-/** Half-span for city / town jumps — ~9 km. */
+/** Half-span for city / town jumps, ~9 km. */
 export const EXPLORE_CITY_RADIUS_DEG = 0.08;
-/** Half-span for Near me / geo bootstrap — ~10 km. */
+/** Half-span for Near me / geo bootstrap, ~10 km. */
 export const EXPLORE_NEAR_ME_RADIUS_DEG = 0.09;
 
 /** Explore pin + cluster palette (keep globals.css map tokens in sync). */
@@ -34,7 +34,7 @@ export const EXPLORE_MAP_POI_STYLES: google.maps.MapTypeStyle[] = [
   },
 ];
 
-/** Individual building pins — softer + smaller than cluster bubbles. */
+/** Individual building pins, softer + smaller than cluster bubbles. */
 export const EXPLORE_MAP_PIN_COLORS = {
   available: "#fdba74",
   availableText: "#7c2d12",
@@ -56,7 +56,7 @@ export const EXPLORE_MAP_MARKER_COLORS = {
   unlockedActive: EXPLORE_MAP_PIN_COLORS.unlockedActive,
 } as const;
 
-/** Unlocked / paid maps — exact location with satellite allowed. */
+/** Unlocked / paid maps, exact location with satellite allowed. */
 export const UNLOCKED_MAP_MIN_ZOOM = 10;
 export const UNLOCKED_MAP_MAX_ZOOM = 20;
 export const UNLOCKED_MAP_DEFAULT_ZOOM = 17;

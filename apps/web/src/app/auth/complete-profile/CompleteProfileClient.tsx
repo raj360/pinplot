@@ -54,7 +54,7 @@ export function CompleteProfileClient() {
         </p>
         <h1 className="mt-1 text-xl font-bold">Complete your profile</h1>
         <p className="mt-1 text-sm text-muted">
-          You&apos;re signed in — add a few details so PlotPin can display your
+          You&apos;re signed in. Add a few details so PlotPin can display your
           name and phone correctly.
         </p>
 

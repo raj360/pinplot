@@ -13,7 +13,7 @@ type FeaturedBoostPanelProps = {
   isFeatured: boolean;
   featuredUntil: string | null;
   featuredSource: string | null;
-  /** All-time paid unlocks — shown as ROI context for the boost. */
+  /** All-time paid unlocks, shown as ROI context for the boost. */
   unlockCount: number;
   metrics?: {
     days: number;
@@ -80,7 +80,7 @@ export function FeaturedBoostPanel({
           </h2>
           <p className="mt-1 text-sm text-muted">
             Featured listings appear on the PlotPin homepage and rank first on
-            the map — more views, more unlocks.
+            the map for more views, more unlocks.
           </p>
         </div>
         {isFeatured && featuredUntil ? (

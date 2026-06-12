@@ -45,7 +45,7 @@ export function unlockPanelDescription(options: {
       const remainder = feeUgx - primaryCreditUgx;
       return `Quoted ${quoteLine ?? formatFee(feeUgx)}. Use 1 credit (${formatFee(primaryCreditUgx)} value), then pay ${formatFee(remainder)} when checkout is live. Credits are promotional only.`;
     }
-    return `You have ${unlockCredits} unlock credit${unlockCredits === 1 ? "" : "s"} — use one to reveal exact address, landlord contact, building tour, and directions. Credits are promotional only, not withdrawable.`;
+    return `You have ${unlockCredits} unlock credit${unlockCredits === 1 ? "" : "s"}. Use one to reveal exact address, landlord contact, building tour, and directions. Credits are promotional only, not withdrawable.`;
   }
 
   if (quoteLine) {
@@ -65,9 +65,9 @@ export function unlockButtonLabel(options: {
   const formatFee = options.formatFee ?? defaultFeeFormatter;
   if (unlockCredits > 0) {
     if (primaryCreditUgx != null && primaryCreditUgx < feeUgx) {
-      return `Unlock — ${formatFee(feeUgx - primaryCreditUgx)} after credit`;
+      return `Unlock for ${formatFee(feeUgx - primaryCreditUgx)} after credit`;
     }
     return "Unlock with credit";
   }
-  return `Unlock — ${formatFee(feeUgx)}`;
+  return `Unlock for ${formatFee(feeUgx)}`;
 }

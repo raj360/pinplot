@@ -53,7 +53,7 @@ type AreaSearchComboboxProps = {
   loading?: boolean;
   /** Override trigger label (e.g. “Map area” while browsing viewport). */
   displayOverride?: string;
-  /** Embedded in composed search bar — no outer border. */
+  /** Embedded in composed search bar, no outer border. */
   variant?: "default" | "segment";
 };
 
@@ -62,7 +62,7 @@ type OptionGroup = {
   options: AreaSearchOption[];
 };
 
-/** LPMS-style searchable picker — closed trigger + in-panel search (CaseLinkedSearchCombobox). */
+/** LPMS-style searchable picker, closed trigger + in-panel search (CaseLinkedSearchCombobox). */
 export function AreaSearchCombobox({
   label,
   value,
