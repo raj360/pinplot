@@ -7,9 +7,19 @@ import {
   DashboardSection,
   StatCard,
 } from "@/components/layout/DashboardSection";
+import { LandlordHoldEndedBanner } from "@/components/landlord/LandlordHoldEndedBanner";
 import { LandlordDashboardSkeleton } from "@/components/landlord/LandlordPageSkeletons";
-import { fetchMyBuildings, type LandlordBuilding } from "@/lib/api/buildings";
+import {
+  fetchLandlordHoldAlerts,
+  fetchMyBuildings,
+  type LandlordBuilding,
+  type LandlordHoldEndedAlert,
+} from "@/lib/api/buildings";
 import { getAccessToken } from "@/lib/api/client";
+import {
+  filterVisibleHoldAlerts,
+  holdAlertKey,
+} from "@/lib/landlord/hold-alerts-storage";
 import {
   buildingNeedsUnitSetup,
   buildingWasRejected,
@@ -24,6 +34,10 @@ export default function LandlordDashboardClient() {
   const router = useRouter();
   const params = useSearchParams();
   const [buildings, setBuildings] = useState<LandlordBuilding[]>([]);
+  const [holdAlerts, setHoldAlerts] = useState<LandlordHoldEndedAlert[]>([]);
+  const [dismissedHoldKeys, setDismissedHoldKeys] = useState<Set<string>>(
+    () => new Set(),
+  );
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const created = params.get("created") === "1";
@@ -34,6 +48,13 @@ export default function LandlordDashboardClient() {
   const firstNeedsSetup = buildings.find(buildingNeedsUnitSetup);
   const featuredCount = buildings.filter((b) => b.isFeatured).length;
   const totalUnlocks = buildings.reduce((sum, b) => sum + (b.unlockCount ?? 0), 0);
+  const lockedUnitCount = buildings.reduce(
+    (sum, b) => sum + (b.lockedUnitCount ?? 0),
+    0,
+  );
+  const visibleHoldAlerts = filterVisibleHoldAlerts(holdAlerts).filter(
+    (alert) => !dismissedHoldKeys.has(holdAlertKey(alert)),
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -47,8 +68,15 @@ export default function LandlordDashboardClient() {
       }
 
       try {
-        setBuildings(await fetchMyBuildings());
-        setError(null);
+        const [buildingList, alerts] = await Promise.all([
+          fetchMyBuildings(),
+          fetchLandlordHoldAlerts(),
+        ]);
+        if (!cancelled) {
+          setBuildings(buildingList);
+          setHoldAlerts(alerts);
+          setError(null);
+        }
       } catch {
         if (!cancelled) setError("Could not load your buildings.");
       } finally {
@@ -107,6 +135,15 @@ export default function LandlordDashboardClient() {
         </div>
       ) : null}
 
+      {!loading && visibleHoldAlerts.length > 0 ? (
+        <LandlordHoldEndedBanner
+          alerts={visibleHoldAlerts}
+          onDismiss={(key) => {
+            setDismissedHoldKeys((prev) => new Set(prev).add(key));
+          }}
+        />
+      ) : null}
+
       <DashboardSection
         title="Your buildings"
         description="After admin approval, open each building and mark units available when you are ready to receive tenant unlocks."
@@ -137,6 +174,12 @@ export default function LandlordDashboardClient() {
                   highlight={needsSetupCount > 0}
                 />
                 <StatCard label="Tenant unlocks" value={totalUnlocks} variant="primary" />
+                <StatCard
+                  label="Units on hold"
+                  value={lockedUnitCount}
+                  variant="primary"
+                  highlight={lockedUnitCount > 0}
+                />
                 <StatCard label="Featured now" value={featuredCount} variant="primary" />
                 {pendingCount > 0 ? (
                   <StatCard
@@ -180,6 +223,9 @@ export default function LandlordDashboardClient() {
                       {b.availableUnitCount} available · {b.totalUnits} units total
                       {b.unlockCount > 0
                         ? ` · ${b.unlockCount} unlock${b.unlockCount === 1 ? "" : "s"}`
+                        : ""}
+                      {(b.lockedUnitCount ?? 0) > 0
+                        ? ` · ${b.lockedUnitCount} on tenant hold`
                         : ""}
                     </p>
                     {b.isFeatured ? (

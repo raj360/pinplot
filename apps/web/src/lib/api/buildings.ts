@@ -151,9 +151,23 @@ export type LandlordBuilding = {
   availableUnitCount: number;
   /** Paid tenant unlocks across this building's units (all time). */
   unlockCount: number;
+  lockedUnitCount: number;
   isFeatured: boolean;
   featuredUntil: string | null;
   featuredSource: string | null;
+  createdAt: string;
+};
+
+export type LandlordHoldEndedAlert = {
+  unitId: string;
+  unitNumber: string;
+  buildingId: string;
+  buildingName: string;
+  endedAt: string;
+};
+
+export async function fetchLandlordHoldAlerts() {
+  return apiFetch<LandlordHoldEndedAlert[]>("/buildings/mine/hold-alerts");
 };
 
 export type CreateBuildingPayload = {
@@ -221,6 +235,8 @@ export type LandlordBuildingDetail = {
     currency: string;
     rentPeriod?: "month" | "day";
     status: string;
+    lockedUntil?: string | null;
+    activeUnlockExpiresAt?: string | null;
   }>;
 };
 

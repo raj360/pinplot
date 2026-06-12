@@ -205,7 +205,7 @@ yarn db:migrate   # applies 029 (notification_log), 030 (listing_analytics_event
 | H-02 | `GET /unlocks/mine?status=active\|expired\|all` | Done | Default `active` |
 | H-03 | Tenant UI: **Active** + **Past unlocks** tabs | Done | |
 | H-04 | Expired row copy + CTA | Done | “Unlock again on Explore” |
-| H-05 | Landlord: optional “lock ended” in-app hint | Pending | N-12 email ships in Track B |
+| H-05 | Landlord: optional “lock ended” in-app hint | Done | Dashboard banner + manage countdown (2026-06) |
 
 **Exit:** Tenants see unlock history; long-term units reappear on map after expiry (H-01).
 

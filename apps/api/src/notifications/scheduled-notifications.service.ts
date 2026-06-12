@@ -189,6 +189,12 @@ export class ScheduledNotificationsService {
           userId: row.landlord_id,
           template,
           dedupeKey,
+          payload: {
+            buildingId: row.building_id,
+            unitId: row.unit_id,
+            unitNumber: row.unit_number,
+            buildingName: row.building_name,
+          },
         });
         sent += 1;
       }

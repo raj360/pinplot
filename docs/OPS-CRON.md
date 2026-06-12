@@ -46,10 +46,10 @@ Use a **separate lightweight service** in the same Railway project — not the m
 ### Architecture
 
 ```
-┌─────────────────────────────┐     hourly POST      ┌──────────────────────────┐
-│  plotpin-cron (1 schedule)  │ ──────────────────► │  plotpin-api (N replicas) │
-│  Cron Schedule: 15 * * * *  │   Bearer CRON_SECRET  │  POST /api/v1/cron/hourly │
-│  exits after curl           │                       │  (no in-app scheduler)    │
+┌─────────────────────────────┐     hourly POST       ┌──────────────────────────┐
+│  plotpin-cron (1 schedule)  │ ──────────────────►   │  plotpin-api (N replicas)│
+│  Cron Schedule: 15 * * * *  │   Bearer CRON_SECRET  │  POST /api/v1/cron/hourly│
+│  exits after curl           │                       │  (no in-app scheduler)   │
 └─────────────────────────────┘                       └──────────────────────────┘
 ```
 

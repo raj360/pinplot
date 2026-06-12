@@ -7,6 +7,7 @@ import { DashboardSection } from "@/components/layout/DashboardSection";
 import { BuildingPhotoManager } from "@/components/buildings/BuildingPhotoManager";
 import { ManageBuildingSkeleton } from "@/components/landlord/LandlordPageSkeletons";
 import { FeaturedBoostPanel } from "@/components/landlord/FeaturedBoostPanel";
+import { LandlordUnitHoldLine } from "@/components/landlord/LandlordUnitHoldLine";
 import { Button } from "@/components/ui/button";
 import {
   fetchMyBuilding,
@@ -107,19 +108,8 @@ export default function ManageBuildingClient({
     setPendingAction({ unitId, status });
     setError(null);
     try {
-      const result = await updateUnitStatus(buildingId, unitId, status);
-      setBuilding((prev) => {
-        if (!prev) return prev;
-        const units = prev.units.map((u) =>
-          u.id === unitId ? result.unit : u,
-        );
-        return {
-          ...prev,
-          units,
-          availableUnitCount: units.filter((u) => u.status === "AVAILABLE")
-            .length,
-        };
-      });
+      await updateUnitStatus(buildingId, unitId, status);
+      await load();
     } catch (err) {
       const message =
         err instanceof Error ? err.message : "Could not update unit status.";
@@ -479,6 +469,12 @@ export default function ManageBuildingClient({
                         (building.buildingType === "airbnb" ? "day" : "month"),
                     )}
                   </p>
+                  {locked ? (
+                    <LandlordUnitHoldLine
+                      lockedUntil={unit.lockedUntil ?? null}
+                      activeUnlockExpiresAt={unit.activeUnlockExpiresAt ?? null}
+                    />
+                  ) : null}
                 </div>
 
                 <div className="flex flex-wrap items-center gap-2">

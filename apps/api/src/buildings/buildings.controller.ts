@@ -64,6 +64,12 @@ export class BuildingsController {
     return this.buildings.findByLandlord(user.id);
   }
 
+  @Get("mine/hold-alerts")
+  @UseGuards(SupabaseAuthGuard)
+  findHoldAlerts(@CurrentUser() user: AuthUser) {
+    return this.buildings.findHoldEndedAlerts(user.id);
+  }
+
   @Get("mine/:id")
   @UseGuards(SupabaseAuthGuard)
   findMineOne(@Param("id") id: string, @CurrentUser() user: AuthUser) {

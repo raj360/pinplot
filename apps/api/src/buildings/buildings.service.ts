@@ -376,7 +376,8 @@ export class BuildingsService {
         (SELECT COUNT(*)
            FROM unit_unlocks uu
            JOIN units u2 ON u2.id = uu.unit_id
-          WHERE u2.building_id = b.id AND uu.is_winner = TRUE) AS unlock_count
+          WHERE u2.building_id = b.id AND uu.is_winner = TRUE) AS unlock_count,
+        COUNT(u.id) FILTER (WHERE u.status = 'LOCKED') AS locked_unit_count
        FROM buildings b
        LEFT JOIN units u ON u.building_id = b.id
        WHERE b.landlord_id = $1
@@ -395,6 +396,7 @@ export class BuildingsService {
       totalUnits: b.total_units,
       availableUnitCount: Number(b.available_unit_count ?? 0),
       unlockCount: Number(b.unlock_count ?? 0),
+      lockedUnitCount: Number(b.locked_unit_count ?? 0),
       isFeatured: this.isFeaturedActive({
         is_featured: Boolean(b.is_featured),
         featured_until: (b.featured_until as Date | null) ?? null,
@@ -402,6 +404,42 @@ export class BuildingsService {
       featuredUntil: b.featured_until ?? null,
       featuredSource: b.featured_source ?? null,
       createdAt: b.created_at,
+    }));
+  }
+
+  /** In-app H-05: exclusive map lock recently ended (matches N-12 email window). */
+  async findHoldEndedAlerts(landlordId: string) {
+    const { rows } = await this.db.query<{
+      unit_id: string;
+      unit_number: string;
+      building_id: string;
+      building_name: string;
+      ended_at: Date;
+    }>(
+      `SELECT u.id AS unit_id,
+              u.unit_number,
+              b.id AS building_id,
+              b.name AS building_name,
+              nl.sent_at AS ended_at
+       FROM notification_log nl
+       JOIN units u
+         ON nl.dedupe_key LIKE ('unit:' || u.id::text || ':lock_ended:%')
+       JOIN buildings b ON b.id = u.building_id
+       WHERE b.landlord_id = $1
+         AND nl.user_id = $1
+         AND nl.template = 'landlord_unit_lock_ended'
+         AND nl.sent_at > NOW() - INTERVAL '7 days'
+       ORDER BY nl.sent_at DESC
+       LIMIT 8`,
+      [landlordId],
+    );
+
+    return rows.map((row) => ({
+      unitId: row.unit_id,
+      unitNumber: row.unit_number,
+      buildingId: row.building_id,
+      buildingName: row.building_name,
+      endedAt: row.ended_at,
     }));
   }
 
@@ -1699,10 +1737,28 @@ export class BuildingsService {
 
   private async fetchUnits(buildingId: string) {
     const { rows } = await this.db.query(
-      `SELECT u.id, u.unit_number, u.bedrooms, u.bathrooms, u.rent_amount, u.currency,
-              u.rent_period, u.status, b.building_type
+      `SELECT u.id,
+              u.unit_number,
+              u.bedrooms,
+              u.bathrooms,
+              u.rent_amount,
+              u.currency,
+              u.rent_period,
+              u.status,
+              u.locked_until,
+              b.building_type,
+              active_unlock.expires_at AS active_unlock_expires_at
        FROM units u
        JOIN buildings b ON b.id = u.building_id
+       LEFT JOIN LATERAL (
+         SELECT uu.expires_at
+           FROM unit_unlocks uu
+          WHERE uu.unit_id = u.id
+            AND uu.is_winner = TRUE
+            AND (uu.expires_at IS NULL OR uu.expires_at > NOW())
+          ORDER BY uu.created_at DESC
+          LIMIT 1
+       ) active_unlock ON TRUE
        WHERE u.building_id = $1
        ORDER BY u.unit_number`,
       [buildingId],
@@ -1719,6 +1775,8 @@ export class BuildingsService {
           ? u.rent_period
           : defaultRentPeriodForBuildingType(u.building_type as string),
       status: u.status,
+      lockedUntil: u.locked_until ?? null,
+      activeUnlockExpiresAt: u.active_unlock_expires_at ?? null,
     }));
   }
 
