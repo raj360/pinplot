@@ -141,7 +141,7 @@ export function NotificationBell({ ready = true }: NotificationBellProps) {
       >
         <Bell className="size-5" aria-hidden strokeWidth={1.75} />
         {ready && unreadCount > 0 ? (
-          <span className="absolute -right-1 -top-1 flex min-w-[1.1rem] items-center justify-center rounded-full bg-amber-400 px-1 text-[10px] font-bold leading-none text-amber-950">
+          <span className="notification-badge absolute -right-1 -top-1 flex h-[1.1rem] min-w-[1.1rem] items-center justify-center rounded-full bg-amber-400 px-1 text-[10px] font-bold leading-none text-amber-950">
             {unreadCount > 9 ? "9+" : unreadCount}
           </span>
         ) : null}

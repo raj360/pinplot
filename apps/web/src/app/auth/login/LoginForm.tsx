@@ -209,7 +209,7 @@ export function LoginForm() {
 
           <div className="border border-border bg-surface p-6 shadow-card sm:p-8">
             <div className="mb-6 hidden text-center lg:block">
-              <PlotPinLogo variant="colored" height={44} href={null} />
+              <PlotPinLogo variant="colored" height={38} href={null} />
             </div>
 
             <h2 className="text-xl font-bold tracking-tight">Sign in</h2>
