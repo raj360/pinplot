@@ -4,6 +4,8 @@ import { TenantNotificationsService } from "./tenant-notifications.service";
 import { TransactionalEmailBuilder } from "./transactional-email-builder.service";
 import { NotificationLogService } from "./notification-log.service";
 import { ScheduledNotificationsService } from "./scheduled-notifications.service";
+import { InAppNotificationsService } from "./in-app-notifications.service";
+import { InAppNotificationsController } from "./in-app-notifications.controller";
 import {
   EmailLogoRootAliasController,
   EmailPublicAssetsController,
@@ -11,13 +13,18 @@ import {
 
 @Global()
 @Module({
-  controllers: [EmailPublicAssetsController, EmailLogoRootAliasController],
+  controllers: [
+    EmailPublicAssetsController,
+    EmailLogoRootAliasController,
+    InAppNotificationsController,
+  ],
   providers: [
     PostmarkService,
     TransactionalEmailBuilder,
     TenantNotificationsService,
     NotificationLogService,
     ScheduledNotificationsService,
+    InAppNotificationsService,
   ],
   exports: [
     PostmarkService,
@@ -25,6 +32,7 @@ import {
     TenantNotificationsService,
     NotificationLogService,
     ScheduledNotificationsService,
+    InAppNotificationsService,
   ],
 })
 export class NotificationsModule {}

@@ -8,6 +8,11 @@ import { DatabaseService } from "../database/database.service";
 import { PostmarkService } from "./postmark.service";
 import { TransactionalEmailBuilder } from "./transactional-email-builder.service";
 import { NotificationLogService } from "./notification-log.service";
+import { InAppNotificationsService } from "./in-app-notifications.service";
+import {
+  IN_APP_NOTIFICATION_TYPES,
+  type InAppNotificationType,
+} from "./in-app-notification.types";
 
 type UnlockRow = {
   unlock_id: string;
@@ -31,6 +36,7 @@ export class ScheduledNotificationsService {
     private readonly postmark: PostmarkService,
     private readonly emails: TransactionalEmailBuilder,
     private readonly log: NotificationLogService,
+    private readonly inApp: InAppNotificationsService,
     private readonly config: ConfigService,
   ) {}
 
@@ -83,60 +89,60 @@ export class ScheduledNotificationsService {
       const manageUrl = this.appUrl(`/landlord/buildings/${row.building_id}`);
       const exploreUrl = this.appUrl("/explore");
 
-      if (row.tenant_email) {
-        const template = "tenant_unlock_expired";
-        const dedupeKey = `unlock:${row.unlock_id}:expired`;
-        if (!(await this.log.wasSent(row.tenant_id, template, dedupeKey))) {
-          const { html, text } = this.emails.buildUnlockExpiredTenantEmail(
-            row.building_name,
-            row.unit_number,
-            exploreUrl,
-            !policy.locksUnit,
-          );
-          const result = await this.postmark.sendEmail({
-            to: row.tenant_email,
-            subject: `PlotPin unlock ended — ${row.building_name}`,
-            htmlBody: html,
-            textBody: text,
-            tag: template,
-          });
-          if (result.delivered) {
-            await this.log.recordSent({
-              userId: row.tenant_id,
-              template,
-              dedupeKey,
-            });
-            sent += 1;
-          }
-        }
+      if (
+        await this.dispatch({
+          userId: row.tenant_id,
+          email: row.tenant_email,
+          inAppType: IN_APP_NOTIFICATION_TYPES.UNLOCK_EXPIRED_TENANT,
+          title: `Unlock ended for ${row.building_name}`,
+          body: `Unit ${row.unit_number}. Contact details are no longer available from this unlock.`,
+          ctaUrl: exploreUrl,
+          payload: {
+            buildingId: row.building_id,
+            unitId: row.unit_id,
+            unlockId: row.unlock_id,
+          },
+          dedupeKey: `unlock:${row.unlock_id}:expired`,
+          emailTemplate: "tenant_unlock_expired",
+          emailSubject: `PlotPin unlock ended: ${row.building_name}`,
+          buildEmail: () =>
+            this.emails.buildUnlockExpiredTenantEmail(
+              row.building_name,
+              row.unit_number,
+              exploreUrl,
+              !policy.locksUnit,
+            ),
+        })
+      ) {
+        sent += 1;
       }
 
-      if (row.landlord_email) {
-        const template = "landlord_unlock_expired";
-        const dedupeKey = `unlock:${row.unlock_id}:expired`;
-        if (!(await this.log.wasSent(row.landlord_id, template, dedupeKey))) {
-          const { html, text } = this.emails.buildUnlockExpiredLandlordEmail(
-            row.building_name,
-            row.unit_number,
-            manageUrl,
-            policy.locksUnit,
-          );
-          const result = await this.postmark.sendEmail({
-            to: row.landlord_email,
-            subject: `PlotPin: unlock ended — Unit ${row.unit_number}`,
-            htmlBody: html,
-            textBody: text,
-            tag: template,
-          });
-          if (result.delivered) {
-            await this.log.recordSent({
-              userId: row.landlord_id,
-              template,
-              dedupeKey,
-            });
-            sent += 1;
-          }
-        }
+      if (
+        await this.dispatch({
+          userId: row.landlord_id,
+          email: row.landlord_email,
+          inAppType: IN_APP_NOTIFICATION_TYPES.UNLOCK_EXPIRED_LANDLORD,
+          title: `Unlock ended for Unit ${row.unit_number}`,
+          body: `${row.building_name}. Update the unit if it is rented or still available.`,
+          ctaUrl: manageUrl,
+          payload: {
+            buildingId: row.building_id,
+            unitId: row.unit_id,
+            unlockId: row.unlock_id,
+          },
+          dedupeKey: `unlock:${row.unlock_id}:expired`,
+          emailTemplate: "landlord_unlock_expired",
+          emailSubject: `PlotPin unlock ended for unit ${row.unit_number}`,
+          buildEmail: () =>
+            this.emails.buildUnlockExpiredLandlordEmail(
+              row.building_name,
+              row.unit_number,
+              manageUrl,
+              policy.locksUnit,
+            ),
+        })
+      ) {
+        sent += 1;
       }
     }
     return sent;
@@ -166,36 +172,35 @@ export class ScheduledNotificationsService {
 
     let sent = 0;
     for (const row of rows) {
-      if (!row.landlord_email) continue;
       const template = "landlord_unit_lock_ended";
       const dedupeKey = `unit:${row.unit_id}:lock_ended:${row.locked_until.toISOString()}`;
-      if (await this.log.wasSent(row.landlord_id, template, dedupeKey)) continue;
-
       const manageUrl = this.appUrl(`/landlord/buildings/${row.building_id}`);
-      const { html, text } = this.emails.buildUnitLockEndedEmail(
-        row.building_name,
-        row.unit_number,
-        manageUrl,
-      );
-      const result = await this.postmark.sendEmail({
-        to: row.landlord_email,
-        subject: `PlotPin: exclusive lock ended — Unit ${row.unit_number}`,
-        htmlBody: html,
-        textBody: text,
-        tag: template,
-      });
-      if (result.delivered) {
-        await this.log.recordSent({
+
+      if (
+        await this.dispatch({
           userId: row.landlord_id,
-          template,
-          dedupeKey,
+          email: row.landlord_email,
+          inAppType: IN_APP_NOTIFICATION_TYPES.UNIT_LOCK_ENDED,
+          title: `Exclusive lock ended for unit ${row.unit_number}`,
+          body: `${row.building_name} is visible on the map again. Update the unit if it is rented or still available.`,
+          ctaUrl: manageUrl,
           payload: {
             buildingId: row.building_id,
             unitId: row.unit_id,
             unitNumber: row.unit_number,
             buildingName: row.building_name,
           },
-        });
+          dedupeKey,
+          emailTemplate: template,
+          emailSubject: `PlotPin exclusive lock ended for unit ${row.unit_number}`,
+          buildEmail: () =>
+            this.emails.buildUnitLockEndedEmail(
+              row.building_name,
+              row.unit_number,
+              manageUrl,
+            ),
+        })
+      ) {
         sent += 1;
       }
     }
@@ -222,30 +227,26 @@ export class ScheduledNotificationsService {
 
     let sent = 0;
     for (const row of rows) {
-      if (!row.landlord_email) continue;
       const template = "landlord_featured_expiring";
       const dedupeKey = `building:${row.id}:featured_7d`;
-      if (await this.log.wasSent(row.landlord_id, template, dedupeKey)) continue;
-
       const manageUrl = this.appUrl(`/landlord/buildings/${row.id}`);
-      const { html, text } = this.emails.buildFeaturedExpiringEmail(
-        row.name,
-        7,
-        manageUrl,
-      );
-      const result = await this.postmark.sendEmail({
-        to: row.landlord_email,
-        subject: `PlotPin: featured boost ending soon — ${row.name}`,
-        htmlBody: html,
-        textBody: text,
-        tag: template,
-      });
-      if (result.delivered) {
-        await this.log.recordSent({
+
+      if (
+        await this.dispatch({
           userId: row.landlord_id,
-          template,
+          email: row.landlord_email,
+          inAppType: IN_APP_NOTIFICATION_TYPES.FEATURED_EXPIRING,
+          title: `Featured boost ending soon: ${row.name}`,
+          body: "Your featured placement expires in about 7 days. Renew to stay at the top of Explore.",
+          ctaUrl: manageUrl,
+          payload: { buildingId: row.id, buildingName: row.name },
           dedupeKey,
-        });
+          emailTemplate: template,
+          emailSubject: `PlotPin featured boost ending soon for ${row.name}`,
+          buildEmail: () =>
+            this.emails.buildFeaturedExpiringEmail(row.name, 7, manageUrl),
+        })
+      ) {
         sent += 1;
       }
     }
@@ -273,30 +274,34 @@ export class ScheduledNotificationsService {
 
     let sent = 0;
     for (const row of rows) {
-      if (!row.landlord_email) continue;
       const template = "landlord_stale_available";
       const dedupeKey = `unit:${row.unit_id}:stale_30d`;
-      if (await this.log.wasSent(row.landlord_id, template, dedupeKey)) continue;
-
       const manageUrl = this.appUrl(`/landlord/buildings/${row.building_id}`);
-      const { html, text } = this.emails.buildStaleAvailableEmail(
-        row.building_name,
-        row.unit_number,
-        manageUrl,
-      );
-      const result = await this.postmark.sendEmail({
-        to: row.landlord_email,
-        subject: `PlotPin: still available? — Unit ${row.unit_number}`,
-        htmlBody: html,
-        textBody: text,
-        tag: template,
-      });
-      if (result.delivered) {
-        await this.log.recordSent({
+
+      if (
+        await this.dispatch({
           userId: row.landlord_id,
-          template,
+          email: row.landlord_email,
+          inAppType: IN_APP_NOTIFICATION_TYPES.STALE_AVAILABLE,
+          title: `Still available? Unit ${row.unit_number}`,
+          body: `${row.building_name} has been listed as available for 30 days. Update the unit if it is rented.`,
+          ctaUrl: manageUrl,
+          payload: {
+            buildingId: row.building_id,
+            unitId: row.unit_id,
+            unitNumber: row.unit_number,
+          },
           dedupeKey,
-        });
+          emailTemplate: template,
+          emailSubject: `PlotPin still available? Unit ${row.unit_number}`,
+          buildEmail: () =>
+            this.emails.buildStaleAvailableEmail(
+              row.building_name,
+              row.unit_number,
+              manageUrl,
+            ),
+        })
+      ) {
         sent += 1;
       }
     }
@@ -323,31 +328,35 @@ export class ScheduledNotificationsService {
 
     let sent = 0;
     for (const row of rows) {
-      if (!row.landlord_email) continue;
       const template = "landlord_unlock_expiring";
       const dedupeKey = `unlock:${row.unlock_id}:expiring_12h`;
-      if (await this.log.wasSent(row.landlord_id, template, dedupeKey)) continue;
-
       const manageUrl = this.appUrl(`/landlord/buildings/${row.building_id}`);
-      const { html, text } = this.emails.buildUnlockExpiringLandlordEmail(
-        row.building_name,
-        row.unit_number,
-        12,
-        manageUrl,
-      );
-      const result = await this.postmark.sendEmail({
-        to: row.landlord_email,
-        subject: `PlotPin: unlock ending soon — Unit ${row.unit_number}`,
-        htmlBody: html,
-        textBody: text,
-        tag: template,
-      });
-      if (result.delivered) {
-        await this.log.recordSent({
+
+      if (
+        await this.dispatch({
           userId: row.landlord_id,
-          template,
+          email: row.landlord_email,
+          inAppType: IN_APP_NOTIFICATION_TYPES.UNLOCK_EXPIRING_LANDLORD,
+          title: `Unlock ending soon for Unit ${row.unit_number}`,
+          body: `${row.building_name}. About 12 hours left in the tenant's exclusive window.`,
+          ctaUrl: manageUrl,
+          payload: {
+            buildingId: row.building_id,
+            unitId: row.unit_id,
+            unlockId: row.unlock_id,
+          },
           dedupeKey,
-        });
+          emailTemplate: template,
+          emailSubject: `PlotPin unlock ending soon for unit ${row.unit_number}`,
+          buildEmail: () =>
+            this.emails.buildUnlockExpiringLandlordEmail(
+              row.building_name,
+              row.unit_number,
+              12,
+              manageUrl,
+            ),
+        })
+      ) {
         sent += 1;
       }
     }
@@ -374,40 +383,98 @@ export class ScheduledNotificationsService {
 
     let sent = 0;
     for (const row of rows) {
-      if (!row.tenant_email) continue;
       const policy = resolveUnlockPolicy({
         buildingType: row.building_type,
-        rentPeriod: row.rent_period ?? defaultRentPeriodForBuildingType(row.building_type),
+        rentPeriod:
+          row.rent_period ?? defaultRentPeriodForBuildingType(row.building_type),
       });
       const template = "tenant_unlock_expiring";
       const dedupeKey = `unlock:${row.unlock_id}:expiring_24h`;
-      if (await this.log.wasSent(row.tenant_id, template, dedupeKey)) continue;
-
       const unlocksUrl = this.appUrl("/tenant/unlocks");
-      const { html, text } = this.emails.buildUnlockExpiringTenantEmail(
-        row.building_name,
-        row.unit_number,
-        24,
-        !policy.locksUnit,
-        unlocksUrl,
-      );
-      const result = await this.postmark.sendEmail({
-        to: row.tenant_email,
-        subject: `PlotPin: unlock ending soon — ${row.building_name}`,
-        htmlBody: html,
-        textBody: text,
-        tag: template,
-      });
-      if (result.delivered) {
-        await this.log.recordSent({
+
+      if (
+        await this.dispatch({
           userId: row.tenant_id,
-          template,
+          email: row.tenant_email,
+          inAppType: IN_APP_NOTIFICATION_TYPES.UNLOCK_EXPIRING_TENANT,
+          title: `Unlock ending soon for ${row.building_name}`,
+          body: `Unit ${row.unit_number}. About 24 hours left to contact the landlord.`,
+          ctaUrl: unlocksUrl,
+          payload: {
+            buildingId: row.building_id,
+            unitId: row.unit_id,
+            unlockId: row.unlock_id,
+          },
           dedupeKey,
-        });
+          emailTemplate: template,
+          emailSubject: `PlotPin unlock ending soon for ${row.building_name}`,
+          buildEmail: () =>
+            this.emails.buildUnlockExpiringTenantEmail(
+              row.building_name,
+              row.unit_number,
+              24,
+              !policy.locksUnit,
+              unlocksUrl,
+            ),
+        })
+      ) {
         sent += 1;
       }
     }
     return sent;
+  }
+
+  /** In-app first; email is optional second channel (idempotent via notification_log). */
+  private async dispatch(params: {
+    userId: string;
+    email: string | null;
+    inAppType: InAppNotificationType;
+    title: string;
+    body: string;
+    ctaUrl?: string;
+    payload?: Record<string, unknown>;
+    dedupeKey: string;
+    emailTemplate: string;
+    emailSubject: string;
+    buildEmail: () => { html: string; text: string };
+  }): Promise<boolean> {
+    await this.inApp.create({
+      userId: params.userId,
+      type: params.inAppType,
+      title: params.title,
+      body: params.body,
+      ctaUrl: params.ctaUrl,
+      payload: params.payload,
+      dedupeKey: params.dedupeKey,
+    });
+
+    const email = params.email?.trim();
+    if (!email) return true;
+
+    if (await this.log.wasSent(params.userId, params.emailTemplate, params.dedupeKey)) {
+      return false;
+    }
+
+    const { html, text } = params.buildEmail();
+    const result = await this.postmark.sendEmail({
+      to: email,
+      subject: params.emailSubject,
+      htmlBody: html,
+      textBody: text,
+      tag: params.emailTemplate,
+    });
+
+    if (result.delivered) {
+      await this.log.recordSent({
+        userId: params.userId,
+        template: params.emailTemplate,
+        dedupeKey: params.dedupeKey,
+        payload: params.payload,
+      });
+      return true;
+    }
+
+    return false;
   }
 
   private appUrl(path: string) {

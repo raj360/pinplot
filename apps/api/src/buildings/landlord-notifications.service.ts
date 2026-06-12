@@ -2,6 +2,8 @@ import { Injectable, Logger } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { PostmarkService } from "../notifications/postmark.service";
 import { TransactionalEmailBuilder } from "../notifications/transactional-email-builder.service";
+import { InAppNotificationsService } from "../notifications/in-app-notifications.service";
+import { IN_APP_NOTIFICATION_TYPES } from "../notifications/in-app-notification.types";
 
 export type ListingRejectedNotification = {
   landlordId: string;
@@ -17,6 +19,7 @@ export type UnlockReceivedNotification = {
   buildingId: string;
   buildingName: string;
   unitNumber: string;
+  paymentId: string;
 };
 
 export type ListingApprovedNotification = {
@@ -34,6 +37,7 @@ export class LandlordNotificationsService {
     private readonly postmark: PostmarkService,
     private readonly config: ConfigService,
     private readonly emails: TransactionalEmailBuilder,
+    private readonly inApp: InAppNotificationsService,
   ) {}
 
   private appUrl(path: string) {
@@ -46,6 +50,24 @@ export class LandlordNotificationsService {
   async notifyUnlockReceived(
     payload: UnlockReceivedNotification,
   ): Promise<{ delivered: boolean; channel: "postmark" | "stub" }> {
+    const manageUrl = this.appUrl(
+      `/landlord/buildings/${payload.buildingId}`,
+    );
+
+    await this.inApp.create({
+      userId: payload.landlordId,
+      type: IN_APP_NOTIFICATION_TYPES.UNLOCK_RECEIVED,
+      title: `Tenant unlocked Unit ${payload.unitNumber}`,
+      body: `${payload.buildingName}. A tenant paid to contact you.`,
+      ctaUrl: manageUrl,
+      payload: {
+        buildingId: payload.buildingId,
+        unitNumber: payload.unitNumber,
+        paymentId: payload.paymentId,
+      },
+      dedupeKey: `payment:${payload.paymentId}:unlock_received`,
+    });
+
     const email = payload.landlordEmail?.trim();
     if (!email) {
       this.logger.warn(
@@ -54,9 +76,6 @@ export class LandlordNotificationsService {
       return { delivered: false, channel: "stub" };
     }
 
-    const manageUrl = this.appUrl(
-      `/landlord/buildings/${payload.buildingId}`,
-    );
     const { html, text } = this.emails.buildUnlockReceivedEmail(
       payload.buildingName,
       payload.unitNumber,
@@ -80,6 +99,20 @@ export class LandlordNotificationsService {
   async notifyListingApproved(
     payload: ListingApprovedNotification,
   ): Promise<{ delivered: boolean; channel: "postmark" | "stub" }> {
+    const manageUrl = this.appUrl(
+      `/landlord/buildings/${payload.buildingId}`,
+    );
+
+    await this.inApp.create({
+      userId: payload.landlordId,
+      type: IN_APP_NOTIFICATION_TYPES.LISTING_APPROVED,
+      title: `"${payload.buildingName}" is approved`,
+      body: "Mark units available when you are ready for tenant unlocks.",
+      ctaUrl: manageUrl,
+      payload: { buildingId: payload.buildingId },
+      dedupeKey: `building:${payload.buildingId}:approved`,
+    });
+
     const email = payload.landlordEmail?.trim();
     if (!email) {
       this.logger.warn(
@@ -88,9 +121,6 @@ export class LandlordNotificationsService {
       return { delivered: false, channel: "stub" };
     }
 
-    const manageUrl = this.appUrl(
-      `/landlord/buildings/${payload.buildingId}`,
-    );
     const { html, text } = this.emails.buildListingApprovedEmail(
       payload.buildingName,
       manageUrl,
@@ -113,6 +143,21 @@ export class LandlordNotificationsService {
   async notifyListingRejected(
     payload: ListingRejectedNotification,
   ): Promise<{ delivered: boolean; channel: "postmark" | "stub" }> {
+    const dashboardUrl = this.appUrl("/landlord/dashboard");
+
+    await this.inApp.create({
+      userId: payload.landlordId,
+      type: IN_APP_NOTIFICATION_TYPES.LISTING_REJECTED,
+      title: `"${payload.buildingName}" needs changes`,
+      body: payload.reason,
+      ctaUrl: dashboardUrl,
+      payload: {
+        buildingId: payload.buildingId,
+        reason: payload.reason,
+      },
+      dedupeKey: `building:${payload.buildingId}:rejected:${payload.reason.slice(0, 64)}`,
+    });
+
     const email = payload.landlordEmail?.trim();
     if (!email) {
       this.logger.log(
@@ -126,7 +171,6 @@ export class LandlordNotificationsService {
       return { delivered: false, channel: "stub" };
     }
 
-    const dashboardUrl = this.appUrl("/landlord/dashboard");
     const { html, text } = this.emails.buildListingRejectedEmail(
       payload.buildingName,
       payload.reason,
