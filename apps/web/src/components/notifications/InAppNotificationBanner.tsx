@@ -19,7 +19,7 @@ export function InAppNotificationBanner({
       {notifications.map((notification) => (
         <li
           key={notification.id}
-          className="flex items-start justify-between gap-3 border border-lime-300 bg-lime-50/90 px-4 py-3 text-sm text-lime-950"
+          className="flex items-start justify-between gap-3 rounded-[var(--radius-DEFAULT)] border border-lime-300 bg-lime-50/90 px-4 py-3 text-sm text-lime-950"
         >
           <div className="min-w-0">
             <p className="font-medium">{notification.title}</p>

@@ -53,12 +53,12 @@ export function StatCard({
   return (
     <div
       className={cn(
-        "px-4 py-3",
+        "rounded-[var(--radius-DEFAULT)] border px-4 py-3",
         highlight
           ? "border-sky-300 bg-sky-50"
           : variant === "primary"
-            ? "border border-primary/25 bg-primary/10"
-            : "card-elevated",
+            ? "border-primary/25 bg-primary/10"
+            : "border-border bg-surface shadow-[var(--shadow-card)]",
         className,
       )}
     >

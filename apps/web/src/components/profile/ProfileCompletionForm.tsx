@@ -76,6 +76,7 @@ export function ProfileCompletionForm({
   submitLabel = "Save profile",
   showVerification = false,
   compact = false,
+  layout = "stack",
 }: {
   profile: UserProfile | null;
   email?: string;
@@ -86,6 +87,8 @@ export function ProfileCompletionForm({
   showVerification?: boolean;
   /** Tighter layout for /settings — skips long intro copy. */
   compact?: boolean;
+  /** Settings: form fields left, live account preview sticky on the right. */
+  layout?: "stack" | "split";
 }) {
   const formValues = useMemo(() => profileToFormValues(profile), [profile]);
 
@@ -140,16 +143,10 @@ export function ProfileCompletionForm({
     }
   }
 
-  return (
-    <form
-      onSubmit={form.handleSubmit(onSubmit)}
-      className={compact ? "space-y-3" : "space-y-4"}
-      noValidate
-    >
-      {compact ? (
-        <ProfileAccountSummary profile={summaryProfile} email={email} />
-      ) : null}
+  const useSplitLayout = compact && layout === "split";
 
+  const formFields = (
+    <>
       {!compact ? (
         <p className="text-sm text-muted">
           {profileCompletionMessage(profile?.role)}
@@ -261,6 +258,35 @@ export function ProfileCompletionForm({
           </Button>
         ) : null}
       </div>
+    </>
+  );
+
+  return (
+    <form
+      onSubmit={form.handleSubmit(onSubmit)}
+      className={compact ? "space-y-3" : "space-y-4"}
+      noValidate
+    >
+      {useSplitLayout ? (
+        <>
+          <div className="lg:hidden">
+            <ProfileAccountSummary profile={summaryProfile} email={email} />
+          </div>
+          <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_17.5rem] lg:items-start">
+            <div className="min-w-0 space-y-3">{formFields}</div>
+            <aside className="hidden lg:sticky lg:top-6 lg:block lg:self-start">
+              <ProfileAccountSummary profile={summaryProfile} email={email} />
+            </aside>
+          </div>
+        </>
+      ) : (
+        <>
+          {compact ? (
+            <ProfileAccountSummary profile={summaryProfile} email={email} />
+          ) : null}
+          {formFields}
+        </>
+      )}
     </form>
   );
 }

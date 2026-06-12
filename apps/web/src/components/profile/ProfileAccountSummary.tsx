@@ -20,7 +20,7 @@ export function ProfileAccountSummary({
   }
 
   return (
-    <div className="border border-border bg-background/60 px-3 py-3">
+    <div className="card-elevated px-3 py-3">
       <p className="text-xs font-medium uppercase tracking-wide text-muted">
         Account
       </p>

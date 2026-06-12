@@ -85,7 +85,7 @@ export default function LandlordDashboardClient() {
   return (
     <div className="space-y-4">
       {created && !loading && (
-        <p className="border border-primary/30 bg-primary/5 px-4 py-3 text-sm">
+        <p className="rounded-[var(--radius-DEFAULT)] border border-primary/30 bg-primary/5 px-4 py-3 text-sm">
           Building submitted. An admin will review it first. After approval,
           open the building and mark units <strong>available</strong> so tenants
           can find it on the map.
@@ -93,7 +93,7 @@ export default function LandlordDashboardClient() {
       )}
 
       {!loading && rejectedCount > 0 ? (
-        <div className="border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-950">
+        <div className="rounded-[var(--radius-DEFAULT)] border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-950">
           <p className="font-medium">
             {rejectedCount === 1
               ? "1 listing was rejected"
@@ -107,7 +107,7 @@ export default function LandlordDashboardClient() {
       ) : null}
 
       {!loading && needsSetupCount > 0 ? (
-        <div className="border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-950">
+        <div className="rounded-[var(--radius-DEFAULT)] border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-950">
           <p className="font-medium">
             {needsSetupCount === 1
               ? "1 approved building needs your attention"
@@ -203,10 +203,10 @@ export default function LandlordDashboardClient() {
                 return (
                 <li
                   key={b.id}
-                  className={`flex flex-wrap items-center justify-between gap-3 border bg-surface p-4 ${
+                  className={`card-elevated flex flex-wrap items-center justify-between gap-3 p-4 ${
                     status.actionRequired
                       ? "border-sky-300 ring-1 ring-sky-200"
-                      : "border-border"
+                      : ""
                   }`}
                 >
                   <div className="min-w-0">
@@ -266,7 +266,7 @@ export default function LandlordDashboardClient() {
               );
               })}
               {buildings.length === 0 && !error && (
-                <li className="border border-dashed border-border px-4 py-12 text-center text-sm text-muted">
+                <li className="card-elevated border-dashed px-4 py-12 text-center text-sm text-muted">
                   No buildings yet.{" "}
                   <Link href="/landlord/new" className="font-medium text-primary">
                     Add your first building
