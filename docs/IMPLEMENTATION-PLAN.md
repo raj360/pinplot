@@ -32,6 +32,7 @@ Phase 6   — Paid featured (~3 mo), badge, growth
 | **T-05** | Admin approve checklist UI (structured fields + presets) | TRUST §4 | — |
 | **T-06** | Report listing API + admin queue (tenant, post-unlock) | TRUST T-05 | — |
 | **T-07** | Duplicate pin detection (admin warning on approve) | TRUST T-06 | — |
+| **T-07+** | **5J:** Exact-pin 50m map, cover guard on approve | TRUST §4 | T-07 |
 | **T-08** | New landlord building cap (e.g. 3 unverified) | TRUST T-07 | — |
 | **T-09** | Remove / replace listing fee UI — “Listing is free” copy | BUSINESS §8 | — |
 | **N-01** | Postmark integration + env | NOTIFICATIONS | — |
@@ -178,6 +179,14 @@ See [SPRINT_TASK.md](../SPRINT_TASK.md) §5I for full task table.
 | `033_user_notifications.sql` | In-app notification inbox (N-09) |
 | `034_unlock_engagement_analytics.sql` | Post-unlock engagement events + `unlock_id` (5I) |
 
+**5J (current PR):** No migration — admin duplicate map + photo/cover fixes in application code only.
+
+---
+
+## Resume after merge
+
+See **[PENDING-WORK.md](./PENDING-WORK.md)** for merge verification, prod ops, and priority queue (U-06 → 5C → S6 OG/UTM/PWA).
+
 ---
 
 ## Files to touch (5A preview)
@@ -203,4 +212,4 @@ When shipping a task, update:
 
 ---
 
-*Last updated: 2026-06-13 — Sprint 5I unlock hub; migration 034*
+*Last updated: 2026-06-13 — Sprint 5J admin approve polish; handoff PENDING-WORK.md*

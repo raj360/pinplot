@@ -52,7 +52,7 @@ Typical pattern:
 | T-03 | **Terms acceptance** on landlord submit + tenant unlock | `accepted_terms_at` on profile or building |
 | T-04 | **Admin verification checklist** UI | Structured approve flow (see §4) |
 | T-05 | **Report listing** (tenant, post-unlock) | API + admin queue |
-| T-06 | **Duplicate pin alert** | Admin flag when pin within ~50m of existing verified building (different landlord) |
+| T-06 | **Duplicate pin alert** | Admin flag when **exact pin** within ~50m of existing verified building (different landlord); map + list on approve UI |
 | T-07 | **New landlord building cap** | e.g. max 3 pending/unverified per account |
 | T-08 | **Hide listing quote fee** UI | Free listing — remove misleading listing fee banner |
 
@@ -85,7 +85,8 @@ Before **Approve**, admin confirms:
 - [ ] Photos match building type and area (not stock / copied)  
 - [ ] Pin is plausible for stated district/city  
 - [ ] Rent on units is internally consistent (no obvious bait 300k → 500k in same listing)  
-- [ ] No duplicate verified building at same pin for different landlord  
+- [ ] No duplicate verified building at same **exact pin** for different landlord (within 50m)  
+- [ ] At least one photo with cover set before approve (5J)  
 - [ ] Landlord account not suspended  
 - [ ] **Ownership attestation** recorded on submit  
 
@@ -129,4 +130,26 @@ See [legal/TERMS-OUTLINE.md](./legal/TERMS-OUTLINE.md).
 
 ---
 
-*Implementation tasks: [IMPLEMENTATION-PLAN.md](./IMPLEMENTATION-PLAN.md) Sprint 5A*
+## 8. Admin ops (5J)
+
+### Duplicate pin review
+
+- Distance uses **exact landlord pin** (`exact_lat/lng`), not the jittered public map pin (~150–280m offset).
+- Explore map pins are intentionally approximate; admin approve UI shows exact pins + 50m circle.
+
+### Broken cover on a live listing
+
+| Situation | Action |
+|-----------|--------|
+| **Beta / few listings** | Admin: unverify → fix photos (upload pending → approve) **or** landlord manage page |
+| **Scale / no un-verify** | Defer **SUPERADMIN** “sync cover from gallery” — see [PENDING-WORK.md](./PENDING-WORK.md) |
+
+### Photo upload on pending review
+
+- Removing all photos clears `cover_image_path`.
+- After wipe, use **Upload pending photos**; first new photo becomes cover automatically (5J).
+- **Save building** does not upload photos — separate button in photo manager.
+
+---
+
+*Implementation tasks: [IMPLEMENTATION-PLAN.md](./IMPLEMENTATION-PLAN.md) · Resume queue: [PENDING-WORK.md](./PENDING-WORK.md)*

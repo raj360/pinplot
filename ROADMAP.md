@@ -20,13 +20,13 @@ PlotPin should work for **any visitor** landing from social ads anywhere in the 
 
 ## Where we stand (product snapshot)
 
-**Phase:** Sprint 4 ✅ → 5A trust ✅ → 5B unlock payments (FW + Lemon Squeezy) ✅ → 5D global discovery ✅ → **5E explore & homepage polish ✅** → **5F–5I dashboards, stay-class, lifecycle & unlock hub ✅** → 5C Uganda rails polish (next)
+**Phase:** Sprint 4 ✅ → … → **5I unlock hub ✅** → **5J admin approve polish ✅ (current PR)** → 5C Uganda rails · U-06 · Phase 6 growth (next)
 
 | Persona | Can do today | Next |
 |---------|--------------|------|
 | **Tenant** | Homepage v2 with **personalized featured**, **global explore**, paid unlock, **My unlocks hub** (contact-first, share/calendar, deep links), **saved listings**, in-app notification bell | Feedback prompts (U-06) · MoMo/SMS polish (5C) |
 | **Landlord** | Submit (any country), photos, unit status, reject + resubmit, **paid featured**, unlock/view stats on dashboard | Extend `SUPPLY_MARKET_CODES` as markets launch |
-| **Admin** | Approve/reject, coupons, featured launch, verification checklist, reports, listing analytics overview | — |
+| **Admin** | Approve/reject with **nearby-pin map (50m exact)**, cover guard on approve, verification checklist, reports, analytics | U-06 cron · super-admin repair-cover (deferred) |
 
 **Monetization:** [docs/BUSINESS-MODEL.md](./docs/BUSINESS-MODEL.md) — free listing, paid unlock.  
 **Payments:** [docs/PAYMENTS-STRATEGY.md](./docs/PAYMENTS-STRATEGY.md) — **Flutterwave + Lemon Squeezy** now; **Stripe when US LLC exists**.
@@ -142,6 +142,20 @@ Tenant active/past unlock tabs, listing analytics, hourly cron emails, in-app in
 
 ---
 
+## Phase 5J — Admin approve quality — **✅ in current PR (2026-06-13)**
+
+**Goal:** Catch duplicate pins and missing covers before listings go live.
+
+| Area | Deliverable |
+|------|-------------|
+| **Duplicate review** | 50m radius on **exact landlord pins** (not public map jitter); map + neighbor list + reject preset |
+| **Photos** | Auto-cover when gallery empty; approve blocked without photos; sync `cover_image_path` from gallery |
+| **Ops** | Broken cover on legacy listing: unverify → fix → approve, or landlord manage page — [PENDING-WORK.md](./docs/PENDING-WORK.md) |
+
+**Next after merge:** See [PENDING-WORK.md](./docs/PENDING-WORK.md) — U-06 → 5C → Phase 6.
+
+---
+
 ## Phase 5C — Uganda rails polish
 
 MoMo UX, USSD (TBD), SMS landlord alerts on unlock.
@@ -150,10 +164,12 @@ MoMo UX, USSD (TBD), SMS landlord alerts on unlock.
 
 ## Phase 6 — Global soft launch & deferred monetization
 
-- Social ad landing + UTM, Open Graph, PWA  
+- Social ad landing + UTM, Open Graph, PWA — [GROWTH-OG-UTM.md](./docs/GROWTH-OG-UTM.md) · [PWA-CHECKLIST.md](./docs/PWA-CHECKLIST.md)  
 - **S5-08 paid featured** (~3 months post-launch)  
 - Optional **verify badge** (one-time)  
 - **US LLC + Stripe** for diaspora if Lemon Squeezy economics warrant ([PAYMENTS-STRATEGY.md](./docs/PAYMENTS-STRATEGY.md) §8)
+
+**Resume checklist:** [PENDING-WORK.md](./docs/PENDING-WORK.md)
 
 ---
 
@@ -174,4 +190,4 @@ MoMo UX, USSD (TBD), SMS landlord alerts on unlock.
 
 ---
 
-*Last updated: 2026-06-13 — Sprint 5I tenant unlock hub; migrations through 034*
+*Last updated: 2026-06-13 — Sprint 5J admin approve polish; handoff docs/PENDING-WORK.md*

@@ -34,7 +34,7 @@ Keep `ALLOW_DEV_UNLOCK=1` in dev until Sprint **5B** webhooks enforce unlock pay
 | T-04 | Terms acceptance on submit + unlock | Done | T-03 |
 | T-05 | Admin verification checklist UI | Done | TRUST §4 |
 | T-06 | Report listing + admin queue | Done | TRUST |
-| T-07 | Duplicate pin warning on approve | Done | TRUST · **Enhanced:** 50m map + nearby list + reject preset |
+| T-07 | Duplicate pin warning on approve | Done | TRUST · **Enhanced (5J):** exact-pin 50m map, nearby list, reject preset |
 | T-08 | New landlord building cap | Done | TRUST |
 | T-09 | Free listing UX — remove listing fee banner | Done | BUSINESS |
 | N-01 | Postmark integration | Done | NOTIFICATIONS |
@@ -315,6 +315,30 @@ yarn db:migrate   # applies 034 (unlock engagement event types + unlock_id on an
 
 **Exit:** Tenants reach landlord contact in one tap; unlock hub shows listing context and actual paid amount; product can target feedback to users who tapped Call/WhatsApp/directions.
 
+---
+
+## Sprint 5J — Admin approve quality (trust polish) — **✅ in current PR (no migration)**
+
+**Goal:** Admin approval catches duplicate pins and broken covers before go-live.
+
+| ID | Task | Status | Notes |
+|----|------|--------|-------|
+| T-07+ | Nearby pins map + list (50m, **exact pin**) | Done | `AdminNearbyPinsReview`, `GET …/nearby-pins` |
+| T-07+ | Fix duplicate query (was jittered `location` column) | Done | PostGIS on `exact_lat/lng` |
+| PHOTO-01 | Auto-cover on first upload; sync cover on approve | Done | `insertBuildingImage`, `assertBuildingHasCoverImage` |
+| PHOTO-01 | Admin copy: upload pending after wipe | Done | `BuildingPhotoManager`, `AdminEditBuildingClient` |
+
+**Exit:** Approving without photos fails loudly; replacing all photos restores cover; duplicate review works at same GPS as neighbor.
+
+**Ops (broken cover on already-live listing):** unverify → fix photos → approve, or landlord manage page — see [PENDING-WORK.md](./docs/PENDING-WORK.md).
+
+---
+
+## PR merge handoff
+
+**Before merge:** [docs/PENDING-WORK.md](./docs/PENDING-WORK.md) — verify checklist  
+**Resume after merge:** U-06 → 5C → Phase 6 (OG / UTM / PWA) → U-07
+
 ### Track D — Schema hygiene (P2, parallel)
 
 | ID | Task | Status | Decision |
@@ -355,6 +379,7 @@ yarn db:migrate   # applies 034 (unlock engagement event types + unlock_id on an
 | Unlock history + analytics + cron notifications (5H) | ✅ (migrations 029–031; Railway cron after deploy — [OPS-CRON.md](./docs/OPS-CRON.md)) |
 | In-app notification inbox (N-09 v1) | ✅ (migration 033; bell + server dismiss) |
 | Tenant unlock hub + engagement analytics (5I) | ✅ (migration 034; phases 1–4) |
+| Admin approve quality — duplicate map + cover guard (5J) | ✅ (code-only; in current PR) |
 | Stripe / LLC | ⏸ deferred |
 
 ---
@@ -362,10 +387,12 @@ yarn db:migrate   # applies 034 (unlock engagement event types + unlock_id on an
 ## Recommended build order
 
 ```
-Done:  5A · 5B · 5D · 5E · 5F · 5G · 5H · N-09 v1 · 5I (phases 1–4)
-Next:  Ops go-live (Railway cron, migrations 029–034) · U-06 feedback cron · 5C MoMo polish (SMS paused)
-Later: M-01 open-contact · `/notifications` page · LLC+Stripe when justified
+Done:  5A · 5B · 5D · 5E · 5F · 5G · 5H · N-09 v1 · 5I (phases 1–4) · 5J (admin approve polish)
+Merge: Verify checklist in docs/PENDING-WORK.md · no new migration in 5J
+Next:  Ops go-live (Railway cron, migrations 029–034 prod) · U-06 feedback cron · 5C MoMo polish (SMS paused)
+Later: S6 OG/UTM/PWA · U-07 `/notifications` · SUPERADMIN repair-cover if needed · M-01 · LLC+Stripe
 Ops:   yarn fx:refresh daily (GitHub) · Railway hourly cron after deploy — docs/OPS-CRON.md
+Handoff: docs/PENDING-WORK.md
 ```
 
 ### Sprint 5H suggested day order
@@ -380,4 +407,4 @@ Day 6:   H-26 (admin slice) · H-30 (drop listing_events) · H-18 if time (stale
 
 ---
 
-*Last updated: 2026-06-13 — Sprint 5I tenant unlock hub (phases 1–4); migration 034 engagement analytics*
+*Last updated: 2026-06-13 — Sprint 5J admin approve polish; handoff in docs/PENDING-WORK.md*
