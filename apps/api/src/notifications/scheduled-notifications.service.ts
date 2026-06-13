@@ -88,6 +88,9 @@ export class ScheduledNotificationsService {
       });
       const manageUrl = this.appUrl(`/landlord/buildings/${row.building_id}`);
       const exploreUrl = this.appUrl("/explore");
+      const pastUnlockUrl = this.appUrl(
+        `/tenant/unlocks?tab=expired&unlock=${encodeURIComponent(row.unlock_id)}`,
+      );
 
       if (
         await this.dispatch({
@@ -96,7 +99,7 @@ export class ScheduledNotificationsService {
           inAppType: IN_APP_NOTIFICATION_TYPES.UNLOCK_EXPIRED_TENANT,
           title: `Unlock ended for ${row.building_name}`,
           body: `Unit ${row.unit_number}. Contact details are no longer available from this unlock.`,
-          ctaUrl: exploreUrl,
+          ctaUrl: pastUnlockUrl,
           payload: {
             buildingId: row.building_id,
             unitId: row.unit_id,
@@ -391,7 +394,7 @@ export class ScheduledNotificationsService {
       const template = "tenant_unlock_expiring";
       const dedupeKey = `unlock:${row.unlock_id}:expiring_24h`;
       const unlocksUrl = this.appUrl(
-        `/tenant/unlocks?unlock=${encodeURIComponent(row.unlock_id)}`,
+        `/tenant/unlocks?tab=active&unlock=${encodeURIComponent(row.unlock_id)}`,
       );
 
       if (

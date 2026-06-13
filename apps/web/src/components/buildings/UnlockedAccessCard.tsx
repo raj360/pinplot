@@ -14,6 +14,10 @@ import { CopyTextButton } from "@/components/ui/copy-text-button";
 import { resolveImageUrls } from "@/lib/buildings/media";
 import { trackUnlockEngagement } from "@/lib/analytics/track-unlock-engagement";
 import type { ContactEngagementAction } from "@/components/contact/ContactActions";
+import {
+  UnlockAccessMobileBar,
+  UnlockAccessTools,
+} from "@/components/unlocks/UnlockAccessTools";
 
 function engagementTracker(
   unlock: Pick<TenantUnlock, "unlockId" | "buildingId" | "unitId">,
@@ -35,11 +39,13 @@ export function UnlockedAccessCard({
   showAccessNote = true,
   /** Pre-purchase flows hide contact behind a tap. Paid unlock hubs show it immediately. */
   revealOnClick = false,
+  showMobileActions = true,
 }: {
   unlock: TenantUnlock;
   showBuildingLink?: boolean;
   showAccessNote?: boolean;
   revealOnClick?: boolean;
+  showMobileActions?: boolean;
 }) {
   const { lat, lng } = unlock.location;
   const contact = unlock.contact.phone;
@@ -50,7 +56,10 @@ export function UnlockedAccessCard({
   const whatsAppMessage = `Hi, I unlocked Unit ${unlock.unitNumber} on PlotPin and would like to arrange a viewing.`;
 
   return (
-    <article className="overflow-hidden rounded-[var(--radius-DEFAULT)] border border-border bg-surface">
+    <>
+      <article
+        className={`overflow-hidden rounded-[var(--radius-DEFAULT)] border border-border bg-surface ${showMobileActions ? "pb-20 lg:pb-0" : ""}`}
+      >
       <div className="border-b border-primary/20 bg-primary text-primary-foreground">
         <div className="flex gap-4 p-4">
           {coverPhoto ? (
@@ -159,30 +168,35 @@ export function UnlockedAccessCard({
         </div>
       </div>
 
-      <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border px-4 py-3 text-xs text-muted">
-        {showAccessNote ? (
-          <p className="hidden lg:block">
-            Paid {formatCurrency(PRICING.tenantUnlockFeeUgx)} ·{" "}
-            {unlock.exclusiveHours}h{" "}
-            {unlock.locksUnit === false ? "contact" : "exclusive"} access ·
-            Unlocked{" "}
-            {new Date(unlock.unlockedAt).toLocaleDateString(undefined, {
-              month: "short",
-              day: "numeric",
-            })}
-          </p>
-        ) : (
-          <span />
-        )}
-        {showBuildingLink && unlock.buildingId ? (
-          <Link
-            href={exploreBuildingUrl(unlock.buildingId, { hideMap: true })}
-            className="font-medium text-primary hover:underline"
-          >
-            View listing
-          </Link>
-        ) : null}
+      <div className="space-y-3 border-t border-border px-4 py-3">
+        <UnlockAccessTools unlock={unlock} />
+        <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-muted">
+          {showAccessNote ? (
+            <p className="hidden lg:block">
+              Paid {formatCurrency(PRICING.tenantUnlockFeeUgx)} ·{" "}
+              {unlock.exclusiveHours}h{" "}
+              {unlock.locksUnit === false ? "contact" : "exclusive"} access ·
+              Unlocked{" "}
+              {new Date(unlock.unlockedAt).toLocaleDateString(undefined, {
+                month: "short",
+                day: "numeric",
+              })}
+            </p>
+          ) : (
+            <span />
+          )}
+          {showBuildingLink && unlock.buildingId ? (
+            <Link
+              href={exploreBuildingUrl(unlock.buildingId, { hideMap: true })}
+              className="font-medium text-primary hover:underline"
+            >
+              View listing
+            </Link>
+          ) : null}
+        </div>
       </div>
-    </article>
+      </article>
+      {showMobileActions ? <UnlockAccessMobileBar unlock={unlock} /> : null}
+    </>
   );
 }

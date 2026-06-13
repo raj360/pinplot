@@ -25,6 +25,20 @@ function sortUnlocksByExpiry(unlocks: TenantUnlock[]) {
   });
 }
 
+function activeOnly(unlocks: TenantUnlock[]) {
+  return sortUnlocksByExpiry(
+    unlocks.filter((unlock) => unlock.unlockState !== "expired"),
+  );
+}
+
+function expiredOnly(unlocks: TenantUnlock[]) {
+  return unlocks.filter((unlock) => unlock.unlockState === "expired");
+}
+
+function tabFromUnlock(unlock: TenantUnlock): UnlockListStatus {
+  return unlock.unlockState === "expired" ? "expired" : "active";
+}
+
 const TABS: Array<{ id: UnlockListStatus; label: string }> = [
   { id: "active", label: "Active" },
   { id: "expired", label: "Past unlocks" },
@@ -33,21 +47,34 @@ const TABS: Array<{ id: UnlockListStatus; label: string }> = [
 export default function TenantUnlocksClient() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [tab, setTab] = useState<UnlockListStatus>("active");
+  const unlockParam = searchParams.get("unlock");
+  const tab: UnlockListStatus =
+    searchParams.get("tab") === "expired" ? "expired" : "active";
+
   const [unlocks, setUnlocks] = useState<TenantUnlock[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
 
   const activeUnlocks = useMemo(
-    () =>
-      tab === "active"
-        ? sortUnlocksByExpiry(
-            unlocks.filter((unlock) => unlock.unlockState !== "expired"),
-          )
-        : [],
+    () => (tab === "active" ? activeOnly(unlocks) : []),
     [tab, unlocks],
   );
+
+  const selectedUnlockId = useMemo(() => {
+    if (tab !== "active" || activeUnlocks.length === 0) return null;
+    if (
+      unlockParam &&
+      activeUnlocks.some((unlock) => unlock.unlockId === unlockParam)
+    ) {
+      return unlockParam;
+    }
+    return activeUnlocks[0]?.unlockId ?? null;
+  }, [activeUnlocks, tab, unlockParam]);
+
+  const selectedUnlock =
+    activeUnlocks.find((unlock) => unlock.unlockId === selectedUnlockId) ??
+    activeUnlocks[0] ??
+    null;
 
   useEffect(() => {
     let cancelled = false;
@@ -61,13 +88,29 @@ export default function TenantUnlocksClient() {
 
       setLoading(true);
       setError(null);
+
       try {
-        const list = await fetchMyUnlocks(tab);
-        if (!cancelled) {
-          setUnlocks(
-            tab === "active" ? sortUnlocksByExpiry(list) : list,
-          );
+        const explicitTab = searchParams.get("tab");
+        const deepLinkUnlock = searchParams.get("unlock");
+
+        if (deepLinkUnlock && !explicitTab) {
+          const all = await fetchMyUnlocks("all");
+          if (cancelled) return;
+
+          const target = all.find((unlock) => unlock.unlockId === deepLinkUnlock);
+          const resolvedTab = target ? tabFromUnlock(target) : "active";
+          const params = new URLSearchParams();
+          params.set("tab", resolvedTab);
+          params.set("unlock", deepLinkUnlock);
+          router.replace(`/tenant/unlocks?${params.toString()}`, {
+            scroll: false,
+          });
+          return;
         }
+
+        const list = await fetchMyUnlocks(tab);
+        if (cancelled) return;
+        setUnlocks(tab === "active" ? activeOnly(list) : expiredOnly(list));
       } catch {
         if (!cancelled) setError("Could not load your unlocks.");
       } finally {
@@ -78,39 +121,26 @@ export default function TenantUnlocksClient() {
     return () => {
       cancelled = true;
     };
-  }, [router, tab]);
+  }, [router, searchParams, tab]);
 
-  useEffect(() => {
-    if (tab !== "active" || activeUnlocks.length === 0) {
-      setSelectedId(null);
-      return;
+  function handleTabChange(nextTab: UnlockListStatus) {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("tab", nextTab);
+    if (nextTab === "expired") {
+      params.delete("unlock");
     }
-
-    const fromUrl = searchParams.get("unlock");
-    if (fromUrl && activeUnlocks.some((unlock) => unlock.unlockId === fromUrl)) {
-      setSelectedId(fromUrl);
-      return;
-    }
-
-    setSelectedId((current) => {
-      if (current && activeUnlocks.some((unlock) => unlock.unlockId === current)) {
-        return current;
-      }
-      return activeUnlocks[0]?.unlockId ?? null;
-    });
-  }, [activeUnlocks, searchParams, tab]);
+    router.replace(`/tenant/unlocks?${params.toString()}`, { scroll: false });
+  }
 
   function handleSelectUnlock(unlockId: string) {
-    setSelectedId(unlockId);
     const params = new URLSearchParams(searchParams.toString());
+    params.set("tab", "active");
     params.set("unlock", unlockId);
     router.replace(`/tenant/unlocks?${params.toString()}`, { scroll: false });
   }
 
-  const selectedUnlock =
-    activeUnlocks.find((unlock) => unlock.unlockId === selectedId) ??
-    activeUnlocks[0] ??
-    null;
+  const highlightedExpiredId =
+    tab === "expired" && unlockParam ? unlockParam : null;
 
   return (
     <DashboardSection
@@ -122,7 +152,7 @@ export default function TenantUnlocksClient() {
           <button
             key={item.id}
             type="button"
-            onClick={() => setTab(item.id)}
+            onClick={() => handleTabChange(item.id)}
             className={cn(
               "border-b-2 px-4 py-2 text-sm font-medium transition-colors",
               tab === item.id
@@ -178,7 +208,11 @@ export default function TenantUnlocksClient() {
         <div className="space-y-4">
           {unlocks.map((unlock) =>
             unlock.unlockState === "expired" ? (
-              <ExpiredUnlockCard key={unlock.unlockId} unlock={unlock} />
+              <ExpiredUnlockCard
+                key={unlock.unlockId}
+                unlock={unlock}
+                highlighted={unlock.unlockId === highlightedExpiredId}
+              />
             ) : (
               <UnlockedAccessCard key={unlock.unlockId} unlock={unlock} />
             ),

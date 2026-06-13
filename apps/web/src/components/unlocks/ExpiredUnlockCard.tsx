@@ -4,8 +4,15 @@ import Link from "next/link";
 import { exploreBuildingUrl } from "@/lib/explore/urls";
 import { resolveImageUrls } from "@/lib/buildings/media";
 import type { TenantUnlock } from "@/lib/api/unlocks";
+import { cn } from "@/lib/utils/cn";
 
-export function ExpiredUnlockCard({ unlock }: { unlock: TenantUnlock }) {
+export function ExpiredUnlockCard({
+  unlock,
+  highlighted = false,
+}: {
+  unlock: TenantUnlock;
+  highlighted?: boolean;
+}) {
   const expiredDate = unlock.expiresAt
     ? new Date(unlock.expiresAt).toLocaleDateString(undefined, {
         month: "short",
@@ -16,7 +23,12 @@ export function ExpiredUnlockCard({ unlock }: { unlock: TenantUnlock }) {
   const coverPhoto = resolveImageUrls(unlock)[0];
 
   return (
-    <article className="card-elevated p-4">
+    <article
+      className={cn(
+        "card-elevated p-4",
+        highlighted && "ring-2 ring-primary/25",
+      )}
+    >
       <div className="flex gap-4">
         {coverPhoto ? (
           // eslint-disable-next-line @next/next/no-img-element

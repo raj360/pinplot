@@ -30,7 +30,7 @@ export class TenantNotificationsService {
     payload: UnlockReceiptNotification,
   ): Promise<{ delivered: boolean }> {
     const unlocksUrl = this.appUrl(
-      `/tenant/unlocks?unlock=${encodeURIComponent(payload.unlockId)}`,
+      `/tenant/unlocks?tab=active&unlock=${encodeURIComponent(payload.unlockId)}`,
     );
 
     await this.inApp.create({
