@@ -375,6 +375,19 @@ export type DuplicatePinWarning = {
   distanceM: number;
 };
 
+export type NearbyPinReview = {
+  id: string;
+  name: string;
+  landlordId: string | null;
+  pinLat: number;
+  pinLng: number;
+  distanceM: number;
+  isVerified: boolean;
+  isRejected: boolean;
+  isSameLandlord: boolean;
+  duplicateRisk: boolean;
+};
+
 export type AdminPendingBuildingDetail = {
   id: string;
   name: string;
@@ -395,6 +408,7 @@ export type AdminPendingBuildingDetail = {
   isVerified: boolean;
   ownershipAttestedAt: string | null;
   duplicatePinWarnings: DuplicatePinWarning[];
+  nearbyPins: NearbyPinReview[];
   landlordPhoneRequired: boolean;
   units: AdminPendingUnit[];
   landlord: {
@@ -434,6 +448,21 @@ export function getAdminLandlordDisplayName(
 
 export async function fetchAdminPendingBuilding(id: string) {
   return apiFetch<AdminPendingBuildingDetail>(`/admin/buildings/${id}`);
+}
+
+export async function fetchAdminNearbyPins(
+  buildingId: string,
+  pin?: { lat: number; lng: number },
+) {
+  const params = new URLSearchParams();
+  if (pin) {
+    params.set("lat", String(pin.lat));
+    params.set("lng", String(pin.lng));
+  }
+  const query = params.toString();
+  return apiFetch<NearbyPinReview[]>(
+    `/admin/buildings/${buildingId}/nearby-pins${query ? `?${query}` : ""}`,
+  );
 }
 
 export async function updateAdminPendingBuilding(

@@ -34,7 +34,7 @@ Keep `ALLOW_DEV_UNLOCK=1` in dev until Sprint **5B** webhooks enforce unlock pay
 | T-04 | Terms acceptance on submit + unlock | Done | T-03 |
 | T-05 | Admin verification checklist UI | Done | TRUST §4 |
 | T-06 | Report listing + admin queue | Done | TRUST |
-| T-07 | Duplicate pin warning on approve | Done | TRUST |
+| T-07 | Duplicate pin warning on approve | Done | TRUST · **Enhanced:** 50m map + nearby list + reject preset |
 | T-08 | New landlord building cap | Done | TRUST |
 | T-09 | Free listing UX — remove listing fee banner | Done | BUSINESS |
 | N-01 | Postmark integration | Done | NOTIFICATIONS |
@@ -310,7 +310,7 @@ yarn db:migrate   # applies 034 (unlock engagement event types + unlock_id on an
 | U-03 | Phase 2 — multi-unlock picker, `?tab=&unlock=` deep links, mobile bell | Done | `UnlockPickerList`, `AppHeader` |
 | U-04 | Phase 3 — building unlock session cache, detail skeleton gate, mobile bar, share/calendar | Done | `unlocks-cache.ts`, `UnlockAccessTools` |
 | U-05 | Phase 4 — enrich unlock API (rent, bedrooms, district/city, amount paid) | Done | `GET /unlocks/mine`, building unlocks |
-| U-06 | Post-unlock feedback prompt (engagement + 24h rule, cron) | Pending | Uses analytics intent events |
+| U-06 | Post-unlock feedback prompt (engagement + 24h rule, cron) | Pending | [PLAN-U-06-FEEDBACK-CRON.md](./docs/PLAN-U-06-FEEDBACK-CRON.md) |
 | U-07 | Dedicated `/notifications` page | Pending | Moved from N-09f |
 
 **Exit:** Tenants reach landlord contact in one tap; unlock hub shows listing context and actual paid amount; product can target feedback to users who tapped Call/WhatsApp/directions.
@@ -335,7 +335,7 @@ yarn db:migrate   # applies 034 (unlock engagement event types + unlock_id on an
 | T-14 | Verify badge (one-time) | Optional |
 | S4-19 | Landlord country on create | |
 | **P-LLC** | US LLC + Stripe | When PAYMENTS-STRATEGY §8 triggers |
-| S6-* | UTM, Open Graph, PWA | |
+| S6-* | UTM, Open Graph, PWA | | [GROWTH-OG-UTM.md](./docs/GROWTH-OG-UTM.md) · [PWA-CHECKLIST.md](./docs/PWA-CHECKLIST.md) |
 
 ---
 

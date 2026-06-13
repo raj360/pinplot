@@ -24,6 +24,9 @@ Central index for strategy, trust, legal outlines, and implementation order.
 | [NOTIFICATIONS.md](./NOTIFICATIONS.md) | Landlord/tenant notification events and channels |
 | [OPS-CRON.md](./OPS-CRON.md) | **Production hourly cron** — Railway setup, env vars, verify |
 | [IMPLEMENTATION-PLAN.md](./IMPLEMENTATION-PLAN.md) | **Build order** — guardrails first, then FW + Lemon Squeezy · **5I unlock hub** |
+| [PLAN-U-06-FEEDBACK-CRON.md](./PLAN-U-06-FEEDBACK-CRON.md) | **U-06** engagement-based feedback cron spec |
+| [PWA-CHECKLIST.md](./PWA-CHECKLIST.md) | Phase 6 PWA installability & service worker |
+| [GROWTH-OG-UTM.md](./GROWTH-OG-UTM.md) | Open Graph previews & paid-social UTM convention |
 | [../SPRINT_TASK.md](../SPRINT_TASK.md) | Task IDs, migrations, sprint status (incl. **5I** tenant unlock hub) |
 | [../ROADMAP.md](../ROADMAP.md) | Product phases and persona snapshot |
 

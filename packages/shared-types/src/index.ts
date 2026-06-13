@@ -103,6 +103,9 @@ export const REJECT_REASON_PRESETS = [
   "Suspected broker or third-party listing without authorization.",
 ] as const;
 
+/** Preset for duplicate-pin rejections (index 1 in REJECT_REASON_PRESETS). */
+export const DUPLICATE_PIN_REJECT_REASON = REJECT_REASON_PRESETS[1];
+
 export const LISTING_REPORT_REASONS = [
   "Suspected scam or unauthorized blockage/viewing fees",
   "Wrong location or misleading map pin",

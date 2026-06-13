@@ -11,9 +11,14 @@ import { LocationPinPicker } from "@/components/maps/LocationPinPicker";
 import { Button } from "@/components/ui/button";
 import { BUILDING_TYPE_OPTIONS } from "@/lib/filters/building-types";
 import {
+  AdminNearbyPinsReview,
+  DUPLICATE_PIN_REJECT_REASON,
+} from "@/components/admin/AdminNearbyPinsReview";
+import {
   adminAddPendingUnit,
   adminDeletePendingUnit,
   adminUpdatePendingUnit,
+  fetchAdminNearbyPins,
   fetchAdminPendingBuilding,
   getAdminLandlordDisplayName,
   rejectBuilding,
@@ -21,6 +26,7 @@ import {
   verifyBuilding,
   type AdminPendingBuildingDetail,
   type AdminPendingUnit,
+  type NearbyPinReview,
 } from "@/lib/api/buildings";
 import { getAccessToken } from "@/lib/api/client";
 import { REJECT_REASON_PRESETS } from "@plotpin/shared-types";
@@ -75,6 +81,9 @@ export default function AdminEditBuildingClient({
     EMPTY_VERIFICATION_CHECKLIST,
   );
   const [acknowledgeDuplicatePin, setAcknowledgeDuplicatePin] = useState(false);
+  const [nearbyPins, setNearbyPins] = useState<NearbyPinReview[]>([]);
+  const [nearbyPinsLoading, setNearbyPinsLoading] = useState(false);
+  const [savedPin, setSavedPin] = useState({ lat: 0, lng: 0 });
 
   const [name, setName] = useState("");
   const [city, setCity] = useState("");
@@ -103,6 +112,9 @@ export default function AdminEditBuildingClient({
     setExactAddress(data.exactAddress ?? "");
     setVideoUrl(data.videoUrl ?? "");
     setPin({ lat: data.pinLat, lng: data.pinLng });
+    setSavedPin({ lat: data.pinLat, lng: data.pinLng });
+    setNearbyPins(data.nearbyPins ?? []);
+    setAcknowledgeDuplicatePin(false);
     setUnitDrafts(
       Object.fromEntries(data.units.map((unit) => [unit.id, toUnitDraft(unit)])),
     );
@@ -141,6 +153,39 @@ export default function AdminEditBuildingClient({
     };
   }, [buildingId, load, router]);
 
+  const pinDirty =
+    Math.abs(pin.lat - savedPin.lat) > 0.000001 ||
+    Math.abs(pin.lng - savedPin.lng) > 0.000001;
+
+  useEffect(() => {
+    if (!building) return;
+
+    const timer = window.setTimeout(() => {
+      setNearbyPinsLoading(true);
+      fetchAdminNearbyPins(buildingId, pin)
+        .then((pins) => {
+          setNearbyPins(pins);
+          setAcknowledgeDuplicatePin(false);
+        })
+        .catch(() => {
+          /* keep last preview on transient errors */
+        })
+        .finally(() => {
+          setNearbyPinsLoading(false);
+        });
+    }, 400);
+
+    return () => window.clearTimeout(timer);
+  }, [building, buildingId, pin]);
+
+  const duplicatePinWarnings = nearbyPins.filter((item) => item.duplicateRisk);
+
+  function rejectAsDuplicate() {
+    setRejectReason(DUPLICATE_PIN_REJECT_REASON);
+    setShowRejectForm(true);
+    setAcknowledgeDuplicatePin(false);
+  }
+
   async function saveBuilding() {
     setSavingBuilding(true);
     setSaveMessage(null);
@@ -157,6 +202,7 @@ export default function AdminEditBuildingClient({
         exactLng: pin.lng,
       });
       applyBuilding(updated);
+      setSavedPin({ lat: updated.pinLat, lng: updated.pinLng });
       setSaveMessage("Building details saved. Still pending approval.");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not save building.");
@@ -274,9 +320,7 @@ export default function AdminEditBuildingClient({
         verified: true,
         checklist,
         acknowledgeDuplicatePin:
-          (building?.duplicatePinWarnings.length ?? 0) > 0
-            ? acknowledgeDuplicatePin
-            : undefined,
+          duplicatePinWarnings.length > 0 ? acknowledgeDuplicatePin : undefined,
       });
       router.push("/admin/buildings");
       router.refresh();
@@ -293,8 +337,7 @@ export default function AdminEditBuildingClient({
     !building?.landlordPhoneRequired &&
     Boolean(building?.ownershipAttestedAt) &&
     !building?.landlord.suspendedAt &&
-    ((building?.duplicatePinWarnings.length ?? 0) === 0 ||
-      acknowledgeDuplicatePin);
+    ((duplicatePinWarnings.length ?? 0) === 0 || acknowledgeDuplicatePin);
 
   if (loading) {
     return (
@@ -430,31 +473,16 @@ export default function AdminEditBuildingClient({
           : " · no ownership attestation"}
       </p>
 
-      {building.duplicatePinWarnings.length > 0 ? (
-        <section className="mb-6 border border-amber-300 bg-amber-50 p-4">
-          <h2 className="text-sm font-medium text-amber-950">
-            Duplicate pin warning
-          </h2>
-          <p className="mt-1 text-sm text-amber-900">
-            Verified listings within 50m for a different landlord:
-          </p>
-          <ul className="mt-2 list-inside list-disc text-sm text-amber-900">
-            {building.duplicatePinWarnings.map((warning) => (
-              <li key={warning.id}>
-                {warning.name} (~{warning.distanceM}m)
-              </li>
-            ))}
-          </ul>
-          <label className="mt-3 flex items-start gap-2 text-sm text-amber-950">
-            <input
-              type="checkbox"
-              checked={acknowledgeDuplicatePin}
-              onChange={(e) => setAcknowledgeDuplicatePin(e.target.checked)}
-            />
-            I reviewed the duplicate risk and approve anyway.
-          </label>
-        </section>
-      ) : null}
+      <AdminNearbyPinsReview
+        center={pin}
+        nearbyPins={nearbyPins}
+        duplicatePinWarningsCount={duplicatePinWarnings.length}
+        acknowledgeDuplicatePin={acknowledgeDuplicatePin}
+        onAcknowledgeChange={setAcknowledgeDuplicatePin}
+        onRejectDuplicate={rejectAsDuplicate}
+        pinDirty={pinDirty}
+        loading={nearbyPinsLoading}
+      />
 
       <VerificationChecklistForm
         className="mb-6"
@@ -506,7 +534,8 @@ export default function AdminEditBuildingClient({
           <h2 className="text-sm font-medium">Photos</h2>
           <p className="mt-1 text-sm text-muted">
             Cover and gallery photos sync to the listing gallery tenants see after unlock.
-            Maximum {MAX_BUILDING_PHOTOS} photos (cover included).
+            Maximum {MAX_BUILDING_PHOTOS} photos (cover included). After removing all
+            photos, upload again — the first new photo becomes cover automatically.
           </p>
           <div className="mt-3">
             <BuildingPhotoManager buildingId={buildingId} variant="admin" />

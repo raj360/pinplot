@@ -968,6 +968,8 @@ export class BuildingsService {
       );
     }
 
+    await this.assertBuildingHasCoverImage(buildingId);
+
     const { rows } = await this.db.query(
       `UPDATE buildings
        SET is_verified = TRUE,
@@ -1006,39 +1008,128 @@ export class BuildingsService {
     );
   }
 
-  async findDuplicatePinWarnings(buildingId: string) {
+  async findNearbyPinsForReview(
+    buildingId: string,
+    overrideLat?: number,
+    overrideLng?: number,
+  ) {
+    const hasOverride =
+      overrideLat != null &&
+      overrideLng != null &&
+      Number.isFinite(overrideLat) &&
+      Number.isFinite(overrideLng);
+
     const { rows } = await this.db.query<{
       id: string;
       name: string;
       landlord_id: string | null;
+      origin_landlord_id: string | null;
+      pin_lat: number;
+      pin_lng: number;
+      is_verified: boolean;
+      is_rejected: boolean;
       distance_m: number;
     }>(
-      `SELECT b2.id, b2.name, b2.landlord_id,
-              ST_Distance(b1.location::geography, b2.location::geography) AS distance_m
-       FROM buildings b1
-       JOIN buildings b2
-         ON b2.id <> b1.id
-        AND b2.is_verified = TRUE
-        AND b2.landlord_id IS DISTINCT FROM b1.landlord_id
-        AND b1.location IS NOT NULL
-        AND b2.location IS NOT NULL
-        AND ST_DWithin(
-          b1.location::geography,
-          b2.location::geography,
-          $2
-        )
-       WHERE b1.id = $1
+      `WITH origin AS (
+         SELECT b1.id AS building_id,
+                b1.landlord_id AS origin_landlord_id,
+                CASE
+                  WHEN $3::float8 IS NOT NULL AND $4::float8 IS NOT NULL THEN
+                    ST_SetSRID(ST_MakePoint($4::float8, $3::float8), 4326)::geography
+                  ELSE ST_SetSRID(
+                    ST_MakePoint(
+                      COALESCE(b1.exact_lng, b1.approximate_lng),
+                      COALESCE(b1.exact_lat, b1.approximate_lat)
+                    ),
+                    4326
+                  )::geography
+                END AS loc
+         FROM buildings b1
+         WHERE b1.id = $1
+           AND (
+             (b1.exact_lat IS NOT NULL AND b1.exact_lng IS NOT NULL)
+             OR (b1.approximate_lat IS NOT NULL AND b1.approximate_lng IS NOT NULL)
+             OR ($3::float8 IS NOT NULL AND $4::float8 IS NOT NULL)
+           )
+       ),
+       candidates AS (
+         SELECT b2.*,
+                ST_SetSRID(
+                  ST_MakePoint(
+                    COALESCE(b2.exact_lng, b2.approximate_lng),
+                    COALESCE(b2.exact_lat, b2.approximate_lat)
+                  ),
+                  4326
+                )::geography AS review_loc
+         FROM buildings b2
+         WHERE (b2.exact_lat IS NOT NULL AND b2.exact_lng IS NOT NULL)
+            OR (b2.approximate_lat IS NOT NULL AND b2.approximate_lng IS NOT NULL)
+       )
+       SELECT b2.id,
+              b2.name,
+              b2.landlord_id,
+              origin.origin_landlord_id,
+              COALESCE(b2.exact_lat, b2.approximate_lat) AS pin_lat,
+              COALESCE(b2.exact_lng, b2.approximate_lng) AS pin_lng,
+              b2.is_verified,
+              (b2.rejected_at IS NOT NULL) AS is_rejected,
+              ST_Distance(origin.loc, b2.review_loc) AS distance_m
+       FROM origin
+       JOIN candidates b2
+         ON b2.id <> origin.building_id
+        AND ST_DWithin(origin.loc, b2.review_loc, $2)
        ORDER BY distance_m ASC
-       LIMIT 5`,
-      [buildingId, DUPLICATE_PIN_RADIUS_METERS],
+       LIMIT 20`,
+      [
+        buildingId,
+        DUPLICATE_PIN_RADIUS_METERS,
+        hasOverride ? overrideLat : null,
+        hasOverride ? overrideLng : null,
+      ],
     );
 
-    return rows.map((row) => ({
-      id: row.id,
-      name: row.name,
-      landlordId: row.landlord_id,
-      distanceM: Math.round(row.distance_m),
-    }));
+    return rows.map((row) => {
+      const isSameLandlord =
+        row.landlord_id != null &&
+        row.origin_landlord_id != null &&
+        row.landlord_id === row.origin_landlord_id;
+      const duplicateRisk =
+        row.is_verified && !isSameLandlord && !row.is_rejected;
+
+      return {
+        id: row.id,
+        name: row.name,
+        landlordId: row.landlord_id,
+        pinLat: row.pin_lat,
+        pinLng: row.pin_lng,
+        distanceM: Math.round(row.distance_m),
+        isVerified: row.is_verified,
+        isRejected: row.is_rejected,
+        isSameLandlord,
+        duplicateRisk,
+      };
+    });
+  }
+
+  async findDuplicatePinWarnings(
+    buildingId: string,
+    overrideLat?: number,
+    overrideLng?: number,
+  ) {
+    const nearby = await this.findNearbyPinsForReview(
+      buildingId,
+      overrideLat,
+      overrideLng,
+    );
+
+    return nearby
+      .filter((pin) => pin.duplicateRisk)
+      .map(({ id, name, landlordId, distanceM }) => ({
+        id,
+        name,
+        landlordId,
+        distanceM,
+      }));
   }
 
   async rejectBuilding(buildingId: string, adminId: string, reason: string) {
@@ -1177,7 +1268,15 @@ export class BuildingsService {
     const exactLng = row.exact_lng as number | null;
     const units = await this.fetchUnits(buildingId);
 
-    const duplicatePinWarnings = await this.findDuplicatePinWarnings(buildingId);
+    const nearbyPins = await this.findNearbyPinsForReview(buildingId);
+    const duplicatePinWarnings = nearbyPins
+      .filter((pin) => pin.duplicateRisk)
+      .map(({ id, name, landlordId, distanceM }) => ({
+        id,
+        name,
+        landlordId,
+        distanceM,
+      }));
 
     return {
       id: row.id,
@@ -1197,6 +1296,7 @@ export class BuildingsService {
       isVerified: row.is_verified,
       ownershipAttestedAt: row.ownership_attested_at ?? null,
       duplicatePinWarnings,
+      nearbyPins,
       landlordPhoneRequired: !row.phone,
       units,
       landlord: {
@@ -1473,7 +1573,15 @@ export class BuildingsService {
 
     const thumbPath = dto.thumbStoragePath ?? dto.storagePath;
 
-    if (dto.isPrimary) {
+    const { rows: primaryCheck } = await this.db.query<{ has_primary: boolean }>(
+      `SELECT EXISTS(
+         SELECT 1 FROM unit_images WHERE building_id = $1 AND is_primary = TRUE
+       ) AS has_primary`,
+      [buildingId],
+    );
+    const isPrimary = dto.isPrimary || !primaryCheck[0]?.has_primary;
+
+    if (isPrimary) {
       await this.db.query(
         "UPDATE unit_images SET is_primary = FALSE WHERE building_id = $1",
         [buildingId],
@@ -1499,9 +1607,36 @@ export class BuildingsService {
       `INSERT INTO unit_images (building_id, storage_path, thumb_storage_path, is_primary, sort_order)
        VALUES ($1, $2, $3, $4, (SELECT COALESCE(MAX(sort_order), 0) + 1 FROM unit_images WHERE building_id = $1))
        RETURNING id, storage_path, thumb_storage_path, is_primary, sort_order, created_at`,
-      [buildingId, dto.storagePath, thumbPath, dto.isPrimary ?? false],
+      [buildingId, dto.storagePath, thumbPath, isPrimary ?? false],
     );
     return this.mapImageRow(rows[0]);
+  }
+
+  /** Ensures buildings.cover_image_path matches a gallery photo before go-live. */
+  private async assertBuildingHasCoverImage(buildingId: string) {
+    const { rows: buildingRows } = await this.db.query<{
+      cover_image_path: string | null;
+    }>(
+      `SELECT cover_image_path FROM buildings WHERE id = $1`,
+      [buildingId],
+    );
+    if (buildingRows[0]?.cover_image_path) return;
+
+    const { rows: imageRows } = await this.db.query<{ id: string }>(
+      `SELECT id
+       FROM unit_images
+       WHERE building_id = $1
+       ORDER BY is_primary DESC, sort_order ASC, created_at ASC
+       LIMIT 1`,
+      [buildingId],
+    );
+    if (!imageRows[0]) {
+      throw new BadRequestException(
+        "Add at least one building photo and set a cover before approving.",
+      );
+    }
+
+    await this.promoteBuildingImage(buildingId, imageRows[0].id);
   }
 
   private async fetchBuildingImages(buildingId: string) {

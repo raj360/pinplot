@@ -167,6 +167,17 @@ export class AdminBuildingsController {
     return this.buildings.findPendingVerification();
   }
 
+  @Get(":id/nearby-pins")
+  findNearbyPins(
+    @Param("id") id: string,
+    @Query("lat") lat?: string,
+    @Query("lng") lng?: string,
+  ) {
+    const parsedLat = lat != null ? Number(lat) : undefined;
+    const parsedLng = lng != null ? Number(lng) : undefined;
+    return this.buildings.findNearbyPinsForReview(id, parsedLat, parsedLng);
+  }
+
   @Get(":id")
   findPendingOne(@Param("id") id: string) {
     return this.buildings.findPendingById(id);
