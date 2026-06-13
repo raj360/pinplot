@@ -15,6 +15,15 @@ import { ExpiredUnlockCard } from "@/components/unlocks/ExpiredUnlockCard";
 import { TenantUnlocksSkeleton } from "@/components/landlord/LandlordPageSkeletons";
 import { cn } from "@/lib/utils/cn";
 
+function sortUnlocksByExpiry(unlocks: TenantUnlock[]) {
+  return [...unlocks].sort((a, b) => {
+    if (!a.expiresAt && !b.expiresAt) return 0;
+    if (!a.expiresAt) return 1;
+    if (!b.expiresAt) return -1;
+    return new Date(a.expiresAt).getTime() - new Date(b.expiresAt).getTime();
+  });
+}
+
 const TABS: Array<{ id: UnlockListStatus; label: string }> = [
   { id: "active", label: "Active" },
   { id: "expired", label: "Past unlocks" },
@@ -40,7 +49,10 @@ export default function TenantUnlocksPage() {
       setLoading(true);
       setError(null);
       try {
-        setUnlocks(await fetchMyUnlocks(tab));
+        const list = await fetchMyUnlocks(tab);
+        setUnlocks(
+          tab === "active" ? sortUnlocksByExpiry(list) : list,
+        );
       } catch {
         setError("Could not load your unlocks.");
       } finally {
@@ -72,6 +84,9 @@ export default function TenantUnlocksPage() {
             )}
           >
             {item.label}
+            {item.id === "active" && !loading && tab === "active" && unlocks.length > 0 ? (
+              <span className="ml-1.5 text-muted">({unlocks.length})</span>
+            ) : null}
           </button>
         ))}
       </div>
@@ -81,7 +96,7 @@ export default function TenantUnlocksPage() {
       ) : error ? (
         <p className="text-sm text-red-600">{error}</p>
       ) : unlocks.length === 0 ? (
-        <div className="border border-dashed border-border p-8 text-center text-sm text-muted">
+        <div className="card-elevated border-dashed px-4 py-8 text-center text-sm text-muted">
           {tab === "active" ? (
             <>
               No active unlocks.{" "}

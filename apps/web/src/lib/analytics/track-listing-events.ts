@@ -6,13 +6,18 @@ const SESSION_KEY = "plotpin_analytics_session";
 export type ListingAnalyticsEventType =
   | "IMPRESSION"
   | "DETAIL_VIEW"
-  | "UNLOCK_CLICK";
+  | "UNLOCK_CLICK"
+  | "CONTACT_CALL"
+  | "CONTACT_WHATSAPP"
+  | "CONTACT_COPY"
+  | "DIRECTIONS";
 
 export type ListingAnalyticsEvent = {
   eventType: ListingAnalyticsEventType;
   buildingId: string;
   unitId?: string;
-  source?: "explore" | "featured" | "direct";
+  unlockId?: string;
+  source?: "explore" | "featured" | "direct" | "unlocks";
 };
 
 function getSessionId(): string {
@@ -64,6 +69,7 @@ export async function flushListingEvents(countryCode?: string) {
           eventType: event.eventType,
           buildingId: event.buildingId,
           unitId: event.unitId,
+          unlockId: event.unlockId,
           source: event.source,
         })),
         sessionId: getSessionId(),

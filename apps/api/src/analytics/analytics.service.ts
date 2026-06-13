@@ -20,14 +20,15 @@ export class AnalyticsService {
     for (const event of events) {
       const { rowCount } = await this.db.query(
         `INSERT INTO listing_analytics_events (
-           event_type, building_id, unit_id, viewer_id, session_id, source, country_code
+           event_type, building_id, unit_id, unlock_id, viewer_id, session_id, source, country_code
          )
-         SELECT $1, $2, $3, $4, $5, $6, $7
+         SELECT $1, $2, $3, $4, $5, $6, $7, $8
          WHERE EXISTS (SELECT 1 FROM buildings b WHERE b.id = $2 AND b.is_verified = TRUE)`,
         [
           event.eventType,
           event.buildingId,
           event.unitId ?? null,
+          event.unlockId ?? null,
           options.viewerId ?? null,
           options.sessionId ?? null,
           event.source ?? null,
