@@ -9,6 +9,7 @@ import { googleMapsDirectionsUrl, googleMapsPlaceUrl } from "@/lib/maps/directio
 import { formatCurrency } from "@/lib/intl/format";
 import { PRICING } from "@plotpin/shared-types";
 import type { TenantUnlock } from "@/lib/api/unlocks";
+import { useViewerContext } from "@/components/providers/ViewerContextProvider";
 import { ContactActions } from "@/components/contact/ContactActions";
 import { CopyTextButton } from "@/components/ui/copy-text-button";
 import { resolveImageUrls } from "@/lib/buildings/media";
@@ -33,6 +34,13 @@ function engagementTracker(
   };
 }
 
+function unlockPaidLabel(unlock: TenantUnlock) {
+  if (unlock.amountPaid != null && unlock.paidCurrency) {
+    return formatCurrency(unlock.amountPaid, unlock.paidCurrency);
+  }
+  return formatCurrency(PRICING.tenantUnlockFeeUgx);
+}
+
 export function UnlockedAccessCard({
   unlock,
   showBuildingLink = true,
@@ -47,6 +55,7 @@ export function UnlockedAccessCard({
   revealOnClick?: boolean;
   showMobileActions?: boolean;
 }) {
+  const { formatListingRent } = useViewerContext();
   const { lat, lng } = unlock.location;
   const contact = unlock.contact.phone;
   const address = unlock.contact.exactAddress;
@@ -54,6 +63,16 @@ export function UnlockedAccessCard({
   const coverPhoto = photos[0];
   const track = engagementTracker(unlock);
   const whatsAppMessage = `Hi, I unlocked Unit ${unlock.unitNumber} on PlotPin and would like to arrange a viewing.`;
+  const locationLine = [unlock.district, unlock.city].filter(Boolean).join(", ");
+  const rentLabel =
+    unlock.rentAmount != null && unlock.listingCurrency
+      ? formatListingRent(
+          unlock.rentAmount,
+          unlock.listingCurrency,
+          unlock.rentPeriod ?? "month",
+        )
+      : null;
+  const paidLabel = unlockPaidLabel(unlock);
 
   return (
     <>
@@ -78,6 +97,17 @@ export function UnlockedAccessCard({
               Unit {unlock.unitNumber}
               {unlock.buildingName ? ` · ${unlock.buildingName}` : ""}
             </p>
+            {locationLine ? (
+              <p className="mt-0.5 text-sm opacity-90">{locationLine}</p>
+            ) : null}
+            {rentLabel ? (
+              <p className="mt-0.5 text-sm font-medium opacity-90">{rentLabel}</p>
+            ) : null}
+            {unlock.bedrooms != null ? (
+              <p className="mt-0.5 text-xs opacity-80">
+                {unlock.bedrooms} bed{unlock.bedrooms === 1 ? "" : "s"}
+              </p>
+            ) : null}
             <p className="mt-1 text-sm opacity-90">
               <UnlockCountdown
                 expiresAt={unlock.expiresAt}
@@ -133,7 +163,7 @@ export function UnlockedAccessCard({
 
           {showAccessNote ? (
             <p className="text-xs text-muted lg:hidden">
-              You paid {formatCurrency(PRICING.tenantUnlockFeeUgx)} for{" "}
+              You paid {paidLabel} for {unlock.exclusiveHours}h{" "}
               {unlock.exclusiveHours}h{" "}
               {unlock.locksUnit === false ? "verified contact" : "exclusive"}{" "}
               access. Return here anytime before it expires.
@@ -173,7 +203,7 @@ export function UnlockedAccessCard({
         <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-muted">
           {showAccessNote ? (
             <p className="hidden lg:block">
-              Paid {formatCurrency(PRICING.tenantUnlockFeeUgx)} ·{" "}
+              Paid {paidLabel} · {unlock.exclusiveHours}h{" "}
               {unlock.exclusiveHours}h{" "}
               {unlock.locksUnit === false ? "contact" : "exclusive"} access ·
               Unlocked{" "}

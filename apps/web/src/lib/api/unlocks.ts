@@ -27,6 +27,15 @@ export type TenantUnlock = {
   coverImageUrl?: string;
   imageUrls?: string[];
   videoUrl?: string;
+  /** Listing context for unlock hub cards (Phase 4). */
+  bedrooms?: number;
+  rentAmount?: number;
+  listingCurrency?: string;
+  district?: string | null;
+  city?: string | null;
+  /** Settled payment from `payments` join on list endpoints. */
+  amountPaid?: number;
+  paidCurrency?: string;
 };
 
 export type UnlockStatus =

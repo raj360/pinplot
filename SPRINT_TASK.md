@@ -253,11 +253,13 @@ yarn db:migrate   # applies 029 (notification_log), 030 (listing_analytics_event
 
 ```sql
 event_type   TEXT  -- IMPRESSION | DETAIL_VIEW | UNLOCK_CLICK
+                  -- CONTACT_CALL | CONTACT_WHATSAPP | CONTACT_COPY | DIRECTIONS  (034)
 building_id  UUID  NOT NULL
 unit_id      UUID  NULL
+unlock_id    UUID  NULL          -- migration 034, post-unlock engagement
 viewer_id    UUID  NULL          -- authenticated
 session_id   TEXT  NULL          -- anon fingerprint (cookie)
-source       TEXT  NULL          -- explore | featured | direct
+source       TEXT  NULL          -- explore | featured | direct | unlocks
 country_code CHAR(2) NULL
 created_at   TIMESTAMPTZ
 ```
@@ -290,6 +292,28 @@ yarn db:migrate   # applies 033 (user_notifications)
 | N-09f | Dedicated `/notifications` page | Pending | Phase 6 polish |
 
 **Exit:** Users see unread count in-app; dismiss/read persists server-side; lock-ended alerts no longer use localStorage.
+
+---
+
+## Sprint 5I — Tenant unlock hub (UX + engagement) — **✅ implemented (run migration 034)**
+
+**Goal:** Deliver clear ROI after paid unlock — contact-first hub, engagement tracking for feedback, no locked→unlocked flash on building detail.
+
+```bash
+yarn db:migrate   # applies 034 (unlock engagement event types + unlock_id on analytics)
+```
+
+| ID | Task | Status | Notes |
+|----|------|--------|-------|
+| U-01 | **My unlocks** Phase 1 — contact-first layout, open contact, copy, time progress | Done | `UnlockedAccessCard` |
+| U-02 | Engagement analytics events | Done | `CONTACT_CALL`, `CONTACT_WHATSAPP`, `CONTACT_COPY`, `DIRECTIONS` + `unlock_id` |
+| U-03 | Phase 2 — multi-unlock picker, `?tab=&unlock=` deep links, mobile bell | Done | `UnlockPickerList`, `AppHeader` |
+| U-04 | Phase 3 — building unlock session cache, detail skeleton gate, mobile bar, share/calendar | Done | `unlocks-cache.ts`, `UnlockAccessTools` |
+| U-05 | Phase 4 — enrich unlock API (rent, bedrooms, district/city, amount paid) | Done | `GET /unlocks/mine`, building unlocks |
+| U-06 | Post-unlock feedback prompt (engagement + 24h rule, cron) | Pending | Uses analytics intent events |
+| U-07 | Dedicated `/notifications` page | Pending | Moved from N-09f |
+
+**Exit:** Tenants reach landlord contact in one tap; unlock hub shows listing context and actual paid amount; product can target feedback to users who tapped Call/WhatsApp/directions.
 
 ### Track D — Schema hygiene (P2, parallel)
 
@@ -330,6 +354,7 @@ yarn db:migrate   # applies 033 (user_notifications)
 | Stay class /night + stale lock fix (5G) | ✅ (migration 028) |
 | Unlock history + analytics + cron notifications (5H) | ✅ (migrations 029–031; Railway cron after deploy — [OPS-CRON.md](./docs/OPS-CRON.md)) |
 | In-app notification inbox (N-09 v1) | ✅ (migration 033; bell + server dismiss) |
+| Tenant unlock hub + engagement analytics (5I) | ✅ (migration 034; phases 1–4) |
 | Stripe / LLC | ⏸ deferred |
 
 ---
@@ -337,8 +362,8 @@ yarn db:migrate   # applies 033 (user_notifications)
 ## Recommended build order
 
 ```
-Done:  5A · 5B · 5D · 5E · 5F · 5G · 5H · N-09 v1
-Next:  Ops go-live (Railway cron, migrations 029–033) · 5C MoMo polish (SMS paused)
+Done:  5A · 5B · 5D · 5E · 5F · 5G · 5H · N-09 v1 · 5I (phases 1–4)
+Next:  Ops go-live (Railway cron, migrations 029–034) · U-06 feedback cron · 5C MoMo polish (SMS paused)
 Later: M-01 open-contact · `/notifications` page · LLC+Stripe when justified
 Ops:   yarn fx:refresh daily (GitHub) · Railway hourly cron after deploy — docs/OPS-CRON.md
 ```
@@ -355,4 +380,4 @@ Day 6:   H-26 (admin slice) · H-30 (drop listing_events) · H-18 if time (stale
 
 ---
 
-*Last updated: 2026-06-10 — N-09 in-app inbox (migration 033); 5H complete*
+*Last updated: 2026-06-13 — Sprint 5I tenant unlock hub (phases 1–4); migration 034 engagement analytics*

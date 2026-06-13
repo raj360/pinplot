@@ -20,13 +20,13 @@ PlotPin should work for **any visitor** landing from social ads anywhere in the 
 
 ## Where we stand (product snapshot)
 
-**Phase:** Sprint 4 ✅ → 5A trust ✅ → 5B unlock payments (FW + Lemon Squeezy) ✅ → 5D global discovery ✅ → **5E explore & homepage polish ✅ (2026-06-09)** → 5C Uganda rails polish (next)
+**Phase:** Sprint 4 ✅ → 5A trust ✅ → 5B unlock payments (FW + Lemon Squeezy) ✅ → 5D global discovery ✅ → **5E explore & homepage polish ✅** → **5F–5I dashboards, stay-class, lifecycle & unlock hub ✅** → 5C Uganda rails polish (next)
 
 | Persona | Can do today | Next |
 |---------|--------------|------|
-| **Tenant** | Homepage v2 with **personalized featured** (local grid + worldwide carousel), **global explore** (all verified listings in map bounds), **location-first viewer country** + viewer-currency pricing, paid unlock (card default outside MoMo markets) | MoMo/SMS polish (5C) |
-| **Landlord** | Submit (any country), photos, unit status, reject + resubmit, listing-currency edit; **GB + UG test supply** on map | Extend `SUPPLY_MARKET_CODES` as markets launch |
-| **Admin** | Approve/reject, coupons, featured launch, verification checklist, reports | — |
+| **Tenant** | Homepage v2 with **personalized featured**, **global explore**, paid unlock, **My unlocks hub** (contact-first, share/calendar, deep links), **saved listings**, in-app notification bell | Feedback prompts (U-06) · MoMo/SMS polish (5C) |
+| **Landlord** | Submit (any country), photos, unit status, reject + resubmit, **paid featured**, unlock/view stats on dashboard | Extend `SUPPLY_MARKET_CODES` as markets launch |
+| **Admin** | Approve/reject, coupons, featured launch, verification checklist, reports, listing analytics overview | — |
 
 **Monetization:** [docs/BUSINESS-MODEL.md](./docs/BUSINESS-MODEL.md) — free listing, paid unlock.  
 **Payments:** [docs/PAYMENTS-STRATEGY.md](./docs/PAYMENTS-STRATEGY.md) — **Flutterwave + Lemon Squeezy** now; **Stripe when US LLC exists**.
@@ -106,6 +106,42 @@ Full task list: [docs/IMPLEMENTATION-PLAN.md](./docs/IMPLEMENTATION-PLAN.md)
 
 ---
 
+## Phase 5F — Role dashboards & paid featured — **✅ complete (2026-06-09)**
+
+Tenant sidebar shell, landlord featured checkout (S5-08), dashboard stat cards. See [SPRINT_TASK.md](./SPRINT_TASK.md) §5F.
+
+---
+
+## Phase 5G — Stay class (`/night`) + dashboard polish — **✅ complete (2026-06-10)**
+
+Short-stay unlock policy (24h verified contact vs 72h exclusive), stale lock release, dashboard skeletons. Migration `028`. See [SPRINT_TASK.md](./SPRINT_TASK.md) §5G.
+
+---
+
+## Phase 5H — Unlock lifecycle, analytics & cron notifications — **✅ complete**
+
+Tenant active/past unlock tabs, listing analytics, hourly cron emails, in-app inbox (N-09). Migrations `029`–`031`, `033`. See [SPRINT_TASK.md](./SPRINT_TASK.md) §5H · [OPS-CRON.md](./docs/OPS-CRON.md).
+
+---
+
+## Phase 5I — Tenant unlock hub (UX + engagement) — **✅ complete (2026-06-13)**
+
+**Goal:** Paid unlock feels worth it — fast contact, listing context on hub cards, measurable intent for feedback.
+
+| Area | Deliverable |
+|------|-------------|
+| **My unlocks** | Contact-first layout; open contact post-payment; copy address/phone; time progress bar |
+| **Multi-unlock** | List/detail picker (desktop + mobile strip); `?tab=active\|expired&unlock=` deep links from notifications |
+| **Mobile** | Notification bell in header; sticky Call / WhatsApp / Directions bar on unlock cards |
+| **Building detail** | Session unlock cache + skeleton until status known (no locked→unlocked flash) |
+| **Share** | Add calendar reminder, share/copy unlock hub link |
+| **Analytics** | Post-unlock engagement events (`CONTACT_*`, `DIRECTIONS`) with `unlock_id` — migration `034` |
+| **API** | Unlock payloads include rent, bedrooms, district/city, amount paid from `payments` join |
+
+**Next:** U-06 engagement-based feedback prompt (cron); dedicated `/notifications` page.
+
+---
+
 ## Phase 5C — Uganda rails polish
 
 MoMo UX, USSD (TBD), SMS landlord alerts on unlock.
@@ -138,4 +174,4 @@ MoMo UX, USSD (TBD), SMS landlord alerts on unlock.
 
 ---
 
-*Last updated: 2026-06-09 — Sprint 5E explore polish, viewer UX, homepage featured personalization; migrations through 027*
+*Last updated: 2026-06-13 — Sprint 5I tenant unlock hub; migrations through 034*

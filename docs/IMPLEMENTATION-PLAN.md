@@ -9,8 +9,9 @@ Aligns with [BUSINESS-MODEL.md](./BUSINESS-MODEL.md), [PAYMENTS-STRATEGY.md](./P
 ## Overview
 
 ```
-Sprint 5A — Trust, access & engagement     ← START HERE
+Sprint 5A — Trust, access & engagement     ← complete
 Sprint 5B — Unlock payments (Flutterwave + Lemon Squeezy)
+Sprint 5D–5I — Global discovery, explore, dashboards, lifecycle, unlock hub
 Sprint 5C — MoMo / USSD polish + SMS (optional merge with 5B)
 Phase 6+ — US LLC + Stripe (when traction)
 Phase 6   — Paid featured (~3 mo), badge, growth
@@ -116,11 +117,35 @@ See [SPRINT_TASK.md](../SPRINT_TASK.md) §5H for full task table.
 
 **5H exit criteria**
 
-- [ ] Tenants see active + past unlocks; past rows hide contact  
-- [ ] Hourly cron sends expiring/expired unlock emails (idempotent)  
-- [ ] Landlords see view counts + unlock conversion on dashboard  
-- [ ] Admin can compare featured vs non-featured view performance  
-- [ ] `listing_events` removed or documented as deprecated  
+- [x] Tenants see active + past unlocks; past rows hide contact  
+- [x] Hourly cron sends expiring/expired unlock emails (idempotent)  
+- [x] Landlords see view counts + unlock conversion on dashboard  
+- [x] Admin can compare featured vs non-featured view performance  
+- [x] `listing_events` removed or documented as deprecated  
+
+---
+
+## Sprint 5I — Tenant unlock hub (P0–P1)
+
+**Goal:** Post-payment unlock experience that drives contact and supports feedback targeting.
+
+See [SPRINT_TASK.md](../SPRINT_TASK.md) §5I for full task table.
+
+| Phase | Focus | Status |
+|-------|-------|--------|
+| 1 | Contact-first hub, open contact, copy, progress bar | Done |
+| 2 | Multi-unlock picker, deep links, mobile bell | Done |
+| 3 | Building detail cache/skeleton, mobile bar, share/calendar | Done |
+| 4 | Enriched unlock API (rent, beds, location, amount paid) | Done |
+| 5 | Feedback cron (engagement events + 24h delay) | Pending |
+
+**5I exit criteria**
+
+- [x] Tenants see contact immediately after unlock (no extra “Show contact” step on hub)  
+- [x] Call / WhatsApp / directions / copy tracked with `unlock_id`  
+- [x] Building detail does not flash locked UI when user already unlocked  
+- [x] Unlock cards show listing rent/location and actual paid amount  
+- [ ] Feedback prompt sent only to users with engagement intent events  
 
 ---
 
@@ -150,6 +175,8 @@ See [SPRINT_TASK.md](../SPRINT_TASK.md) §5H for full task table.
 | `029_notification_log.sql` | Cron email idempotency (5H) |
 | `030_listing_analytics_events.sql` | Impression / detail_view / unlock_click (5H) |
 | `031_drop_listing_events.sql` | Remove dormant audit table (5H) |
+| `033_user_notifications.sql` | In-app notification inbox (N-09) |
+| `034_unlock_engagement_analytics.sql` | Post-unlock engagement events + `unlock_id` (5I) |
 
 ---
 
@@ -176,4 +203,4 @@ When shipping a task, update:
 
 ---
 
-*Last updated: 2026-06-03*
+*Last updated: 2026-06-13 — Sprint 5I unlock hub; migration 034*
