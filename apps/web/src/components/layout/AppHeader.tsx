@@ -119,7 +119,10 @@ export function AppHeader({
   );
 
   const mobileNav = (
-    <div className="flex shrink-0 items-center md:hidden">
+    <div className="flex shrink-0 items-center gap-2 md:hidden">
+      {showAccountNav ? (
+        <NotificationBell ready={!navPending && isAuthenticated} />
+      ) : null}
       <AppMobileNav activeSectionTitle={mobileSectionTitle} />
     </div>
   );

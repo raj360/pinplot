@@ -12,6 +12,7 @@ export type UnlockReceiptNotification = {
   unitNumber: string;
   amountUgx: number;
   paymentId: string;
+  unlockId: string;
 };
 
 @Injectable()
@@ -28,7 +29,9 @@ export class TenantNotificationsService {
   async notifyUnlockReceipt(
     payload: UnlockReceiptNotification,
   ): Promise<{ delivered: boolean }> {
-    const unlocksUrl = this.appUrl("/tenant/unlocks");
+    const unlocksUrl = this.appUrl(
+      `/tenant/unlocks?unlock=${encodeURIComponent(payload.unlockId)}`,
+    );
 
     await this.inApp.create({
       userId: payload.tenantId,

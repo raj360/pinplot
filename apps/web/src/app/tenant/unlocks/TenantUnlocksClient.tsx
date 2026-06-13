@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { DashboardSection } from "@/components/layout/DashboardSection";
 import {
   fetchMyUnlocks,
@@ -12,6 +12,7 @@ import {
 import { getAccessToken } from "@/lib/api/client";
 import { UnlockedAccessCard } from "@/components/buildings/UnlockedAccessCard";
 import { ExpiredUnlockCard } from "@/components/unlocks/ExpiredUnlockCard";
+import { UnlockPickerList } from "@/components/unlocks/UnlockPickerList";
 import { TenantUnlocksSkeleton } from "@/components/landlord/LandlordPageSkeletons";
 import { cn } from "@/lib/utils/cn";
 
@@ -29,12 +30,24 @@ const TABS: Array<{ id: UnlockListStatus; label: string }> = [
   { id: "expired", label: "Past unlocks" },
 ];
 
-export default function TenantUnlocksPage() {
+export default function TenantUnlocksClient() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [tab, setTab] = useState<UnlockListStatus>("active");
   const [unlocks, setUnlocks] = useState<TenantUnlock[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+
+  const activeUnlocks = useMemo(
+    () =>
+      tab === "active"
+        ? sortUnlocksByExpiry(
+            unlocks.filter((unlock) => unlock.unlockState !== "expired"),
+          )
+        : [],
+    [tab, unlocks],
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -50,11 +63,13 @@ export default function TenantUnlocksPage() {
       setError(null);
       try {
         const list = await fetchMyUnlocks(tab);
-        setUnlocks(
-          tab === "active" ? sortUnlocksByExpiry(list) : list,
-        );
+        if (!cancelled) {
+          setUnlocks(
+            tab === "active" ? sortUnlocksByExpiry(list) : list,
+          );
+        }
       } catch {
-        setError("Could not load your unlocks.");
+        if (!cancelled) setError("Could not load your unlocks.");
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -64,6 +79,38 @@ export default function TenantUnlocksPage() {
       cancelled = true;
     };
   }, [router, tab]);
+
+  useEffect(() => {
+    if (tab !== "active" || activeUnlocks.length === 0) {
+      setSelectedId(null);
+      return;
+    }
+
+    const fromUrl = searchParams.get("unlock");
+    if (fromUrl && activeUnlocks.some((unlock) => unlock.unlockId === fromUrl)) {
+      setSelectedId(fromUrl);
+      return;
+    }
+
+    setSelectedId((current) => {
+      if (current && activeUnlocks.some((unlock) => unlock.unlockId === current)) {
+        return current;
+      }
+      return activeUnlocks[0]?.unlockId ?? null;
+    });
+  }, [activeUnlocks, searchParams, tab]);
+
+  function handleSelectUnlock(unlockId: string) {
+    setSelectedId(unlockId);
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("unlock", unlockId);
+    router.replace(`/tenant/unlocks?${params.toString()}`, { scroll: false });
+  }
+
+  const selectedUnlock =
+    activeUnlocks.find((unlock) => unlock.unlockId === selectedId) ??
+    activeUnlocks[0] ??
+    null;
 
   return (
     <DashboardSection
@@ -92,7 +139,7 @@ export default function TenantUnlocksPage() {
       </div>
 
       {loading ? (
-        <TenantUnlocksSkeleton />
+        <TenantUnlocksSkeleton variant={tab === "expired" ? "expired" : "active"} />
       ) : error ? (
         <p className="text-sm text-red-600">{error}</p>
       ) : unlocks.length === 0 ? (
@@ -108,6 +155,24 @@ export default function TenantUnlocksPage() {
           ) : (
             <>No past unlocks yet.</>
           )}
+        </div>
+      ) : tab === "active" && activeUnlocks.length > 1 && selectedUnlock ? (
+        <div className="space-y-4">
+          <UnlockPickerList
+            unlocks={activeUnlocks}
+            selectedId={selectedUnlock.unlockId}
+            onSelect={handleSelectUnlock}
+            layout="strip"
+          />
+          <div className="grid gap-4 lg:grid-cols-[14rem_minmax(0,1fr)] lg:items-start">
+            <UnlockPickerList
+              unlocks={activeUnlocks}
+              selectedId={selectedUnlock.unlockId}
+              onSelect={handleSelectUnlock}
+              layout="sidebar"
+            />
+            <UnlockedAccessCard key={selectedUnlock.unlockId} unlock={selectedUnlock} />
+          </div>
         </div>
       ) : (
         <div className="space-y-4">

@@ -390,7 +390,9 @@ export class ScheduledNotificationsService {
       });
       const template = "tenant_unlock_expiring";
       const dedupeKey = `unlock:${row.unlock_id}:expiring_24h`;
-      const unlocksUrl = this.appUrl("/tenant/unlocks");
+      const unlocksUrl = this.appUrl(
+        `/tenant/unlocks?unlock=${encodeURIComponent(row.unlock_id)}`,
+      );
 
       if (
         await this.dispatch({

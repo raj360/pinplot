@@ -104,6 +104,7 @@ export function FeaturedBoostPanelSkeleton() {
   );
 }
 
+/** Tenant My unlocks — active unlock card placeholder. */
 export function TenantUnlockCardSkeleton() {
   return (
     <article className="overflow-hidden rounded-[var(--radius-DEFAULT)] border border-border bg-surface">
@@ -135,12 +136,37 @@ export function TenantUnlockCardSkeleton() {
   );
 }
 
+/** Tenant My unlocks — past unlock row placeholder. */
+export function TenantPastUnlockCardSkeleton() {
+  return (
+    <article className="card-elevated p-4">
+      <div className="flex gap-4">
+        <Skeleton className="hidden h-16 w-24 shrink-0 sm:block" />
+        <div className="min-w-0 flex-1 space-y-2">
+          <Skeleton className="h-3 w-24" />
+          <Skeleton className="h-6 w-56 max-w-full" />
+          <Skeleton className="h-4 w-28" />
+          <Skeleton className="mt-1 h-4 w-full max-w-md" />
+          <Skeleton className="h-4 w-44" />
+        </div>
+      </div>
+    </article>
+  );
+}
+
 /** Tenant My unlocks, card stack placeholder. */
-export function TenantUnlocksSkeleton() {
+export function TenantUnlocksSkeleton({
+  variant = "active",
+}: {
+  variant?: "active" | "expired";
+}) {
+  const Card =
+    variant === "expired" ? TenantPastUnlockCardSkeleton : TenantUnlockCardSkeleton;
+
   return (
     <div className="space-y-4" aria-busy="true" aria-label="Loading unlocks">
-      <TenantUnlockCardSkeleton />
-      <TenantUnlockCardSkeleton />
+      <Card />
+      <Card />
     </div>
   );
 }

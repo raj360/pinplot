@@ -330,6 +330,7 @@ export class UnlocksService {
         unit,
         tenantId,
         resolvedPayment.paymentId,
+        rows[0].id,
       ).catch(() => undefined);
 
       return {
@@ -598,6 +599,7 @@ export class UnlocksService {
     unit: UnitRow,
     tenantId: string,
     paymentId: string,
+    unlockId: string,
   ) {
     const { rows: tenantRows } = await this.db.query<{ email: string | null }>(
       `SELECT email FROM auth.users WHERE id = $1`,
@@ -627,6 +629,7 @@ export class UnlocksService {
       unitNumber: unit.unit_number,
       amountUgx,
       paymentId,
+      unlockId,
     });
   }
 
