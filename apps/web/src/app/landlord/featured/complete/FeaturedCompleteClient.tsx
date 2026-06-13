@@ -25,7 +25,7 @@ export function FeaturedCompleteClient() {
     const normalized = status.toLowerCase();
     if (normalized === "successful") return null;
     if (normalized === "cancelled") {
-      return "Payment was cancelled. No charge was made — you can try again when ready.";
+      return "Payment was cancelled. No charge was made. You can try again when ready.";
     }
     return "Payment was not completed. Try again or choose a different payment method.";
   }, [status]);

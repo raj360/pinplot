@@ -915,7 +915,7 @@ export function ExploreClient() {
       setSearchAlert({
         kind: "generic",
         message:
-          "No listings near you yet. Pan the map or try another area — filters still apply.",
+          "No listings near you yet. Pan the map or try another area. Filters still apply.",
       });
     }
   }, [executeSearch, geo, suppressMapInteraction]);

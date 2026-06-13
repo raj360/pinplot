@@ -7,8 +7,13 @@ import {
   DashboardSection,
   StatCard,
 } from "@/components/layout/DashboardSection";
+import { InAppNotificationBanner } from "@/components/notifications/InAppNotificationBanner";
 import { LandlordDashboardSkeleton } from "@/components/landlord/LandlordPageSkeletons";
 import { fetchMyBuildings, type LandlordBuilding } from "@/lib/api/buildings";
+import {
+  fetchNotifications,
+  type AppNotification,
+} from "@/lib/api/notifications";
 import { getAccessToken } from "@/lib/api/client";
 import {
   buildingNeedsUnitSetup,
@@ -24,6 +29,9 @@ export default function LandlordDashboardClient() {
   const router = useRouter();
   const params = useSearchParams();
   const [buildings, setBuildings] = useState<LandlordBuilding[]>([]);
+  const [holdEndedNotifications, setHoldEndedNotifications] = useState<
+    AppNotification[]
+  >([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const created = params.get("created") === "1";
@@ -34,7 +42,10 @@ export default function LandlordDashboardClient() {
   const firstNeedsSetup = buildings.find(buildingNeedsUnitSetup);
   const featuredCount = buildings.filter((b) => b.isFeatured).length;
   const totalUnlocks = buildings.reduce((sum, b) => sum + (b.unlockCount ?? 0), 0);
-
+  const lockedUnitCount = buildings.reduce(
+    (sum, b) => sum + (b.lockedUnitCount ?? 0),
+    0,
+  );
   useEffect(() => {
     let cancelled = false;
 
@@ -47,8 +58,18 @@ export default function LandlordDashboardClient() {
       }
 
       try {
-        setBuildings(await fetchMyBuildings());
-        setError(null);
+        const [buildingList, lockEnded] = await Promise.all([
+          fetchMyBuildings(),
+          fetchNotifications({
+            limit: 8,
+            types: ["UNIT_LOCK_ENDED"],
+          }),
+        ]);
+        if (!cancelled) {
+          setBuildings(buildingList);
+          setHoldEndedNotifications(lockEnded);
+          setError(null);
+        }
       } catch {
         if (!cancelled) setError("Could not load your buildings.");
       } finally {
@@ -64,15 +85,15 @@ export default function LandlordDashboardClient() {
   return (
     <div className="space-y-4">
       {created && !loading && (
-        <p className="border border-primary/30 bg-primary/5 px-4 py-3 text-sm">
-          Building submitted — an admin will review it first. After approval,
+        <p className="rounded-[var(--radius-DEFAULT)] border border-primary/30 bg-primary/5 px-4 py-3 text-sm">
+          Building submitted. An admin will review it first. After approval,
           open the building and mark units <strong>available</strong> so tenants
           can find it on the map.
         </p>
       )}
 
       {!loading && rejectedCount > 0 ? (
-        <div className="border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-950">
+        <div className="rounded-[var(--radius-DEFAULT)] border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-950">
           <p className="font-medium">
             {rejectedCount === 1
               ? "1 listing was rejected"
@@ -86,7 +107,7 @@ export default function LandlordDashboardClient() {
       ) : null}
 
       {!loading && needsSetupCount > 0 ? (
-        <div className="border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-950">
+        <div className="rounded-[var(--radius-DEFAULT)] border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-950">
           <p className="font-medium">
             {needsSetupCount === 1
               ? "1 approved building needs your attention"
@@ -105,6 +126,17 @@ export default function LandlordDashboardClient() {
             </Link>
           ) : null}
         </div>
+      ) : null}
+
+      {!loading && holdEndedNotifications.length > 0 ? (
+        <InAppNotificationBanner
+          notifications={holdEndedNotifications}
+          onDismiss={(id) => {
+            setHoldEndedNotifications((prev) =>
+              prev.filter((item) => item.id !== id),
+            );
+          }}
+        />
       ) : null}
 
       <DashboardSection
@@ -137,6 +169,12 @@ export default function LandlordDashboardClient() {
                   highlight={needsSetupCount > 0}
                 />
                 <StatCard label="Tenant unlocks" value={totalUnlocks} variant="primary" />
+                <StatCard
+                  label="Units on hold"
+                  value={lockedUnitCount}
+                  variant="primary"
+                  highlight={lockedUnitCount > 0}
+                />
                 <StatCard label="Featured now" value={featuredCount} variant="primary" />
                 {pendingCount > 0 ? (
                   <StatCard
@@ -165,10 +203,10 @@ export default function LandlordDashboardClient() {
                 return (
                 <li
                   key={b.id}
-                  className={`flex flex-wrap items-center justify-between gap-3 border bg-surface p-4 ${
+                  className={`card-elevated flex flex-wrap items-center justify-between gap-3 p-4 ${
                     status.actionRequired
                       ? "border-sky-300 ring-1 ring-sky-200"
-                      : "border-border"
+                      : ""
                   }`}
                 >
                   <div className="min-w-0">
@@ -180,6 +218,9 @@ export default function LandlordDashboardClient() {
                       {b.availableUnitCount} available · {b.totalUnits} units total
                       {b.unlockCount > 0
                         ? ` · ${b.unlockCount} unlock${b.unlockCount === 1 ? "" : "s"}`
+                        : ""}
+                      {(b.lockedUnitCount ?? 0) > 0
+                        ? ` · ${b.lockedUnitCount} on tenant hold`
                         : ""}
                     </p>
                     {b.isFeatured ? (
@@ -225,7 +266,7 @@ export default function LandlordDashboardClient() {
               );
               })}
               {buildings.length === 0 && !error && (
-                <li className="border border-dashed border-border px-4 py-12 text-center text-sm text-muted">
+                <li className="card-elevated border-dashed px-4 py-12 text-center text-sm text-muted">
                   No buildings yet.{" "}
                   <Link href="/landlord/new" className="font-medium text-primary">
                     Add your first building

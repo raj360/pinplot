@@ -54,7 +54,7 @@ export function resolveTransactionalEmailLogoSrc(
   return null;
 }
 
-/** Static tagline for emails — supply market is Uganda today. */
+/** Static tagline for emails, supply market is Uganda today. */
 export function transactionalEmailTagline(): string {
   return "Map-first rentals · Uganda supply, global discovery";
 }

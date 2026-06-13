@@ -6,6 +6,8 @@
 **Code entry points:**  
 - `apps/api/src/buildings/landlord-notifications.service.ts`  
 - `apps/api/src/notifications/tenant-notifications.service.ts`  
+- `apps/api/src/notifications/in-app-notifications.service.ts`  
+- `apps/api/src/notifications/scheduled-notifications.service.ts`  
 **Cron (Sprint 5H):** **Railway** hourly → `POST /api/v1/cron/hourly` with `CRON_SECRET` — [OPS-CRON.md](./OPS-CRON.md). GitHub workflow is manual-only.
 
 ---
@@ -14,7 +16,7 @@
 
 1. **Landlord-first priority** — unlock events are P0  
 2. **Actionable** — every notification has one clear CTA link  
-3. **Multi-channel** — email default; SMS for unlock + urgent; in-app later  
+3. **Multi-channel** — email default; SMS for unlock + urgent; in-app for actionable events (N-09 v1)  
 4. **No spam** — digest optional; max 1 SMS/day/landlord except unlock  
 
 ---
@@ -97,22 +99,22 @@
 
 **Implementation checklist:**
 
-- [ ] N-06 Migration `029_notification_log`  
-- [ ] N-06 Cron module + `CRON_SECRET` guard  
-- [ ] N-06a–c Email templates + query jobs  
-- [ ] N-12 `landlord_unit_lock_ended` template  
-- [ ] N-13 `landlord_featured_expiring` template  
-- [ ] N-07 Stale listing cron (P1, can slip to 5H.1)  
-- [ ] GH Action `notifications-cron.yml` (hourly + daily jobs)
+- [x] N-06 Migration `029_notification_log`  
+- [x] N-06 Cron module + `CRON_SECRET` guard  
+- [x] N-06a–c Email templates + query jobs  
+- [x] N-12 `landlord_unit_lock_ended` template  
+- [x] N-13 `landlord_featured_expiring` template  
+- [x] N-07 Stale listing cron (P1, can slip to 5H.1)  
+- [x] GH Action / Railway cron (hourly + daily jobs) — [OPS-CRON.md](./OPS-CRON.md)
 
 ### Phase 3 (Sprint 5C / 5H.1) — SMS
 
 - [ ] N-08 SMS for unlock received (landlord) — Africa's Talking  
 - [ ] N-08b SMS for unlock expiring (landlord, urgent only)
 
-### Phase 4 (Phase 6) — in-app + digest
+### Phase 4 — in-app + digest
 
-- [ ] N-09 In-app notification center  
+- [x] N-09 In-app notification center (v1 — bell, API inbox, dashboard banners; dedicated page deferred)  
 - [ ] N-10 Weekly landlord digest (views + unlocks summary — depends on 5H analytics)
 
 ---
@@ -135,6 +137,39 @@ CREATE TABLE notification_log (
 ```
 
 Enables safe hourly cron retries without duplicate emails.
+
+### `user_notifications` (N-09 v1)
+
+Server-side in-app inbox. Created **before** optional email send; cron and transactional flows share `InAppNotificationsService`.
+
+```sql
+CREATE TABLE user_notifications (
+  id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id      UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+  type         TEXT NOT NULL,                  -- e.g. UNIT_LOCK_ENDED, UNLOCK_RECEIVED
+  title        TEXT NOT NULL,
+  body         TEXT NOT NULL,
+  cta_url      TEXT,
+  payload      JSONB NOT NULL DEFAULT '{}',
+  dedupe_key   TEXT NOT NULL,
+  read_at      TIMESTAMPTZ,
+  dismissed_at TIMESTAMPTZ,
+  created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE (user_id, type, dedupe_key)
+);
+```
+
+**REST (authenticated):**
+
+| Method | Path | Purpose |
+|--------|------|---------|
+| GET | `/notifications/mine` | List (filter by type, unread, undismissed) |
+| GET | `/notifications/unread-count` | Badge count |
+| PATCH | `/notifications/:id/read` | Mark read |
+| PATCH | `/notifications/:id/dismiss` | Dismiss (hide from active lists) |
+| POST | `/notifications/mark-all-read` | Clear unread badge |
+
+Migration: `033_user_notifications.sql`.
 
 ---
 

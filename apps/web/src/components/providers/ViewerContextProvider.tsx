@@ -62,7 +62,7 @@ type ViewerContextValue = {
     listingCurrency: string,
     listingCountryCode?: string,
   ) => string;
-  /** Listing rent with /mo or /night suffix — viewer currency first. */
+  /** Listing rent with /mo or /night suffix, viewer currency first. */
   formatListingRent: (
     amount: number | null | undefined,
     listingCurrency: string,
@@ -71,7 +71,7 @@ type ViewerContextValue = {
   ) => string;
   /** Format a canonical-UGX fee (e.g. unlock fee) in the viewer's currency. */
   formatUnlockFee: (amountUgx: number) => string;
-  /** Unlock fee for hero/marketing — viewer currency first, UGX footnote when different. */
+  /** Unlock fee for hero/marketing, viewer currency first, UGX footnote when different. */
   formatUnlockFeeLabel: (amountUgx: number) => FormattedMoney;
 };
 
@@ -131,7 +131,7 @@ const FALLBACK_COUNTRIES: CountryCatalog[] = [
   })),
 ];
 
-/** Offline bootstrap only — live rates come from GET /api/v1/fx/rates (open.er-api.com). */
+/** Offline bootstrap only, live rates come from GET /api/v1/fx/rates (open.er-api.com). */
 const FALLBACK_FX: FxRateEntry[] = [
   { baseCurrency: "UGX", quoteCurrency: "UGX", rate: 1, updatedAt: "" },
   { baseCurrency: "UGX", quoteCurrency: "USD", rate: 0.00026, updatedAt: "" },
@@ -151,7 +151,7 @@ export function ViewerContextProvider({
   initialCountryCode,
 }: {
   children: React.ReactNode;
-  /** Country resolved from the SSR cookie hint — keeps the first paint correct. */
+  /** Country resolved from the SSR cookie hint, keeps the first paint correct. */
   initialCountryCode?: string | null;
 }) {
   const { isAuthenticated } = useAuth();

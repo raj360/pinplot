@@ -5,7 +5,7 @@ import { DatabaseService } from "../database/database.service";
 export class UnitLocksService {
   constructor(private readonly db: DatabaseService) {}
 
-  /** Release all expired exclusive locks — primary path via hourly cron. */
+  /** Release all expired exclusive locks, primary path via hourly cron. */
   async releaseAllExpiredLocks(): Promise<number> {
     const { rowCount } = await this.db.query(
       `UPDATE units
@@ -20,7 +20,7 @@ export class UnitLocksService {
     return rowCount ?? 0;
   }
 
-  /** Safety net at unlock checkout — does not replace cron. */
+  /** Safety net at unlock checkout, does not replace cron. */
   async releaseExpiredLockForUnit(unitId: string): Promise<void> {
     await this.db.query(
       `UPDATE units

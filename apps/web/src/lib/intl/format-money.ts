@@ -145,7 +145,7 @@ export function formatRentWithPeriod(
     countriesByCode?: Map<string, CountryCatalog>;
   },
 ): string {
-  if (amount == null) return "—";
+  if (amount == null) return "-";
 
   const suffix = period === "day" ? "/night" : "/mo";
   const formatted = formatMoney(

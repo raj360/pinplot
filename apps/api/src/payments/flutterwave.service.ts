@@ -73,7 +73,7 @@ export class FlutterwaveService {
           phonenumber: input.phone,
         },
         customizations: {
-          title: "PlotPin — Unlock contact",
+          title: "PlotPin: Unlock contact",
           description: "Tenant unlock fee",
         },
       }),

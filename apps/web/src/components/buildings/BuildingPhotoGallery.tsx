@@ -28,7 +28,7 @@ export function BuildingPhotoGallery({
   return (
     <div className="relative bg-muted/20">
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={current} alt={`${alt} — photo ${index + 1}`} className={imageClass} />
+      <img src={current} alt={`${alt}, photo ${index + 1}`} className={imageClass} />
 
       {hasMultiple ? (
         <>

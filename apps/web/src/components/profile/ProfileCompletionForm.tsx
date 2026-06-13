@@ -1,11 +1,12 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { isValidPhoneNumber } from "libphonenumber-js";
+import { useMemo } from "react";
 import { Controller, useForm, type Resolver } from "react-hook-form";
 import { z } from "zod";
 import type { Country } from "react-phone-number-input";
-import { PhoneVerificationNotice } from "@/components/profile/PhoneVerificationNotice";
+import { ProfileAccountSummary } from "@/components/profile/ProfileAccountSummary";
+import { ProfilePhoneVerificationSummary } from "@/components/profile/PhoneVerificationNotice";
 import { Button } from "@/components/ui/button";
 import { FormField } from "@/components/ui/form-field";
 import { IntlPhoneField } from "@/components/ui/intl-phone-field";
@@ -15,16 +16,26 @@ import {
   type UserProfile,
 } from "@/lib/api/profiles";
 import { profileCompletionMessage } from "@/lib/auth/profile-complete";
+import {
+  isCompletePhoneNumber,
+  normalizePhoneE164,
+  primaryPhoneLabel,
+  toPhoneInputValue,
+} from "@/lib/profile/phone-input";
+import { resolveProfilePhoneDefaultCountry } from "@/lib/profile/phone-default-country";
 
 function storedPhoneValue(stored: string | null | undefined) {
-  if (!stored?.trim() || stored.includes("@")) return undefined;
-  return stored;
+  if (!stored?.trim() || stored.includes("@")) return "";
+  return toPhoneInputValue(stored) ?? "";
 }
 
-function defaultPhoneCountry(profile: UserProfile | null): Country {
-  const code = profile?.country_code?.toUpperCase();
-  if (code && code.length === 2) return code as Country;
-  return "UG";
+function profileToFormValues(profile: UserProfile | null): ProfileFormData {
+  return {
+    firstName: profile?.first_name?.trim() ?? "",
+    lastName: profile?.last_name?.trim() ?? "",
+    phone: storedPhoneValue(profile?.phone),
+    phoneSecondary: storedPhoneValue(profile?.phone_secondary),
+  };
 }
 
 const profileSchema = z.object({
@@ -43,14 +54,14 @@ const profileSchema = z.object({
     .string()
     .trim()
     .min(1, { message: "Phone number is required" })
-    .refine((value) => isValidPhoneNumber(value), {
-      message: "Enter a valid phone number",
+    .refine((value) => isCompletePhoneNumber(value), {
+      message: "Enter a complete number after the country code (e.g. +44 7911 123456)",
     }),
   phoneSecondary: z
     .string()
     .optional()
-    .refine((value) => !value?.trim() || isValidPhoneNumber(value), {
-      message: "Enter a valid secondary number or leave it blank",
+    .refine((value) => !value?.trim() || isCompletePhoneNumber(value), {
+      message: "Enter a complete secondary number or leave it blank",
     }),
 });
 
@@ -64,29 +75,41 @@ export function ProfileCompletionForm({
   showSkip = false,
   submitLabel = "Save profile",
   showVerification = false,
+  compact = false,
+  layout = "stack",
 }: {
   profile: UserProfile | null;
   email?: string;
-  onSuccess?: () => void;
+  onSuccess?: (profile: UserProfile) => void;
   onSkip?: () => void;
   showSkip?: boolean;
   submitLabel?: string;
   showVerification?: boolean;
+  /** Tighter layout for /settings — skips long intro copy. */
+  compact?: boolean;
+  /** Settings: form fields left, live account preview sticky on the right. */
+  layout?: "stack" | "split";
 }) {
-  const isLandlord = profile?.role === "LANDLORD";
-  const phoneDefaultCountry = defaultPhoneCountry(profile);
+  const formValues = useMemo(() => profileToFormValues(profile), [profile]);
 
   const form = useForm<ProfileFormData>({
     resolver: zodResolver(
       profileSchema as unknown as Parameters<typeof zodResolver>[0],
     ) as unknown as Resolver<ProfileFormData>,
-    defaultValues: {
-      firstName: profile?.first_name?.trim() ?? "",
-      lastName: profile?.last_name?.trim() ?? "",
-      phone: storedPhoneValue(profile?.phone) ?? "",
-      phoneSecondary: storedPhoneValue(profile?.phone_secondary) ?? "",
-    },
+    defaultValues: formValues,
+    values: formValues,
   });
+
+  const watched = form.watch();
+  const summaryProfile: UserProfile | null = profile
+    ? {
+        ...profile,
+        first_name: watched.firstName || null,
+        last_name: watched.lastName || null,
+        phone: watched.phone || null,
+        phone_secondary: watched.phoneSecondary || null,
+      }
+    : null;
 
   async function onSubmit(values: ProfileFormData) {
     const phoneSecondary = values.phoneSecondary?.trim();
@@ -98,14 +121,20 @@ export function ProfileCompletionForm({
     }
 
     try {
-      await updateMyProfile({
+      const phone = normalizePhoneE164(values.phone) ?? values.phone;
+      const phoneSecondaryRaw = phoneSecondary
+        ? normalizePhoneE164(phoneSecondary) ?? phoneSecondary
+        : undefined;
+
+      const updated = await updateMyProfile({
         firstName: values.firstName.trim(),
         lastName: values.lastName?.trim() || undefined,
-        phone: values.phone,
-        phoneSecondary: phoneSecondary || undefined,
+        phone,
+        phoneSecondary: phoneSecondaryRaw,
       });
+      form.reset(profileToFormValues(updated));
       notifyProfileUpdated();
-      onSuccess?.();
+      onSuccess?.(updated);
     } catch (err) {
       form.setError("root", {
         message:
@@ -114,17 +143,17 @@ export function ProfileCompletionForm({
     }
   }
 
-  return (
-    <form
-      onSubmit={form.handleSubmit(onSubmit)}
-      className="space-y-4"
-      noValidate
-    >
-      <p className="text-sm text-muted">
-        {profileCompletionMessage(profile?.role)}
-      </p>
+  const useSplitLayout = compact && layout === "split";
 
-      {email ? (
+  const formFields = (
+    <>
+      {!compact ? (
+        <p className="text-sm text-muted">
+          {profileCompletionMessage(profile?.role)}
+        </p>
+      ) : null}
+
+      {!compact && email ? (
         <div>
           <p className="text-xs font-medium uppercase tracking-wide text-muted">
             Email
@@ -160,16 +189,19 @@ export function ProfileCompletionForm({
         render={({ field, fieldState }) => (
           <IntlPhoneField
             id="profile-phone"
-            label={
-              isLandlord ? "Primary phone (tenant contact)" : "Primary phone"
-            }
-            value={field.value}
-            onChange={field.onChange}
+            label={primaryPhoneLabel(profile?.role)}
+            value={field.value || undefined}
+            onChange={(value) => field.onChange(value ?? "")}
             onBlur={field.onBlur}
             error={fieldState.error}
-            defaultCountry={phoneDefaultCountry}
-            hint="Search country · used for calls and WhatsApp where supported"
-            defaultStored={profile?.phone}
+            defaultCountry={
+              resolveProfilePhoneDefaultCountry(profile, field.value) as Country
+            }
+            hint={
+              compact
+                ? "Country code stays fixed. Extra digits are blocked at the max for that country."
+                : "Country code is added automatically. Length is limited to a valid number."
+            }
           />
         )}
       />
@@ -181,33 +213,28 @@ export function ProfileCompletionForm({
           <IntlPhoneField
             id="profile-phone-secondary"
             label="Secondary phone"
-            value={field.value ?? ""}
-            onChange={field.onChange}
+            value={field.value || undefined}
+            onChange={(value) => field.onChange(value ?? "")}
             onBlur={field.onBlur}
             error={fieldState.error}
             required={false}
-            defaultCountry={phoneDefaultCountry}
-            hint="Optional backup — e.g. Uganda line if your primary is abroad"
-            defaultStored={profile?.phone_secondary}
+            defaultCountry={
+              resolveProfilePhoneDefaultCountry(
+                profile,
+                field.value || form.watch("phone"),
+              ) as Country
+            }
+            hint={
+              compact
+                ? "Optional. Country code is added when you pick a flag."
+                : "Optional backup line in another country"
+            }
           />
         )}
       />
 
       {showVerification ? (
-        <div className="space-y-2">
-          <PhoneVerificationNotice
-            phone={profile?.phone}
-            verifiedAt={profile?.phone_verified_at}
-            label="Primary phone"
-          />
-          {profile?.phone_secondary ? (
-            <PhoneVerificationNotice
-              phone={profile.phone_secondary}
-              verifiedAt={profile.phone_secondary_verified_at}
-              label="Secondary phone"
-            />
-          ) : null}
-        </div>
+        <ProfilePhoneVerificationSummary profile={profile} />
       ) : null}
 
       {form.formState.errors.root ? (
@@ -231,6 +258,35 @@ export function ProfileCompletionForm({
           </Button>
         ) : null}
       </div>
+    </>
+  );
+
+  return (
+    <form
+      onSubmit={form.handleSubmit(onSubmit)}
+      className={compact ? "space-y-3" : "space-y-4"}
+      noValidate
+    >
+      {useSplitLayout ? (
+        <>
+          <div className="lg:hidden">
+            <ProfileAccountSummary profile={summaryProfile} email={email} />
+          </div>
+          <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_17.5rem] lg:items-start">
+            <div className="min-w-0 space-y-3">{formFields}</div>
+            <aside className="hidden lg:sticky lg:top-6 lg:block lg:self-start">
+              <ProfileAccountSummary profile={summaryProfile} email={email} />
+            </aside>
+          </div>
+        </>
+      ) : (
+        <>
+          {compact ? (
+            <ProfileAccountSummary profile={summaryProfile} email={email} />
+          ) : null}
+          {formFields}
+        </>
+      )}
     </form>
   );
 }

@@ -7,7 +7,7 @@ type AppLoadingOverlayProps = {
   className?: string;
 };
 
-/** Full-viewport translucent overlay — content stays visible beneath. */
+/** Full-viewport translucent overlay, content stays visible beneath. */
 export function AppLoadingOverlay({
   show,
   label = "Loading",

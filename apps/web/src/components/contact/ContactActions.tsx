@@ -9,6 +9,9 @@ import {
   telHref,
   whatsAppHref,
 } from "@plotpin/shared-types";
+import { CopyTextButton } from "@/components/ui/copy-text-button";
+
+export type ContactEngagementAction = "call" | "whatsapp" | "copy";
 
 export function ContactActions({
   contact,
@@ -16,25 +19,33 @@ export function ContactActions({
   whatsAppMessage,
   compact = false,
   revealOnClick = true,
+  onEngagement,
 }: {
   contact: string;
   secondaryContact?: string | null;
   whatsAppMessage?: string;
   compact?: boolean;
-  /** Hide phone numbers until the user taps Show contact (Jiji-style). */
+  /** Hide phone numbers until the user taps Show contact (pre-purchase only). */
   revealOnClick?: boolean;
+  onEngagement?: (action: ContactEngagementAction) => void;
 }) {
   if (isEmailContact(contact)) {
     return (
       <div className="space-y-1.5">
-        <a
-          href={`mailto:${contact}`}
-          className="font-medium text-primary hover:underline"
-        >
-          {contact}
-        </a>
+        <div className="flex flex-wrap items-center gap-2">
+          <a
+            href={`mailto:${contact}`}
+            className="font-medium text-primary hover:underline"
+          >
+            {contact}
+          </a>
+          <CopyTextButton
+            text={contact}
+            onCopy={() => onEngagement?.("copy")}
+          />
+        </div>
         <p className="text-xs text-muted">
-          Email only — the landlord has not added a phone number to their
+          Email only. The landlord has not added a phone number to their
           profile yet. Phone verification is not required for contact to appear.
         </p>
       </div>
@@ -60,6 +71,7 @@ export function ContactActions({
           whatsAppMessage={whatsAppMessage}
           compact={compact}
           revealOnClick={revealOnClick}
+          onEngagement={onEngagement}
         />
       ))}
     </div>
@@ -72,63 +84,31 @@ function PhoneContactRow({
   whatsAppMessage,
   compact,
   revealOnClick,
+  onEngagement,
 }: {
   phone: string;
   label: string;
   whatsAppMessage?: string;
   compact?: boolean;
   revealOnClick: boolean;
+  onEngagement?: (action: ContactEngagementAction) => void;
 }) {
   const [revealed, setRevealed] = useState(!revealOnClick);
   const display = formatPhoneDisplay(phone);
   const wa = supportsWhatsApp(phone) ? whatsAppHref(phone, whatsAppMessage) : null;
+  const actionClass = compact
+    ? "min-h-11 px-3 py-2.5 text-center text-sm font-medium"
+    : "min-h-11 px-4 py-2.5 text-sm font-medium";
 
   if (!revealed) {
     return (
       <button
         type="button"
         onClick={() => setRevealed(true)}
-        className={
-          compact
-            ? "w-full bg-[#25D366] px-3 py-2.5 text-center text-sm font-semibold text-white"
-            : "w-full bg-[#25D366] px-4 py-3 text-center text-sm font-semibold text-white"
-        }
+        className={`w-full bg-[#25D366] text-center text-sm font-semibold text-white ${actionClass}`}
       >
         Show contact
       </button>
-    );
-  }
-
-  if (compact) {
-    return (
-      <div className="space-y-1.5">
-        <p className="text-[11px] font-medium uppercase tracking-wide text-muted">
-          {label}
-        </p>
-        <p className="font-medium">{display}</p>
-        <div className="grid grid-cols-2 gap-2">
-          <a
-            href={telHref(phone)}
-            className="bg-primary px-3 py-2 text-center text-sm font-medium text-primary-foreground"
-          >
-            Call
-          </a>
-          {wa ? (
-            <a
-              href={wa}
-              target="_blank"
-              rel="noreferrer"
-              className="border border-[#25D366] bg-[#25D366]/10 px-3 py-2 text-center text-sm font-medium text-[#128C7E]"
-            >
-              WhatsApp
-            </a>
-          ) : (
-            <span className="border border-border px-3 py-2 text-center text-xs text-muted">
-              WhatsApp N/A
-            </span>
-          )}
-        </div>
-      </div>
     );
   }
 
@@ -137,11 +117,18 @@ function PhoneContactRow({
       <p className="text-xs font-medium uppercase tracking-wide text-muted">
         {label}
       </p>
-      <p className="font-medium">{display}</p>
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-wrap items-center gap-2">
+        <p className="min-w-0 flex-1 text-base font-medium">{display}</p>
+        <CopyTextButton
+          text={phone}
+          onCopy={() => onEngagement?.("copy")}
+        />
+      </div>
+      <div className={compact ? "grid grid-cols-2 gap-2" : "flex flex-wrap gap-2"}>
         <a
           href={telHref(phone)}
-          className="bg-primary px-4 py-2 text-sm font-medium text-primary-foreground"
+          onClick={() => onEngagement?.("call")}
+          className={`bg-primary text-primary-foreground ${actionClass} ${compact ? "text-center" : "inline-flex items-center justify-center"}`}
         >
           Call
         </a>
@@ -150,13 +137,16 @@ function PhoneContactRow({
             href={wa}
             target="_blank"
             rel="noreferrer"
-            className="border border-[#25D366] bg-[#25D366]/10 px-4 py-2 text-sm font-medium text-[#128C7E]"
+            onClick={() => onEngagement?.("whatsapp")}
+            className={`border border-[#25D366] bg-[#25D366]/10 text-[#128C7E] ${actionClass} ${compact ? "text-center" : "inline-flex items-center justify-center"}`}
           >
             WhatsApp
           </a>
         ) : (
-          <span className="px-4 py-2 text-sm text-muted">
-            WhatsApp not available for this country code
+          <span
+            className={`border border-border text-muted ${actionClass} ${compact ? "text-center text-xs" : "inline-flex items-center px-4 text-sm"}`}
+          >
+            WhatsApp N/A
           </span>
         )}
       </div>

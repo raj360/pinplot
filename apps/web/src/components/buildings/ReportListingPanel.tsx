@@ -40,7 +40,7 @@ export function ReportListingPanel({
   if (done) {
     return (
       <p className="text-sm text-green-800">
-        Thank you — we received your report for {buildingName}. Our team will
+        Thank you. We received your report for {buildingName}. Our team will
         review it.
       </p>
     );
@@ -52,7 +52,7 @@ export function ReportListingPanel({
       <p className="mt-1 text-muted">
         Suspected scam, wrong location, or misleading photos? Report after unlock
         so we can investigate. PlotPin does not collect broker &quot;blockage&quot;
-        fees —{" "}
+        fees. {" "}
         <Link href="/terms" className="text-primary hover:underline">
           see Terms
         </Link>

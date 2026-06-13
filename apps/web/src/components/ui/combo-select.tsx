@@ -24,14 +24,14 @@ type ComboSelectProps = {
   options: ComboSelectOption[];
   className?: string;
   id?: string;
-  /** Placeholder when value is empty — shown inside the trigger. */
+  /** Placeholder when value is empty, shown inside the trigger. */
   placeholder?: string;
   compact?: boolean;
   /** Highlight trigger when a non-default value is selected. */
   active?: boolean;
 };
 
-/** LPMS-style custom combo — button trigger + anchored list (no native select). */
+/** LPMS-style custom combo, button trigger + anchored list (no native select). */
 export function ComboSelect({
   label,
   value,

@@ -23,7 +23,7 @@ export function CouponRedeemPanel({
     try {
       const result = await redeemCoupon(code.trim());
       const label = result.credit.label ?? "Coupon credit";
-      setSuccess(`${label} added — ${result.wallet.unlockCredits} unlock credit(s) available.`);
+      setSuccess(`${label} added. ${result.wallet.unlockCredits} unlock credit(s) available.`);
       setCode("");
       onRedeemed?.();
     } catch (err) {

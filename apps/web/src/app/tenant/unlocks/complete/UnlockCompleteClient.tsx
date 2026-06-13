@@ -26,7 +26,7 @@ export function UnlockCompleteClient() {
     const normalized = status.toLowerCase();
     if (normalized === "successful") return null;
     if (normalized === "cancelled") {
-      return "Payment was cancelled. No charge was made — you can try again when ready.";
+      return "Payment was cancelled. No charge was made. You can try again when ready.";
     }
     return "Payment was not completed. Try again or choose a different payment method.";
   }, [status]);
@@ -83,7 +83,7 @@ export function UnlockCompleteClient() {
             if (!cancelled) {
               setFlowError(
                 status.toLowerCase() === "cancelled"
-                  ? "Payment was cancelled. No charge was made — you can try again when ready."
+                  ? "Payment was cancelled. No charge was made. You can try again when ready."
                   : "Payment was not completed. Try again or choose a different payment method.",
               );
             }
@@ -96,7 +96,7 @@ export function UnlockCompleteClient() {
         if (await poll()) {
           if (!cancelled) {
             setDone(true);
-            setMessage("Unlock active — landlord contact is ready.");
+            setMessage("Unlock active. Landlord contact is ready.");
           }
           return;
         }
@@ -116,7 +116,7 @@ export function UnlockCompleteClient() {
             if (interval) window.clearInterval(interval);
             if (!cancelled) {
               setDone(true);
-              setMessage("Unlock active — landlord contact is ready.");
+              setMessage("Unlock active. Landlord contact is ready.");
             }
           }
         }, 2000);

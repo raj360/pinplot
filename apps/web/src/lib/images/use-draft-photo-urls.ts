@@ -5,7 +5,7 @@ import type { DraftPhoto } from "@/components/buildings/BuildingGalleryUpload";
 
 /**
  * Stable blob URLs for draft listing photos. Survives step navigation in
- * multi-step forms — unlike per-component useMemo + cleanup, which revokes URLs
+ * multi-step forms, unlike per-component useMemo + cleanup, which revokes URLs
  * when the upload step unmounts and breaks thumbnails on return.
  */
 export function useDraftPhotoUrls(photos: DraftPhoto[]) {

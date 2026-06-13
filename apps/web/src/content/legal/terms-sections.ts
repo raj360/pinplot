@@ -1,4 +1,4 @@
-/** Draft terms from docs/legal/TERMS-OUTLINE.md — counsel must replace before production. */
+/** Draft terms from docs/legal/TERMS-OUTLINE.md, counsel must replace before production. */
 
 export const TERMS_DRAFT_NOTICE =
   "Draft summary for product review only. This is not binding legal text. A qualified lawyer must publish final Terms before launch.";
@@ -7,7 +7,7 @@ export const TERMS_SECTIONS: { title: string; paragraphs: string[] }[] = [
   {
     title: "1. Introduction & acceptance",
     paragraphs: [
-      "PlotPin is operated by [Entity Name — confirm with counsel]. By using PlotPin, creating a landlord listing, or paying a tenant unlock fee, you agree to these Terms.",
+      "PlotPin is operated by [Entity Name, confirm with counsel]. By using PlotPin, creating a landlord listing, or paying a tenant unlock fee, you agree to these Terms.",
       "You must be at least 18 years old (or the age of majority in your jurisdiction).",
     ],
   },

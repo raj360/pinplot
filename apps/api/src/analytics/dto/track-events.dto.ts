@@ -14,6 +14,10 @@ export const LISTING_EVENT_TYPES = [
   "IMPRESSION",
   "DETAIL_VIEW",
   "UNLOCK_CLICK",
+  "CONTACT_CALL",
+  "CONTACT_WHATSAPP",
+  "CONTACT_COPY",
+  "DIRECTIONS",
 ] as const;
 
 export type ListingEventType = (typeof LISTING_EVENT_TYPES)[number];
@@ -33,6 +37,10 @@ export class ListingAnalyticsEventDto {
   @IsString()
   @MaxLength(32)
   source?: string;
+
+  @IsOptional()
+  @IsUUID()
+  unlockId?: string;
 }
 
 export class TrackListingEventsDto {

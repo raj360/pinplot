@@ -117,7 +117,7 @@ export function BuildingDetailPanel({
       href={exploreBuildingUrl(building.id, { hideMap: true })}
       className="inline-block w-full bg-primary py-2.5 text-center text-sm font-medium text-primary-foreground"
     >
-      View details — unlock contact
+      View details to unlock contact
     </Link>
   ) : null;
 

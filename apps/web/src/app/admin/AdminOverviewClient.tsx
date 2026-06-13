@@ -170,7 +170,7 @@ export default function AdminOverviewClient() {
             </ul>
           ) : (
             <p className="mt-4 text-sm text-muted">
-              No view data yet — metrics appear as tenants browse Explore.
+              No view data yet. Metrics appear as tenants browse Explore.
             </p>
           )}
         </section>

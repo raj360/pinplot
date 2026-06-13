@@ -1,12 +1,12 @@
 import { cn } from "@/lib/utils/cn";
 
-/** Shared layout — SchoolSpring-style: header + content share one horizontal grid. */
+/** Shared layout, SchoolSpring-style: header + content share one horizontal grid. */
 export const LAYOUT = {
   /** Standard app pages (home, landlord, settings). */
   maxDefault: "max-w-5xl",
   /** Map explorer only. */
   maxWide: "max-w-[1600px]",
-  /** Admin sidebar column — must match header sidebar cell. */
+  /** Admin sidebar column, must match header sidebar cell. */
   sidebarWidth: "w-52",
   padX: "px-4",
   mainPy: "py-8",
@@ -20,12 +20,12 @@ export function layoutMaxClass(width: LayoutWidth = "default") {
   return width === "wide" ? LAYOUT.maxWide : LAYOUT.maxDefault;
 }
 
-/** Sidebar column (admin) — logo and nav links share this width. */
+/** Sidebar column (admin), logo and nav links share this width. */
 export function sidebarColumnClass(className?: string) {
   return cn(LAYOUT.sidebarWidth, "shrink-0", LAYOUT.padX, className);
 }
 
-/** Standard / wide header — content box aligns with PageMain below. */
+/** Standard / wide header, content box aligns with PageMain below. */
 export function headerInnerClass(variant: HeaderVariant = "standard") {
   const width: LayoutWidth = variant === "wide" ? "wide" : "default";
   return cn(
@@ -36,7 +36,7 @@ export function headerInnerClass(variant: HeaderVariant = "standard") {
   );
 }
 
-/** Sidebar header — full width row split into sidebar + nav columns. */
+/** Sidebar header, full width row split into sidebar + nav columns. */
 export function headerSidebarShellClass() {
   return cn("flex w-full items-stretch", LAYOUT.headerHeight);
 }
@@ -62,7 +62,7 @@ export function pageMainClass(
   );
 }
 
-/** Main area beside admin sidebar — left-aligned, no extra centering. */
+/** Main area beside admin sidebar, left-aligned, no extra centering. */
 export function pageMainBesideSidebarClass(className?: string) {
   return cn("min-w-0 flex-1", LAYOUT.padX, LAYOUT.mainPy, className);
 }

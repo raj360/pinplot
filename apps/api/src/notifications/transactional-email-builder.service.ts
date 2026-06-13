@@ -54,7 +54,7 @@ export class TransactionalEmailBuilder {
       "",
       "If you did not request this, ignore this email.",
       "",
-      "— PlotPin",
+      "- PlotPin",
     ].join("\n");
 
     return { html, text };
@@ -112,13 +112,13 @@ export class TransactionalEmailBuilder {
     return this.buildSimpleActionEmail({
       preheader: `A tenant unlocked Unit ${unitNumber} at ${buildingName}`,
       heading: "Tenant unlocked contact",
-      intro: `A tenant unlocked contact for <strong>${escapeHtml(buildingName)}</strong> — Unit ${escapeHtml(unitNumber)}.`,
+      intro: `A tenant unlocked contact for <strong>${escapeHtml(buildingName)}</strong>, Unit ${escapeHtml(unitNumber)}.`,
       detail:
         "They have a time-limited exclusive window to reach you. Respond promptly while the listing is fresh.",
       buttonLabel: "View building",
       buttonUrl: manageUrl,
       textLines: [
-        `A tenant unlocked contact for "${buildingName}" — Unit ${unitNumber}.`,
+        `A tenant unlocked contact for "${buildingName}", Unit ${unitNumber}.`,
         "",
         "They have a time-limited exclusive window to reach you.",
         "",
@@ -135,9 +135,9 @@ export class TransactionalEmailBuilder {
   ) {
     const fee = `${amountUgx.toLocaleString()} UGX (or equivalent charged at checkout)`;
     return this.buildSimpleActionEmail({
-      preheader: `Unlock active — ${buildingName} Unit ${unitNumber}`,
+      preheader: `Unlock active for ${buildingName} Unit ${unitNumber}`,
       heading: "Your unlock is active",
-      intro: `You unlocked <strong>${escapeHtml(buildingName)}</strong> — Unit ${escapeHtml(unitNumber)}.`,
+      intro: `You unlocked <strong>${escapeHtml(buildingName)}</strong>, Unit ${escapeHtml(unitNumber)}.`,
       detail: `Fee: ${escapeHtml(fee)}`,
       buttonLabel: "View contact & directions",
       buttonUrl: unlocksUrl,
@@ -160,15 +160,15 @@ export class TransactionalEmailBuilder {
     manageUrl: string,
   ) {
     return this.buildSimpleActionEmail({
-      preheader: `Unlock window ends in ~${hoursLeft}h — ${buildingName}`,
+      preheader: `Unlock window ends in ~${hoursLeft}h for ${buildingName}`,
       heading: "Unlock window ending soon",
-      intro: `A tenant's exclusive window for <strong>${escapeHtml(buildingName)}</strong> — Unit ${escapeHtml(unitNumber)} ends in about ${hoursLeft} hours.`,
+      intro: `A tenant's exclusive window for <strong>${escapeHtml(buildingName)}</strong>, Unit ${escapeHtml(unitNumber)} ends in about ${hoursLeft} hours.`,
       detail:
         "Respond while you still have their attention. If the unit is rented, mark it unavailable in your dashboard.",
       buttonLabel: "Manage building",
       buttonUrl: manageUrl,
       textLines: [
-        `Unlock window ending soon for "${buildingName}" — Unit ${unitNumber}.`,
+        `Unlock window ending soon for "${buildingName}", Unit ${unitNumber}.`,
         "",
         `About ${hoursLeft} hours remain on the tenant's exclusive window.`,
         "",
@@ -188,14 +188,14 @@ export class TransactionalEmailBuilder {
       ? `Your verified contact window ends in about ${hoursLeft} hours. Reach the landlord soon if you have not already.`
       : `Your exclusive window ends in about ${hoursLeft} hours. Contact the landlord or visit the property while access is active.`;
     return this.buildSimpleActionEmail({
-      preheader: `Your unlock ends in ~${hoursLeft}h — ${buildingName}`,
+      preheader: `Your unlock ends in ~${hoursLeft}h for ${buildingName}`,
       heading: "Unlock ending soon",
-      intro: `Your access to <strong>${escapeHtml(buildingName)}</strong> — Unit ${escapeHtml(unitNumber)} expires in about ${hoursLeft} hours.`,
+      intro: `Your access to <strong>${escapeHtml(buildingName)}</strong>, Unit ${escapeHtml(unitNumber)} expires in about ${hoursLeft} hours.`,
       detail,
       buttonLabel: "View contact",
       buttonUrl: unlocksUrl,
       textLines: [
-        `Your unlock for "${buildingName}" — Unit ${unitNumber} ends in about ${hoursLeft} hours.`,
+        `Your unlock for "${buildingName}", Unit ${unitNumber} ends in about ${hoursLeft} hours.`,
         "",
         detail,
         "",
@@ -214,14 +214,14 @@ export class TransactionalEmailBuilder {
       ? "Your verified contact window has ended. You can unlock again on Explore if the unit is still listed."
       : "Your exclusive window has ended and landlord contact is no longer available from this unlock.";
     return this.buildSimpleActionEmail({
-      preheader: `Unlock ended — ${buildingName}`,
+      preheader: `Unlock ended for ${buildingName}`,
       heading: "Unlock window ended",
-      intro: `Your access to <strong>${escapeHtml(buildingName)}</strong> — Unit ${escapeHtml(unitNumber)} has expired.`,
+      intro: `Your access to <strong>${escapeHtml(buildingName)}</strong>, Unit ${escapeHtml(unitNumber)} has expired.`,
       detail,
       buttonLabel: "Browse Explore",
       buttonUrl: exploreUrl,
       textLines: [
-        `Your unlock for "${buildingName}" — Unit ${unitNumber} has expired.`,
+        `Your unlock for "${buildingName}", Unit ${unitNumber} has expired.`,
         "",
         detail,
         "",
@@ -237,17 +237,17 @@ export class TransactionalEmailBuilder {
     locksUnit: boolean,
   ) {
     const detail = locksUnit
-      ? "The tenant's exclusive window has ended. The unit should appear on the map again — update the status if it is rented."
+      ? "The tenant's exclusive window has ended. The unit should appear on the map again. Update the status if it is rented."
       : "The tenant's contact window has ended. The listing remains available on the map.";
     return this.buildSimpleActionEmail({
-      preheader: `Unlock ended — ${buildingName} Unit ${unitNumber}`,
+      preheader: `Unlock ended for ${buildingName} Unit ${unitNumber}`,
       heading: "Tenant unlock ended",
-      intro: `The unlock window for <strong>${escapeHtml(buildingName)}</strong> — Unit ${escapeHtml(unitNumber)} has ended.`,
+      intro: `The unlock window for <strong>${escapeHtml(buildingName)}</strong>, Unit ${escapeHtml(unitNumber)} has ended.`,
       detail,
       buttonLabel: "Manage building",
       buttonUrl: manageUrl,
       textLines: [
-        `Unlock ended for "${buildingName}" — Unit ${unitNumber}.`,
+        `Unlock ended for "${buildingName}", Unit ${unitNumber}.`,
         "",
         detail,
         "",
@@ -264,13 +264,13 @@ export class TransactionalEmailBuilder {
     return this.buildSimpleActionEmail({
       preheader: `Unit ${unitNumber} is visible on the map again`,
       heading: "Exclusive lock ended",
-      intro: `The exclusive map lock for <strong>${escapeHtml(buildingName)}</strong> — Unit ${escapeHtml(unitNumber)} has ended.`,
+      intro: `The exclusive map lock for <strong>${escapeHtml(buildingName)}</strong>, Unit ${escapeHtml(unitNumber)} has ended.`,
       detail:
         "The unit is visible to other tenants again. Mark it rented or unavailable if it is no longer on the market.",
       buttonLabel: "Update unit status",
       buttonUrl: manageUrl,
       textLines: [
-        `Exclusive lock ended for "${buildingName}" — Unit ${unitNumber}.`,
+        `Exclusive lock ended for "${buildingName}", Unit ${unitNumber}.`,
         "",
         "The unit is visible on the map again.",
         "",
@@ -285,7 +285,7 @@ export class TransactionalEmailBuilder {
     manageUrl: string,
   ) {
     return this.buildSimpleActionEmail({
-      preheader: `Featured boost ends in ${daysLeft} days — ${buildingName}`,
+      preheader: `Featured boost ends in ${daysLeft} days for ${buildingName}`,
       heading: "Featured boost ending soon",
       intro: `Your featured placement for <strong>${escapeHtml(buildingName)}</strong> ends in about ${daysLeft} days.`,
       detail: "Renew featured to stay at the top of Explore and the homepage carousel.",
@@ -305,7 +305,7 @@ export class TransactionalEmailBuilder {
     manageUrl: string,
   ) {
     return this.buildSimpleActionEmail({
-      preheader: `Still available? — ${buildingName} Unit ${unitNumber}`,
+      preheader: `Still available? ${buildingName} Unit ${unitNumber}`,
       heading: "Listing still available?",
       intro: `Unit ${escapeHtml(unitNumber)} at <strong>${escapeHtml(buildingName)}</strong> has been marked available for over 30 days.`,
       detail:
@@ -313,7 +313,7 @@ export class TransactionalEmailBuilder {
       buttonLabel: "Manage building",
       buttonUrl: manageUrl,
       textLines: [
-        `"${buildingName}" — Unit ${unitNumber} has been available for 30+ days.`,
+        `"${buildingName}", Unit ${unitNumber} has been available for 30+ days.`,
         "",
         manageUrl,
       ],
@@ -342,7 +342,7 @@ export class TransactionalEmailBuilder {
       ].join(""),
     });
 
-    const text = [...opts.textLines, "", "— PlotPin"].join("\n");
+    const text = [...opts.textLines, "", "- PlotPin"].join("\n");
     return { html, text };
   }
 }

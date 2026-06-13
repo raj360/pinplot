@@ -7,6 +7,7 @@ import { DashboardSection } from "@/components/layout/DashboardSection";
 import { BuildingPhotoManager } from "@/components/buildings/BuildingPhotoManager";
 import { ManageBuildingSkeleton } from "@/components/landlord/LandlordPageSkeletons";
 import { FeaturedBoostPanel } from "@/components/landlord/FeaturedBoostPanel";
+import { LandlordUnitHoldLine } from "@/components/landlord/LandlordUnitHoldLine";
 import { Button } from "@/components/ui/button";
 import {
   fetchMyBuilding,
@@ -107,19 +108,8 @@ export default function ManageBuildingClient({
     setPendingAction({ unitId, status });
     setError(null);
     try {
-      const result = await updateUnitStatus(buildingId, unitId, status);
-      setBuilding((prev) => {
-        if (!prev) return prev;
-        const units = prev.units.map((u) =>
-          u.id === unitId ? result.unit : u,
-        );
-        return {
-          ...prev,
-          units,
-          availableUnitCount: units.filter((u) => u.status === "AVAILABLE")
-            .length,
-        };
-      });
+      await updateUnitStatus(buildingId, unitId, status);
+      await load();
     } catch (err) {
       const message =
         err instanceof Error ? err.message : "Could not update unit status.";
@@ -169,7 +159,7 @@ export default function ManageBuildingClient({
       await resubmitBuildingForReview(buildingId);
       await load();
       setResubmitMessage(
-        "Listing resubmitted — an admin will review it again soon.",
+        "Listing resubmitted. An admin will review it again soon.",
       );
     } catch (err) {
       setError(
@@ -275,7 +265,7 @@ export default function ManageBuildingClient({
 
       {!building.isVerified && !building.rejectedAt && (
         <p className="border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-          Pending admin review — you can edit photos while waiting. Units cannot
+          Pending admin review. You can edit photos while waiting. Units cannot
           go on the map until approved.
         </p>
       )}
@@ -307,7 +297,7 @@ export default function ManageBuildingClient({
       {building.isVerified && building.availableUnitCount > 0 ? (
         <p className="border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-900">
           <strong>Listing is free.</strong> Your units are visible on explore.
-          Tenants pay PlotPin only to unlock your contact — you are not charged
+          Tenants pay PlotPin only to unlock your contact. You are not charged
           a listing fee.
         </p>
       ) : null}
@@ -432,8 +422,8 @@ export default function ManageBuildingClient({
           building.availableUnitCount > 0
             ? `${building.availableUnitCount} of ${building.units.length} units visible to tenants on explore.`
             : building.isVerified
-              ? "No units visible yet — mark units available when you are ready."
-              : `${building.units.length} units — available after admin approval.`
+              ? "No units visible yet. Mark units available when you are ready."
+              : `${building.units.length} units, available after admin approval.`
         }
         action={
           canBulkAvailable && building.availableUnitCount > 0 ? (
@@ -479,6 +469,12 @@ export default function ManageBuildingClient({
                         (building.buildingType === "airbnb" ? "day" : "month"),
                     )}
                   </p>
+                  {locked ? (
+                    <LandlordUnitHoldLine
+                      lockedUntil={unit.lockedUntil ?? null}
+                      activeUnlockExpiresAt={unit.activeUnlockExpiresAt ?? null}
+                    />
+                  ) : null}
                 </div>
 
                 <div className="flex flex-wrap items-center gap-2">

@@ -34,7 +34,7 @@ export type Bounds = {
   west: number;
 };
 
-/** Default map bounds — greater Kampala */
+/** Default map bounds, greater Kampala */
 export const KAMPALA_BOUNDS: Bounds = {
   north: 0.4,
   south: 0.28,
@@ -151,9 +151,11 @@ export type LandlordBuilding = {
   availableUnitCount: number;
   /** Paid tenant unlocks across this building's units (all time). */
   unlockCount: number;
+  lockedUnitCount: number;
   isFeatured: boolean;
   featuredUntil: string | null;
   featuredSource: string | null;
+  createdAt: string;
 };
 
 export type CreateBuildingPayload = {
@@ -221,6 +223,8 @@ export type LandlordBuildingDetail = {
     currency: string;
     rentPeriod?: "month" | "day";
     status: string;
+    lockedUntil?: string | null;
+    activeUnlockExpiresAt?: string | null;
   }>;
 };
 
@@ -287,7 +291,7 @@ export type PendingBuilding = {
   created_at: string;
   approximate_lat: number;
   approximate_lng: number;
-  /** Landlord-placed pin — use for admin review maps. */
+  /** Landlord-placed pin, use for admin review maps. */
   pin_lat: number;
   pin_lng: number;
   total_units: number;
@@ -308,7 +312,7 @@ export function getLandlordDisplayName(building: PendingBuilding): string {
     .trim();
   if (name) return name;
   if (building.email) return building.email;
-  return "—";
+  return "-";
 }
 
 export async function fetchPendingBuildings() {
@@ -371,15 +375,28 @@ export type DuplicatePinWarning = {
   distanceM: number;
 };
 
+export type NearbyPinReview = {
+  id: string;
+  name: string;
+  landlordId: string | null;
+  pinLat: number;
+  pinLng: number;
+  distanceM: number;
+  isVerified: boolean;
+  isRejected: boolean;
+  isSameLandlord: boolean;
+  duplicateRisk: boolean;
+};
+
 export type AdminPendingBuildingDetail = {
   id: string;
   name: string;
   description: string | null;
   city: string;
   district: string | null;
-  /** ISO country of the building — drives listing currency/locale. */
+  /** ISO country of the building, drives listing currency/locale. */
   countryCode: string;
-  /** Listing currency (e.g. UGX, GBP) — units are priced in this. */
+  /** Listing currency (e.g. UGX, GBP), units are priced in this. */
   currency: string;
   buildingType: string;
   exactAddress: string | null;
@@ -391,6 +408,7 @@ export type AdminPendingBuildingDetail = {
   isVerified: boolean;
   ownershipAttestedAt: string | null;
   duplicatePinWarnings: DuplicatePinWarning[];
+  nearbyPins: NearbyPinReview[];
   landlordPhoneRequired: boolean;
   units: AdminPendingUnit[];
   landlord: {
@@ -425,11 +443,26 @@ export function getAdminLandlordDisplayName(
     .trim();
   if (name) return name;
   if (building.landlord.email) return building.landlord.email;
-  return "—";
+  return "-";
 }
 
 export async function fetchAdminPendingBuilding(id: string) {
   return apiFetch<AdminPendingBuildingDetail>(`/admin/buildings/${id}`);
+}
+
+export async function fetchAdminNearbyPins(
+  buildingId: string,
+  pin?: { lat: number; lng: number },
+) {
+  const params = new URLSearchParams();
+  if (pin) {
+    params.set("lat", String(pin.lat));
+    params.set("lng", String(pin.lng));
+  }
+  const query = params.toString();
+  return apiFetch<NearbyPinReview[]>(
+    `/admin/buildings/${buildingId}/nearby-pins${query ? `?${query}` : ""}`,
+  );
 }
 
 export async function updateAdminPendingBuilding(

@@ -1,8 +1,8 @@
 export type AddressHints = {
   city: string;
-  /** Finest area name — neighborhood / sublocality (e.g. Kamwokya). */
+  /** Finest area name, neighborhood / sublocality (e.g. Kamwokya). */
   district: string;
-  /** Street-level hint for placeholder only — never auto-saved as exact address. */
+  /** Street-level hint for placeholder only, never auto-saved as exact address. */
   addressHint: string;
   /** Full hierarchy for display, e.g. "Kamwokya · Kawempe Division · Kampala". */
   areaLabel: string;
@@ -48,7 +48,7 @@ function isLikelyZoneName(part: string): boolean {
   return part.trim().length >= 3;
 }
 
-/** Finest area label for district field — excludes city and country. */
+/** Finest area label for district field, excludes city and country. */
 export function resolveDistrictFromParts(
   city: string,
   zones: string[],
@@ -66,7 +66,7 @@ export function resolveDistrictFromParts(
   return fromLabel ?? "";
 }
 
-/** City for listing — prefer locality, fall back to coarsest area label part. */
+/** City for listing, prefer locality, fall back to coarsest area label part. */
 export function resolveCityFromHints(hints: AddressHints): string {
   if (hints.city.trim()) return hints.city.trim();
 
@@ -78,7 +78,7 @@ export function resolveCityFromHints(hints: AddressHints): string {
   return parts[parts.length - 1] ?? "";
 }
 
-/** District / area for listing — never leave stale value when geocode has no division. */
+/** District / area for listing, never leave stale value when geocode has no division. */
 export function resolveDistrictFromHints(hints: AddressHints): string {
   return resolveDistrictFromParts(hints.city, hints.zones, hints.areaLabel);
 }

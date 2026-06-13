@@ -16,17 +16,26 @@ export type TenantUnlock = {
     phone: string | null;
     phoneSecondary?: string | null;
     exactAddress: string | null;
-    /** True when only sign-in email is available — landlord has no phone on profile. */
+    /** True when only sign-in email is available, landlord has no phone on profile. */
     contactIsEmailFallback?: boolean;
   };
   location: {
     lat: number;
     lng: number;
   };
-  /** Included on unlock responses — gated on public building endpoints. */
+  /** Included on unlock responses, gated on public building endpoints. */
   coverImageUrl?: string;
   imageUrls?: string[];
   videoUrl?: string;
+  /** Listing context for unlock hub cards (Phase 4). */
+  bedrooms?: number;
+  rentAmount?: number;
+  listingCurrency?: string;
+  district?: string | null;
+  city?: string | null;
+  /** Settled payment from `payments` join on list endpoints. */
+  amountPaid?: number;
+  paidCurrency?: string;
 };
 
 export type UnlockStatus =

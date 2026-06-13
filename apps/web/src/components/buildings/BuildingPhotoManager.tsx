@@ -11,6 +11,7 @@ import {
   registerBuildingImage,
   setAdminBuildingCoverImage,
   setBuildingCoverImage,
+  uploadAndRegisterBuildingImages,
 } from "@/lib/api/building-images";
 import { MAX_BUILDING_PHOTOS } from "@plotpin/shared-types";
 import { uploadBuildingImage } from "@/lib/supabase/storage";
@@ -191,14 +192,15 @@ export function BuildingPhotoManager({
       const register = isAdmin
         ? registerAdminBuildingImage
         : registerBuildingImage;
+      const hadNoPhotos = images.length === 0;
 
-      for (const photo of draftPhotos) {
-        const { fullUrl, thumbUrl } = await uploadBuildingImage(
-          buildingId,
-          photo.file,
-        );
-        await register(buildingId, fullUrl, false, thumbUrl);
-      }
+      await uploadAndRegisterBuildingImages(
+        buildingId,
+        draftPhotos.map((photo) => photo.file),
+        hadNoPhotos ? 0 : -1,
+        register,
+        uploadBuildingImage,
+      );
 
       setDraftPhotos([]);
       await load();

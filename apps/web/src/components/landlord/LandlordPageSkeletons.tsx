@@ -61,7 +61,7 @@ function LandlordUnitRowSkeleton() {
   );
 }
 
-/** Building manage page — title band + featured panel + unit rows. */
+/** Building manage page, title band + featured panel + unit rows. */
 export function ManageBuildingSkeleton() {
   return (
     <div className="space-y-4" aria-busy="true" aria-label="Loading building">
@@ -104,30 +104,69 @@ export function FeaturedBoostPanelSkeleton() {
   );
 }
 
+/** Tenant My unlocks — active unlock card placeholder. */
 export function TenantUnlockCardSkeleton() {
   return (
-    <article className="overflow-hidden border border-border bg-surface">
+    <article className="overflow-hidden rounded-[var(--radius-DEFAULT)] border border-border bg-surface">
       <div className="border-b border-primary/20 bg-primary/10 px-4 py-3">
-        <Skeleton className="h-3 w-36" />
-        <Skeleton className="mt-2 h-6 w-64 max-w-full" />
-        <Skeleton className="mt-2 h-4 w-40" />
+        <div className="flex gap-4">
+          <Skeleton className="hidden h-20 w-28 shrink-0 sm:block" />
+          <div className="min-w-0 flex-1 space-y-2">
+            <Skeleton className="h-3 w-36" />
+            <Skeleton className="h-6 w-64 max-w-full" />
+            <Skeleton className="h-4 w-40" />
+            <Skeleton className="h-1.5 w-full" />
+          </div>
+        </div>
       </div>
-      <Skeleton className="aspect-[16/10] w-full" />
-      <div className="space-y-3 p-4">
-        <Skeleton className="h-10 w-full" />
-        <Skeleton className="h-10 w-full" />
-        <Skeleton className="h-4 w-3/4" />
+      <div className="grid gap-4 p-4 lg:grid-cols-2">
+        <div className="space-y-3">
+          <Skeleton className="h-3 w-28" />
+          <Skeleton className="h-11 w-full" />
+          <Skeleton className="h-11 w-full" />
+          <Skeleton className="h-3 w-24" />
+          <Skeleton className="h-4 w-full" />
+        </div>
+        <div className="space-y-3">
+          <Skeleton className="h-44 w-full" />
+          <Skeleton className="h-11 w-full" />
+        </div>
       </div>
     </article>
   );
 }
 
-/** Tenant My unlocks — card stack placeholder. */
-export function TenantUnlocksSkeleton() {
+/** Tenant My unlocks — past unlock row placeholder. */
+export function TenantPastUnlockCardSkeleton() {
+  return (
+    <article className="card-elevated p-4">
+      <div className="flex gap-4">
+        <Skeleton className="hidden h-16 w-24 shrink-0 sm:block" />
+        <div className="min-w-0 flex-1 space-y-2">
+          <Skeleton className="h-3 w-24" />
+          <Skeleton className="h-6 w-56 max-w-full" />
+          <Skeleton className="h-4 w-28" />
+          <Skeleton className="mt-1 h-4 w-full max-w-md" />
+          <Skeleton className="h-4 w-44" />
+        </div>
+      </div>
+    </article>
+  );
+}
+
+/** Tenant My unlocks, card stack placeholder. */
+export function TenantUnlocksSkeleton({
+  variant = "active",
+}: {
+  variant?: "active" | "expired";
+}) {
+  const Card =
+    variant === "expired" ? TenantPastUnlockCardSkeleton : TenantUnlockCardSkeleton;
+
   return (
     <div className="space-y-4" aria-busy="true" aria-label="Loading unlocks">
-      <TenantUnlockCardSkeleton />
-      <TenantUnlockCardSkeleton />
+      <Card />
+      <Card />
     </div>
   );
 }

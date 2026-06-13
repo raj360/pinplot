@@ -56,7 +56,7 @@ export class CouponsService {
     if (amountUgx == null) {
       if (purpose === PaymentPurpose.FEATURED) {
         throw new BadRequestException(
-          "Set a nominal amount for featured coupons — there is no default featured fee yet.",
+          "Set a nominal amount for featured coupons. There is no default featured fee yet.",
         );
       }
       const quote = await this.pricing.quote({

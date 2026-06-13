@@ -14,7 +14,7 @@ const siteUrl =
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
   title: {
-    default: "PlotPin — Find verified rentals on the map",
+    default: "PlotPin: Find verified rentals on the map",
     template: "%s · PlotPin",
   },
   description:
@@ -30,7 +30,7 @@ export const metadata: Metadata = {
   },
   manifest: "/site.webmanifest",
   openGraph: {
-    title: "PlotPin — Find verified rentals on the map",
+    title: "PlotPin: Find verified rentals on the map",
     description:
       "Browse rentals on the map. Pay once to unlock the landlord.",
     siteName: "PlotPin",
@@ -40,7 +40,7 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "PlotPin — Find verified rentals on the map",
+    title: "PlotPin: Find verified rentals on the map",
     description:
       "Browse rentals on the map. Pay once to unlock the landlord.",
   },

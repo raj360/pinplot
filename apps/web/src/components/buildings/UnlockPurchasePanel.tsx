@@ -187,7 +187,7 @@ export function UnlockPurchasePanel({
                         <Link href="/settings" className="text-primary underline">
                           Settings
                         </Link>{" "}
-                        before paying — Flutterwave sends the PIN prompt to that
+                        before paying. Flutterwave sends the PIN prompt to that
                         number.
                       </span>
                     )

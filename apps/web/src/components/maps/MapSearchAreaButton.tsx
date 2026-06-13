@@ -12,7 +12,7 @@ type MapSearchAreaButtonProps = {
   className?: string;
 };
 
-/** Floating control — search listings in the current map viewport. */
+/** Floating control, search listings in the current map viewport. */
 export function MapSearchAreaButton({
   visible,
   searching = false,

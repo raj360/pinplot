@@ -142,7 +142,7 @@ export default function AdminCouponsClient() {
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <label className="block text-sm">
             <span className="text-muted">
-              Nominal amount (UGX){requiresAmount ? "" : " — optional"}
+              Nominal amount (UGX){requiresAmount ? "" : ", optional"}
             </span>
             <input
               type="number"
@@ -155,7 +155,7 @@ export default function AdminCouponsClient() {
             />
             <span className="mt-1 block text-xs text-muted">
               {requiresAmount
-                ? "Featured has no default fee — set it explicitly."
+                ? "Featured has no default fee. Set it explicitly."
                 : "Leave blank to use the standard fee for this purpose."}
             </span>
           </label>

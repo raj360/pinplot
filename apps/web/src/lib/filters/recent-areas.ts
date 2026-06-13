@@ -48,7 +48,7 @@ export function recordRecentArea(area: RecentArea): RecentArea[] {
     try {
       window.localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
     } catch {
-      // Storage full / unavailable — recents are best-effort only.
+      // Storage full / unavailable, recents are best-effort only.
     }
   }
   return next;

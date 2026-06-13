@@ -14,7 +14,7 @@ export type VerifyCodeResponse = {
   message?: string;
 };
 
-/** PlotPin-owned OTP — code logged to API terminal in dev; Postmark later. */
+/** PlotPin-owned OTP, code logged to API terminal in dev; Postmark later. */
 export async function sendLoginCode(email: string): Promise<SendCodeResponse> {
   const res = await fetch(`${API_URL}/api/v1/auth/login/send-code`, {
     method: "POST",

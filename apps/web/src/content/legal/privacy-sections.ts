@@ -1,4 +1,4 @@
-/** Draft privacy from docs/legal/PRIVACY-OUTLINE.md — counsel must replace before production. */
+/** Draft privacy from docs/legal/PRIVACY-OUTLINE.md, counsel must replace before production. */
 
 export const PRIVACY_DRAFT_NOTICE =
   "Draft summary for product review only. This is not binding legal text. A qualified lawyer must publish a final Privacy Policy before launch.";
@@ -16,7 +16,7 @@ export const PRIVACY_SECTIONS: { title: string; paragraphs: string[] }[] = [
       "Account: email (via Supabase Auth), name, phone (especially for landlords), role, country preference.",
       "Listings: building details, approximate and exact coordinates (exact gated until unlock), photos, video URLs, unit rent and status, ownership attestation timestamp.",
       "Tenant activity: unlock purchases, wallet credits, coupon use, report submissions.",
-      "Payments: transaction IDs and amounts via Lemon Squeezy / Flutterwave — not full card numbers.",
+      "Payments: transaction IDs and amounts via Lemon Squeezy / Flutterwave, not full card numbers.",
       "Technical: IP (for viewer country), browser/device, cookies; communications and support messages.",
     ],
   },

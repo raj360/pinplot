@@ -1,5 +1,5 @@
 /**
- * Transactional HTML email frame — table layout, inline styles only (email clients).
+ * Transactional HTML email frame, table layout, inline styles only (email clients).
  * Brand aligns with PlotPin web: primary #1d4ed8, soft canvas #f6f8fc.
  *
  * Logo: use hosted PNG (`plotpin-logo-email.png`) — many clients block SVG in `<img>`.
@@ -32,7 +32,7 @@ export function escapeHtml(text: string): string {
 export type TransactionalEmailFrameOptions = {
   preheader: string;
   heading: string;
-  /** Trusted HTML only — must not include unescaped user input. */
+  /** Trusted HTML only, must not include unescaped user input. */
   bodyHtml: string;
   webBaseUrl: string | null;
   privacyUrl?: string | null;

@@ -3,7 +3,7 @@ import {
   supplyMarketsLabel,
 } from "@/lib/filters/search-areas";
 
-/** Footer / chrome tagline — supply market is fixed; browse context follows the viewer. */
+/** Footer / chrome tagline, supply market is fixed; browse context follows the viewer. */
 export function supplyDiscoveryTagline(
   viewerCountryCode: string,
   viewerCountryName: string,
@@ -22,12 +22,12 @@ export function supplyDiscoveryHeroHint(
 ): string {
   const supply = supplyMarketsLabel();
   if (isSupplyMarket(viewerCountryCode)) {
-    return `${supply} supply, global discovery — prices shown in your familiar currency.`;
+    return `${supply} supply, global discovery. Prices shown in your familiar currency.`;
   }
-  return `${supply} listings with rent in local currency — browse from ${viewerCountryName} with a familiar FX hint.`;
+  return `${supply} listings with rent in local currency, browse from ${viewerCountryName} with a familiar FX hint.`;
 }
 
-/** Featured listings section — local-first with optional worldwide strip. */
+/** Featured listings section, local-first with optional worldwide strip. */
 export function featuredListingsHeadline(): string {
   return "Featured listings";
 }
@@ -41,13 +41,13 @@ export function featuredListingsIntro(
     return `Promoted homes in ${viewerCountryName}, plus featured rentals from our other markets.`;
   }
   if (hasLocalFeatured) {
-    return `Promoted homes in ${viewerCountryName} — browse free, unlock when you are ready.`;
+    return `Promoted homes in ${viewerCountryName}. Browse free, unlock when you are ready.`;
   }
   if (hasGlobalFeatured) {
     const supply = supplyMarketsLabel();
-    return `Featured ${supply} rentals — browse from ${viewerCountryName}, unlock when you are ready.`;
+    return `Featured ${supply} rentals, browse from ${viewerCountryName}, unlock when you are ready.`;
   }
-  return "Verified properties promoted on PlotPin — browse free, unlock when you are ready.";
+  return "Verified properties promoted on PlotPin: browse free, unlock when you are ready.";
 }
 
 export function featuredListingsLocalHeading(viewerCountryName: string): string {
@@ -60,7 +60,7 @@ export function featuredListingsGlobalHeading(): string {
 
 export function featuredListingsGlobalHint(viewerCountryName: string): string {
   const supply = supplyMarketsLabel();
-  return `Verified ${supply} supply and other markets — discover from ${viewerCountryName}.`;
+  return `Verified ${supply} supply and other. Discover from ${viewerCountryName}.`;
 }
 
 export function featuredListingsGlobalStats(

@@ -5,7 +5,7 @@ import {
 } from "@/content/legal/privacy-sections";
 
 export const metadata = {
-  title: "Privacy Policy — PlotPin",
+  title: "Privacy Policy | PlotPin",
   description: "PlotPin Privacy Policy (draft for review).",
 };
 

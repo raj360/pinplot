@@ -34,7 +34,7 @@ export function updateMyProfile(payload: UpdateProfilePayload) {
   });
 }
 
-/** localStorage timestamp — snooze profile prompt for 7 days. */
+/** localStorage timestamp, snooze profile prompt for 7 days. */
 export const PROFILE_PROMPT_SNOOZED_KEY = "plotpin-profile-prompt-snoozed-at";
 export const PROFILE_PROMPT_SNOOZE_MS = 7 * 24 * 60 * 60 * 1000;
 

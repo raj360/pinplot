@@ -195,7 +195,7 @@ export function ExploreFiltersPopover({
               <div className="border-b border-border px-4 py-3">
                 <p className="text-sm font-semibold text-foreground">Property filters</p>
                 <p className="mt-0.5 text-xs text-muted">
-                  Adjust options, then apply — map area stays the same.
+                  Adjust options, then apply. Map area stays the same.
                 </p>
               </div>
 

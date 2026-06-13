@@ -10,7 +10,7 @@ export const DEFAULT_LOCALE = "en-UG";
 export const DEFAULT_COUNTRY = "UG";
 export const DEFAULT_CURRENCY = "UGX";
 
-/** ISO 4217 — format whole UGX amounts (no fractional digits). */
+/** ISO 4217, format whole UGX amounts (no fractional digits). */
 export function formatCurrency(
   amount: number,
   currency: string = DEFAULT_CURRENCY,
@@ -29,7 +29,7 @@ export function formatRentPerMonth(
   amount: number | null | undefined,
   locale: string = DEFAULT_LOCALE,
 ): string {
-  if (amount == null) return "—";
+  if (amount == null) return "-";
   return `${formatCurrency(amount, DEFAULT_CURRENCY, locale)}/mo`;
 }
 

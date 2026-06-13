@@ -428,7 +428,7 @@ export function renderPlotPinMapHero(
       return;
     }
 
-    // hold finished — pin stays green, hand off to next spotlight
+    // hold finished, pin stays green, hand off to next spotlight
     if (activeId) {
       unlockedIds.add(activeId);
     }

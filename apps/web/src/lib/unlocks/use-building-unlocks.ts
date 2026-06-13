@@ -12,8 +12,12 @@ import {
 import { startUnlockCheckout } from "@/lib/api/payments";
 import { useAuth } from "@/lib/auth/use-auth";
 import { fetchBuildingUnlocks, unlockUnit, type TenantUnlock } from "@/lib/api/unlocks";
-import { fetchBuildingUnlocksFresh } from "@/lib/api/unlocks-cache";
 import { clearBuildingCache } from "@/lib/api/building-cache";
+import {
+  clearCachedBuildingUnlocks,
+  fetchBuildingUnlocksFresh,
+  readCachedBuildingUnlocks,
+} from "@/lib/api/unlocks-cache";
 import { fetchPriceQuote } from "@/lib/api/pricing";
 import {
   clearWalletCache,
@@ -101,16 +105,33 @@ export function useBuildingUnlocks(
     quotes: {},
   });
 
+  const cachedUnlocksForBuilding =
+    isAuthenticated && !authLoading
+      ? readCachedBuildingUnlocks(buildingId)
+      : null;
+
+  const effectiveUnlockState =
+    unlockState ??
+    (cachedUnlocksForBuilding !== null
+      ? {
+          buildingId,
+          forAuthenticated: true as const,
+          unlocks: cachedUnlocksForBuilding,
+        }
+      : null);
+
   const unlocksMatch =
     isAuthenticated &&
-    unlockState?.buildingId === buildingId &&
-    unlockState.forAuthenticated;
+    effectiveUnlockState?.buildingId === buildingId &&
+    effectiveUnlockState.forAuthenticated;
 
-  const resolvedUnlocks = unlocksMatch ? unlockState.unlocks : [];
+  const resolvedUnlocks = unlocksMatch ? effectiveUnlockState.unlocks : [];
   const activeUnlocks = isAuthenticated ? resolvedUnlocks : [];
   const loadingUnlocks =
     isAuthenticated && !authLoading && !unlocksMatch;
   const loading = authLoading || loadingUnlocks;
+  const awaitingUnlockStatus =
+    isAuthenticated && loadingUnlocks && activeUnlocks.length === 0;
 
   const walletMatch =
     isAuthenticated && walletState?.forAuthenticated === true;
@@ -322,6 +343,7 @@ export function useBuildingUnlocks(
           await refreshProfile();
         }
         clearBuildingCache(buildingId);
+        clearCachedBuildingUnlocks(buildingId);
         clearWalletCache();
         await reloadUnlocks();
         try {
@@ -370,6 +392,7 @@ export function useBuildingUnlocks(
     isAuthenticated,
     loading,
     loadingUnlocks,
+    awaitingUnlockStatus,
     primaryCreditUgx,
     representativeQuote,
     showUnlockSection,

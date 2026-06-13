@@ -9,7 +9,10 @@ import { BuildingUnlockedHero } from "@/components/buildings/BuildingUnlockedHer
 import { UnlockPurchasePanel } from "@/components/buildings/UnlockPurchasePanel";
 import { UnlockedAccessCard } from "@/components/buildings/UnlockedAccessCard";
 import { UnlockedAccessCompact } from "@/components/buildings/UnlockedAccessCompact";
-import { UnlockSectionSkeleton } from "@/components/explore/BuildingPreviewSkeleton";
+import {
+  BuildingDetailSkeleton,
+  UnlockSectionSkeleton,
+} from "@/components/explore/BuildingPreviewSkeleton";
 import { ReportListingPanel } from "@/components/buildings/ReportListingPanel";
 import type { BuildingDetail } from "@/lib/api/buildings";
 import { mergeBuildingMedia } from "@/lib/buildings/media";
@@ -102,6 +105,10 @@ export function BuildingDetailExperience({
     exclusiveHours: unlockPolicy.exclusiveHours,
     locksUnit: unlockPolicy.locksUnit,
   });
+
+  if (unlocks.awaitingUnlockStatus) {
+    return <BuildingDetailSkeleton variant={variant} />;
+  }
 
   if (variant === "compact") {
     if (hasAccess && building.availableUnitCount === 0) {
@@ -199,6 +206,7 @@ export function BuildingDetailExperience({
               unlock={unlock}
               showBuildingLink={false}
               showAccessNote={false}
+              showMobileActions={variant === "full"}
             />
           ))}
           <p className="text-xs text-muted">

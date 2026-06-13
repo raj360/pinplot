@@ -34,7 +34,7 @@ Keep `ALLOW_DEV_UNLOCK=1` in dev until Sprint **5B** webhooks enforce unlock pay
 | T-04 | Terms acceptance on submit + unlock | Done | T-03 |
 | T-05 | Admin verification checklist UI | Done | TRUST §4 |
 | T-06 | Report listing + admin queue | Done | TRUST |
-| T-07 | Duplicate pin warning on approve | Done | TRUST |
+| T-07 | Duplicate pin warning on approve | Done | TRUST · **Enhanced (5J):** exact-pin 50m map, nearby list, reject preset |
 | T-08 | New landlord building cap | Done | TRUST |
 | T-09 | Free listing UX — remove listing fee banner | Done | BUSINESS |
 | N-01 | Postmark integration | Done | NOTIFICATIONS |
@@ -205,7 +205,7 @@ yarn db:migrate   # applies 029 (notification_log), 030 (listing_analytics_event
 | H-02 | `GET /unlocks/mine?status=active\|expired\|all` | Done | Default `active` |
 | H-03 | Tenant UI: **Active** + **Past unlocks** tabs | Done | |
 | H-04 | Expired row copy + CTA | Done | “Unlock again on Explore” |
-| H-05 | Landlord: optional “lock ended” in-app hint | Pending | N-12 email ships in Track B |
+| H-05 | Landlord: optional “lock ended” in-app hint | Done | Server inbox (`user_notifications`) + dashboard banner + manage countdown |
 
 **Exit:** Tenants see unlock history; long-term units reappear on map after expiry (H-01).
 
@@ -253,11 +253,13 @@ yarn db:migrate   # applies 029 (notification_log), 030 (listing_analytics_event
 
 ```sql
 event_type   TEXT  -- IMPRESSION | DETAIL_VIEW | UNLOCK_CLICK
+                  -- CONTACT_CALL | CONTACT_WHATSAPP | CONTACT_COPY | DIRECTIONS  (034)
 building_id  UUID  NOT NULL
 unit_id      UUID  NULL
+unlock_id    UUID  NULL          -- migration 034, post-unlock engagement
 viewer_id    UUID  NULL          -- authenticated
 session_id   TEXT  NULL          -- anon fingerprint (cookie)
-source       TEXT  NULL          -- explore | featured | direct
+source       TEXT  NULL          -- explore | featured | direct | unlocks
 country_code CHAR(2) NULL
 created_at   TIMESTAMPTZ
 ```
@@ -271,6 +273,71 @@ created_at   TIMESTAMPTZ
 | Product | Homepage → explore CTR (UTM Phase 6) |
 
 **Exit:** Landlords see view performance; featured ROI measurable.
+
+### Track E — In-app notification inbox (N-09 v1) — **✅ implemented (run migration 033)**
+
+**Goal:** Server-side inbox for cron + transactional events; bell in header; landlord dashboard banners. Email remains optional audit via `notification_log`.
+
+```bash
+yarn db:migrate   # applies 033 (user_notifications)
+```
+
+| ID | Task | Status | Notes |
+|----|------|--------|-------|
+| N-09a | Migration `033_user_notifications` | Done | `read_at`, `dismissed_at`, idempotent `(user_id, type, dedupe_key)` |
+| N-09b | `InAppNotificationsService` + REST API | Done | `GET /notifications/mine`, unread count, read/dismiss, mark-all-read |
+| N-09c | Cron + transactional create in-app first | Done | `scheduled-notifications`, landlord/tenant notify services |
+| N-09d | Web: `NotificationBell` in header | Done | Unread badge + dropdown |
+| N-09e | Web: landlord lock-ended banner | Done | `InAppNotificationBanner` on dashboard (server dismiss) |
+| N-09f | Dedicated `/notifications` page | Pending | Phase 6 polish |
+
+**Exit:** Users see unread count in-app; dismiss/read persists server-side; lock-ended alerts no longer use localStorage.
+
+---
+
+## Sprint 5I — Tenant unlock hub (UX + engagement) — **✅ implemented (run migration 034)**
+
+**Goal:** Deliver clear ROI after paid unlock — contact-first hub, engagement tracking for feedback, no locked→unlocked flash on building detail.
+
+```bash
+yarn db:migrate   # applies 034 (unlock engagement event types + unlock_id on analytics)
+```
+
+| ID | Task | Status | Notes |
+|----|------|--------|-------|
+| U-01 | **My unlocks** Phase 1 — contact-first layout, open contact, copy, time progress | Done | `UnlockedAccessCard` |
+| U-02 | Engagement analytics events | Done | `CONTACT_CALL`, `CONTACT_WHATSAPP`, `CONTACT_COPY`, `DIRECTIONS` + `unlock_id` |
+| U-03 | Phase 2 — multi-unlock picker, `?tab=&unlock=` deep links, mobile bell | Done | `UnlockPickerList`, `AppHeader` |
+| U-04 | Phase 3 — building unlock session cache, detail skeleton gate, mobile bar, share/calendar | Done | `unlocks-cache.ts`, `UnlockAccessTools` |
+| U-05 | Phase 4 — enrich unlock API (rent, bedrooms, district/city, amount paid) | Done | `GET /unlocks/mine`, building unlocks |
+| U-06 | Post-unlock feedback prompt (engagement + 24h rule, cron) | Pending | [PLAN-U-06-FEEDBACK-CRON.md](./docs/PLAN-U-06-FEEDBACK-CRON.md) |
+| U-07 | Dedicated `/notifications` page | Pending | Moved from N-09f |
+
+**Exit:** Tenants reach landlord contact in one tap; unlock hub shows listing context and actual paid amount; product can target feedback to users who tapped Call/WhatsApp/directions.
+
+---
+
+## Sprint 5J — Admin approve quality (trust polish) — **✅ in current PR (no migration)**
+
+**Goal:** Admin approval catches duplicate pins and broken covers before go-live.
+
+| ID | Task | Status | Notes |
+|----|------|--------|-------|
+| T-07+ | Nearby pins map + list (50m, **exact pin**) | Done | `AdminNearbyPinsReview`, `GET …/nearby-pins` |
+| T-07+ | Fix duplicate query (was jittered `location` column) | Done | PostGIS on `exact_lat/lng` |
+| PHOTO-01 | Auto-cover on first upload; sync cover on approve | Done | `insertBuildingImage`, `assertBuildingHasCoverImage` |
+| PHOTO-01 | Admin copy: upload pending after wipe | Done | `BuildingPhotoManager`, `AdminEditBuildingClient` |
+
+**Exit:** Approving without photos fails loudly; replacing all photos restores cover; duplicate review works at same GPS as neighbor.
+
+**Ops (broken cover on already-live listing):** unverify → fix photos → approve, or landlord manage page — see [PENDING-WORK.md](./docs/PENDING-WORK.md).
+
+---
+
+## PR merge handoff
+
+**Before merge:** [docs/PENDING-WORK.md](./docs/PENDING-WORK.md) — verify checklist  
+**Resume after merge:** U-06 → 5C → Phase 6 (OG / UTM / PWA) → U-07
 
 ### Track D — Schema hygiene (P2, parallel)
 
@@ -292,7 +359,7 @@ created_at   TIMESTAMPTZ
 | T-14 | Verify badge (one-time) | Optional |
 | S4-19 | Landlord country on create | |
 | **P-LLC** | US LLC + Stripe | When PAYMENTS-STRATEGY §8 triggers |
-| S6-* | UTM, Open Graph, PWA | |
+| S6-* | UTM, Open Graph, PWA | | [GROWTH-OG-UTM.md](./docs/GROWTH-OG-UTM.md) · [PWA-CHECKLIST.md](./docs/PWA-CHECKLIST.md) |
 
 ---
 
@@ -310,6 +377,9 @@ created_at   TIMESTAMPTZ
 | Tenant sidebar + paid featured (5F) | ✅ |
 | Stay class /night + stale lock fix (5G) | ✅ (migration 028) |
 | Unlock history + analytics + cron notifications (5H) | ✅ (migrations 029–031; Railway cron after deploy — [OPS-CRON.md](./docs/OPS-CRON.md)) |
+| In-app notification inbox (N-09 v1) | ✅ (migration 033; bell + server dismiss) |
+| Tenant unlock hub + engagement analytics (5I) | ✅ (migration 034; phases 1–4) |
+| Admin approve quality — duplicate map + cover guard (5J) | ✅ (code-only; in current PR) |
 | Stripe / LLC | ⏸ deferred |
 
 ---
@@ -317,10 +387,12 @@ created_at   TIMESTAMPTZ
 ## Recommended build order
 
 ```
-Done:  5A · 5B · 5D · 5E · 5F · 5G (+ stale lock fix)
-Next:  5H Track A (unlock history) → Track B (cron notifications) → Track C (analytics) · 5C MoMo/SMS in parallel
-Later: M-01 open-contact · saved_buildings MVP (5H.1) · LLC+Stripe when justified
+Done:  5A · 5B · 5D · 5E · 5F · 5G · 5H · N-09 v1 · 5I (phases 1–4) · 5J (admin approve polish)
+Merge: Verify checklist in docs/PENDING-WORK.md · no new migration in 5J
+Next:  Ops go-live (Railway cron, migrations 029–034 prod) · U-06 feedback cron · 5C MoMo polish (SMS paused)
+Later: S6 OG/UTM/PWA · U-07 `/notifications` · SUPERADMIN repair-cover if needed · M-01 · LLC+Stripe
 Ops:   yarn fx:refresh daily (GitHub) · Railway hourly cron after deploy — docs/OPS-CRON.md
+Handoff: docs/PENDING-WORK.md
 ```
 
 ### Sprint 5H suggested day order
@@ -335,4 +407,4 @@ Day 6:   H-26 (admin slice) · H-30 (drop listing_events) · H-18 if time (stale
 
 ---
 
-*Last updated: 2026-06-10 — Sprint 5H planned (unlock lifecycle, analytics, cron notifications); 5G /night + stale lock release*
+*Last updated: 2026-06-13 — Sprint 5J admin approve polish; handoff in docs/PENDING-WORK.md*

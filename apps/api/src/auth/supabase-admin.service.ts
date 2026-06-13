@@ -33,7 +33,7 @@ export class SupabaseAdminService implements OnModuleInit {
       });
     } else {
       this.logger.warn(
-        "SUPABASE_SERVICE_ROLE_KEY not set — OTP verify cannot create sessions",
+        "SUPABASE_SERVICE_ROLE_KEY not set, OTP verify cannot create sessions",
       );
     }
 

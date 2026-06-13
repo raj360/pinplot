@@ -26,7 +26,7 @@ const BASE_UGX_THRESHOLDS = [500_000, 1_000_000, 2_000_000, 5_000_000];
 /**
  * Curated monthly-rent tier edges per currency, reflecting typical big-city
  * asking rents in each market (research-informed approximations). FX-from-UGX
- * understates developed markets, so these give realistic brackets — e.g. USD
+ * understates developed markets, so these give realistic brackets, e.g. USD
  * spans "Under $1k" through "Above $5k". Currencies absent here fall back to the
  * FX-derived ladder.
  */
@@ -130,7 +130,7 @@ export function typicalMonthlyRent(money?: RentRangeMoney): number {
   return converted != null ? niceRound(converted) : 500_000;
 }
 
-/** Default unit rent on the landlord create form — monthly or nightly by type. */
+/** Default unit rent on the landlord create form, monthly or nightly by type. */
 export function typicalListingRent(
   buildingType: string | undefined,
   money?: RentRangeMoney,

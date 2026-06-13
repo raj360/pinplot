@@ -25,11 +25,15 @@ type UnitRow = {
   building_id: string;
   unit_number: string;
   bedrooms: number;
+  rent_amount: number | string;
+  currency: string;
   status: string;
   rent_period?: string;
   building_name: string;
   building_type: string;
   country_code: string;
+  district: string | null;
+  city: string | null;
   cover_image_path?: string | null;
   video_url?: string | null;
   exact_address: string | null;
@@ -47,12 +51,24 @@ type UnlockRow = {
   id: string;
   unit_id: string;
   tenant_id: string;
+  payment_id: string;
   is_winner: boolean;
   revealed_contact_phone: string | null;
   revealed_exact_address: string | null;
   expires_at: Date | null;
   created_at: Date;
+  payment_amount?: number | string | null;
+  payment_currency?: string | null;
 };
+
+const UNIT_SELECT = `
+  u.id, u.building_id, u.unit_number, u.bedrooms, u.rent_amount, u.currency,
+  u.status, u.rent_period,
+  b.name AS building_name, b.building_type, b.country_code, b.district, b.city,
+  b.cover_image_path, b.video_url, b.exact_address,
+  b.exact_lat, b.exact_lng, b.approximate_lat, b.approximate_lng,
+  p.phone AS landlord_phone, p.phone_secondary AS landlord_phone_secondary,
+  au.email AS landlord_email, b.landlord_id`;
 
 const UNIT_JOIN = `
   FROM units u
@@ -81,17 +97,14 @@ export class UnlocksService {
           : "";
 
     const { rows } = await this.db.query(
-      `SELECT uu.*, u.unit_number, u.building_id, u.rent_period, b.name AS building_name,
-              b.building_type, b.cover_image_path, b.video_url,
-              b.exact_lat, b.exact_lng, b.approximate_lat, b.approximate_lng,
-              p.phone AS landlord_phone,
-              p.phone_secondary AS landlord_phone_secondary,
-              au.email AS landlord_email
+      `SELECT uu.*, pay.amount AS payment_amount, pay.currency AS payment_currency,
+              ${UNIT_SELECT}
        FROM unit_unlocks uu
        JOIN units u ON u.id = uu.unit_id
        JOIN buildings b ON b.id = u.building_id
        LEFT JOIN profiles p ON p.id = b.landlord_id
        LEFT JOIN auth.users au ON au.id = b.landlord_id
+       LEFT JOIN payments pay ON pay.id = uu.payment_id
        WHERE uu.tenant_id = $1
          AND uu.is_winner = TRUE
          ${expiryFilter}
@@ -103,17 +116,14 @@ export class UnlocksService {
 
   async listForBuilding(buildingId: string, tenantId: string) {
     const { rows } = await this.db.query(
-      `SELECT uu.*, u.unit_number, u.building_id, u.rent_period, b.name AS building_name,
-              b.building_type, b.cover_image_path, b.video_url,
-              b.exact_lat, b.exact_lng, b.approximate_lat, b.approximate_lng,
-              p.phone AS landlord_phone,
-              p.phone_secondary AS landlord_phone_secondary,
-              au.email AS landlord_email
+      `SELECT uu.*, pay.amount AS payment_amount, pay.currency AS payment_currency,
+              ${UNIT_SELECT}
        FROM unit_unlocks uu
        JOIN units u ON u.id = uu.unit_id
        JOIN buildings b ON b.id = u.building_id
        LEFT JOIN profiles p ON p.id = b.landlord_id
        LEFT JOIN auth.users au ON au.id = b.landlord_id
+       LEFT JOIN payments pay ON pay.id = uu.payment_id
        WHERE b.id = $1
          AND uu.tenant_id = $2
          AND uu.is_winner = TRUE
@@ -330,6 +340,7 @@ export class UnlocksService {
         unit,
         tenantId,
         resolvedPayment.paymentId,
+        rows[0].id,
       ).catch(() => undefined);
 
       return {
@@ -347,18 +358,29 @@ export class UnlocksService {
     }
   }
 
+  private unlockSummaryFields(row: UnlockRow & UnitRow) {
+    const amountPaid =
+      row.payment_amount != null && row.payment_amount !== ""
+        ? Number(row.payment_amount)
+        : undefined;
+    return {
+      bedrooms: row.bedrooms,
+      rentAmount:
+        row.rent_amount != null && row.rent_amount !== ""
+          ? Number(row.rent_amount)
+          : undefined,
+      listingCurrency: row.currency,
+      district: row.district ?? null,
+      city: row.city ?? null,
+      amountPaid,
+      paidCurrency: row.payment_currency ?? undefined,
+    };
+  }
+
   private async lockUnit(unitId: string): Promise<UnitRow> {
     await this.unitLocks.releaseExpiredLockForUnit(unitId);
     const { rows } = await this.db.query<UnitRow>(
-      `SELECT u.id, u.building_id, u.unit_number, u.bedrooms, u.status, u.rent_period,
-              b.name AS building_name, b.building_type, b.country_code,
-              b.cover_image_path, b.video_url,
-              b.exact_address,
-              b.exact_lat, b.exact_lng, b.approximate_lat, b.approximate_lng,
-              p.phone AS landlord_phone,
-              p.phone_secondary AS landlord_phone_secondary,
-              au.email AS landlord_email,
-              b.landlord_id
+      `SELECT ${UNIT_SELECT}
        ${UNIT_JOIN}
        WHERE u.id = $1 AND b.is_verified = TRUE
        FOR UPDATE OF u`,
@@ -370,14 +392,7 @@ export class UnlocksService {
 
   private async loadUnit(unitId: string): Promise<UnitRow> {
     const { rows } = await this.db.query<UnitRow>(
-      `SELECT u.id, u.building_id, u.unit_number, u.bedrooms, u.status, u.rent_period,
-              b.name AS building_name, b.building_type, b.country_code,
-              b.cover_image_path, b.video_url,
-              b.exact_address,
-              b.exact_lat, b.exact_lng, b.approximate_lat, b.approximate_lng,
-              p.phone AS landlord_phone,
-              p.phone_secondary AS landlord_phone_secondary,
-              au.email AS landlord_email
+      `SELECT ${UNIT_SELECT}
        ${UNIT_JOIN}
        WHERE u.id = $1 AND b.is_verified = TRUE`,
       [unitId],
@@ -598,6 +613,7 @@ export class UnlocksService {
     unit: UnitRow,
     tenantId: string,
     paymentId: string,
+    unlockId: string,
   ) {
     const { rows: tenantRows } = await this.db.query<{ email: string | null }>(
       `SELECT email FROM auth.users WHERE id = $1`,
@@ -617,6 +633,7 @@ export class UnlocksService {
       buildingId: unit.building_id,
       buildingName: unit.building_name,
       unitNumber: unit.unit_number,
+      paymentId,
     });
 
     await this.tenantNotifications.notifyUnlockReceipt({
@@ -625,6 +642,8 @@ export class UnlocksService {
       buildingName: unit.building_name,
       unitNumber: unit.unit_number,
       amountUgx,
+      paymentId,
+      unlockId,
     });
   }
 
@@ -694,6 +713,14 @@ export class UnlocksService {
       location: { lat, lng },
       coverImageUrl: unit.cover_image_path ?? undefined,
       videoUrl: unit.video_url ?? undefined,
+      bedrooms: unit.bedrooms,
+      rentAmount:
+        unit.rent_amount != null && unit.rent_amount !== ""
+          ? Number(unit.rent_amount)
+          : undefined,
+      listingCurrency: unit.currency,
+      district: unit.district ?? null,
+      city: unit.city ?? null,
     };
   }
 
@@ -731,6 +758,7 @@ export class UnlocksService {
         : { lat, lng },
       coverImageUrl: unit.cover_image_path ?? undefined,
       videoUrl: unit.video_url ?? undefined,
+      ...this.unlockSummaryFields(row),
     };
   }
 }

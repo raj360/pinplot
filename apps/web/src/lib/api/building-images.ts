@@ -98,7 +98,7 @@ export async function uploadAndRegisterBuildingImages(
       await register(
         buildingId,
         fullUrl,
-        index === primaryIndex,
+        primaryIndex >= 0 && index === primaryIndex,
         thumbUrl,
       ),
     );
